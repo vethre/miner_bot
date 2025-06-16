@@ -6,7 +6,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from bot.utils.config import BOT_TOKEN
+from bot.utils.config import BOT_TOKEN, DB_DSN
 from bot.db import init_db, db
 from bot.handlers import register_handlers
 
@@ -14,6 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def main():
+    logger.info(f"▶️ Using DB_DSN: {DB_DSN!r}")
     logger.info("🔌 Ініціалізую бота...")
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
