@@ -3,7 +3,7 @@ from databases import Database
 from bot.utils.config import DB_DSN
 
 db = Database(DB_DSN)
-
+# init the DB
 async def init_db():
     # підключаємось до Supabase Postgres
     await db.connect()
