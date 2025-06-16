@@ -1,5 +1,5 @@
 # bot/handlers/shop.py
-from aiogram import Router, F
+from aiogram import Router, F, types
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.db import get_user, add_item, db
