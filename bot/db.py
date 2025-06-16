@@ -118,7 +118,7 @@ async def update_energy(user):
     """, {"ene": new_energy, "lupd": new_last, "uid": user["user_id"]})
     return new_energy, new_last
 
-# Cave Streak
+# Cave Streaks
 async def update_streak(user):
     today = datetime.date.today()
     last_day = user["last_mine_day"]
