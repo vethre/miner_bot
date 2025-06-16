@@ -1,0 +1,37 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# venv
+.env/
+venv/
+.venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Keys configs
+.env
+
+# DB
+data/*.db
+
+# Logs
+*.log
+*.tmp
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+
+# Mac/Linux tmp
+*.pid
