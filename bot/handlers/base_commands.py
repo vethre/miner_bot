@@ -1,9 +1,16 @@
 from aiogram import Router, types, F
-from bot.db import create_user, get_user, db
+from bot.db import create_user, get_user, db, add_item, get_inventory
 import time
 import random
 
 router = Router()
+
+ORE_DROP_RANGES = {
+    "🪨 Камінь":       (5, 10),
+    "🧱 Вугілля":      (3, 7),
+    "⛏️ Залізна руда": (2, 6),
+    "🪙 Золото":       (1, 3),
+}
 
 @router.message(F.text == "/start")
 async def start_cmd(message: types.Message):
@@ -34,27 +41,65 @@ async def mine_cmd(message: types.Message):
         )
         return
 
-    loot = random.choice(["🪨 Камінь", "🧱 Вугілля", "🪙 Золото"])
-    value = {"🪨 Камінь": 5, "🧱 Вугілля": 10, "🪙 Золото": 20}[loot]
+    loot = random.choice(list(ORE_DROP_RANGES.keys()))
+    low, high = ORE_DROP_RANGES[loot]
+    amount = random.randint(low, high)
 
-    # Оновлюємо баланс і час копання через db.execute
+    # Кладемо в інвентар і оновлюємо час
+    await add_item(user_id, loot, amount)
     await db.execute(
-        """
-        UPDATE users
-           SET balance = balance + :value,
-               last_mine = :now
-         WHERE user_id = :user_id
-        """,
-        {"value": value, "now": now, "user_id": user_id}
+        "UPDATE users SET last_mine = :now WHERE user_id = :user_id",
+        {"now": now, "user_id": user_id}
     )
 
-    await message.reply(f"Ти знайшов {loot}! Твій баланс поповнено на {value} монет 💰")
+    await message.reply(f"Ти здобув <b>{amount}×{loot}</b>! Перевір /inventory 😎", parse_mode="HTML")
 
 @router.message(F.text == "/inventory")
 async def inventory_cmd(message: types.Message):
     user = await get_user(message.from_user.id)
     if not user:
-        await message.reply("Спершу введи /start, щоб тебе зареєструвати!")
-        return
+        return await message.reply("Спершу /start")
 
-    await message.reply(f"🧾 Твій баланс: {user['balance']} монет")
+    inv = await get_inventory(message.from_user.id)
+    lines = [f"🧾 Баланс: {user['balance']} монет", "<b>📦 Інвентар:</b>"]
+    for row in inv:
+        lines.append(f"{row['item']}: {row['quantity']}")
+    await message.reply("\n".join(lines), parse_mode="HTML")
+
+@router.message(F.text == "/sell")
+async def sell_cmd(message: types.Message):
+    user_id = message.from_user.id
+    parts = message.text.split(maxsplit=2)
+    if len(parts) < 3:
+        return await message.reply("Як продати: /sell <руда> <кількість>, наприклад `/sell Золото 3`")
+
+    item, qty_str = parts[1], parts[2]
+    try:
+        qty = int(qty_str)
+    except ValueError:
+        return await message.reply("Кількість має бути числом!")
+
+    inv = await get_inventory(user_id)
+    inv_dict = {row["item"]: row["quantity"] for row in inv}
+    have = inv_dict.get(item, 0)
+    if have < qty:
+        return await message.reply(f"У тебе лише {have} шт. {item}")
+
+    # Ціна за одиницю
+    PRICE = {"🪨 Камінь": 2, "🧱 Вугілля": 5, "🪙 Золото": 20, "⛏️ Залізна руда": 10}
+    if item not in PRICE:
+        return await message.reply("Ця руда не торгується 😕")
+
+    # Оновлюємо інвентар і додаємо баланс
+    await db.execute(
+        "UPDATE inventory SET quantity = quantity - :qty WHERE user_id = :user_id AND item = :item",
+        {"qty": qty, "user_id": user_id, "item": item}
+    )
+    earned = PRICE[item] * qty
+    await db.execute(
+        "UPDATE users SET balance = balance + :earned WHERE user_id = :user_id",
+        {"earned": earned, "user_id": user_id}
+    )
+
+    await message.reply(f"Продано {qty}×{item} за {earned} монет 💰")
+
