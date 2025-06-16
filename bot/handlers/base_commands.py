@@ -1,77 +1,125 @@
+# bot/handlers/base_commands.py
 from aiogram import Router, types, F
-from bot.db import create_user, get_user, db, add_item, get_inventory
-import time
-import random
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from bot.db import (
+    create_user, get_user, db, add_item,
+    get_inventory, add_xp, update_energy
+)
+import time, random
 
 router = Router()
 
-# Описи руд з ключами для зберігання в БД
+# Опис руд
 ORE_ITEMS = {
-    "stone": {
-        "name": "Камінь",
-        "emoji": "🪨",
-        "drop_range": (1, 5),
-        "price": 2,
-    },
-    "coal": {
-        "name": "Вугілля",
-        "emoji": "🧱",
-        "drop_range": (1, 4),
-        "price": 5,
-    },
-    "iron": {
-        "name": "Залізна руда",
-        "emoji": "⛏️",
-        "drop_range": (1, 3),
-        "price": 10,
-    },
-    "gold": {
-        "name": "Золото",
-        "emoji": "🪙",
-        "drop_range": (1, 2),
-        "price": 20,
-    },
+    "stone": {"name": "Камінь",       "emoji": "🪨", "drop_range": (1,5), "price": 2},
+    "coal":  {"name": "Вугілля",      "emoji": "🧱", "drop_range": (1,4), "price": 5},
+    "iron":  {"name": "Залізна руда", "emoji": "⛏️", "drop_range": (1,3), "price": 10},
+    "gold":  {"name": "Золото",       "emoji": "🪙", "drop_range": (1,2), "price": 20},
 }
 
+# ===== Команди =====
 @router.message(F.text == "/start")
 async def start_cmd(message: types.Message):
-    user_id = message.from_user.id
-    username = message.from_user.username or message.from_user.full_name
-    await create_user(user_id, username)
+    await create_user(
+        message.from_user.id,
+        message.from_user.username or message.from_user.full_name
+    )
     await message.reply(
-        "Привіт, шахтарю! ⛏️ Ти щойно зареєструвався в системі. Напиши /mine, щоб копати ресурси!"
+        "Привіт, шахтарю! ⛏️ Реєстрація пройшла успішно. Використовуй /mine, щоб копати ресурси!"
+    )
+
+@router.message(F.text == "/profile")
+async def profile_cmd(message: types.Message):
+    user = await get_user(message.from_user.id)
+    if not user:
+        return await message.reply("Спершу введи /start")
+    # Оновлюємо енергію
+    energy, _ = await update_energy(user)
+    max_e = 5 + (user["level"] - 1) * 2
+    lvl = user["level"]
+    xp = user["xp"]
+    next_xp = lvl * 100
+
+    # Inline-кнопки для деталей
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Основні", callback_data="profile:basic")
+    builder.button(text="Секретні", callback_data="profile:secret")
+    builder.adjust(2)
+
+    await message.reply(
+        f"👤 <b>Профіль</b> — вибери, що показати:",
+        parse_mode="HTML",
+        reply_markup=builder.as_markup()
+    )
+
+@router.callback_query(F.data.startswith("profile:"))
+async def profile_callback(callback: types.CallbackQuery):
+    action = callback.data.split(':',1)[1]
+    user = await get_user(callback.from_user.id)
+    if not user:
+        return await callback.message.reply("Спершу /start")
+
+    if action == "basic":
+        energy, _ = await update_energy(user)
+        max_e = 5 + (user["level"] - 1) * 2
+        lvl = user["level"]
+        xp = user["xp"]
+        next_xp = lvl * 100
+        text = [
+            f"👤 <b>Профіль:</b> {callback.from_user.full_name}",
+            f"⭐ <b>Рівень:</b> {lvl} (XP: {xp}/{next_xp})",
+            f"🔋 <b>Енергія:</b> {energy}/{max_e}",
+            f"💰 <b>Баланс:</b> {user['balance']} монет"
+        ]
+    else:  # secret stats
+        inv = await get_inventory(callback.from_user.id)
+        total_items = sum(row['quantity'] for row in inv)
+        distinct = len(inv)
+        text = [
+            f"🔍 <b>Секретна статистика</b>",
+            f"🗃️ Різних ресурсів: {distinct}",
+            f"📦 Загальна кількість ресурсів: {total_items}",
+            f"💎 Загальний XP: {user['xp']}"
+        ]
+    # Відповідаємо і оновлюємо повідомлення
+    await callback.message.edit_text(
+        "\n".join(text),
+        parse_mode="HTML"
     )
 
 @router.message(F.text == "/mine")
 async def mine_cmd(message: types.Message):
-    user_id = message.from_user.id
-    user = await get_user(user_id)
+    user = await get_user(message.from_user.id)
     if not user:
-        return await message.reply("Спершу введи /start")
+        return await message.reply("Спершу /start")
 
-    now = int(time.time())
-    cooldown = 30
-    if now - user["last_mine"] < cooldown:
-        return await message.reply(
-            f"🕒 Ти вже копав! Спробуй через {cooldown - (now - user['last_mine'])} сек."
-        )
+    # Оновлюємо енергію
+    energy, _ = await update_energy(user)
+    if energy < 1:
+        return await message.reply("😴 Недостатньо енергії. Зачекай відновлення.")
 
-    # Випадковий тип руди
+    # Віднімаємо 1 енергію
+    await db.execute(
+        "UPDATE users SET energy = energy - 1 WHERE user_id = :uid",
+        {"uid": message.from_user.id}
+    )
+
+    # Генеруємо дроп
     ore_id = random.choice(list(ORE_ITEMS.keys()))
     low, high = ORE_ITEMS[ore_id]["drop_range"]
     amount = random.randint(low, high)
 
-    # Додаємо до інвентаря та оновлюємо час копання
-    await add_item(user_id, ore_id, amount)
+    await add_item(message.from_user.id, ore_id, amount)
     await db.execute(
-        "UPDATE users SET last_mine = :now WHERE user_id = :user_id",
-        {"now": now, "user_id": user_id}
+        "UPDATE users SET last_mine = :now WHERE user_id = :uid",
+        {"now": int(time.time()), "uid": message.from_user.id}
     )
+    await add_xp(message.from_user.id, amount)
 
-    emoji = ORE_ITEMS[ore_id]["emoji"]
-    name = ORE_ITEMS[ore_id]["name"]
+    ore = ORE_ITEMS[ore_id]
     await message.reply(
-        f"Ти здобув <b>{amount}×{emoji} {name}</b>! Перевір /inventory 😎",
+        f"Ти здобув <b>{amount}×{ore['emoji']} {ore['name']}</b>!\n"
+        f"Енергія -1, XP +{amount}.",
         parse_mode="HTML"
     )
 
