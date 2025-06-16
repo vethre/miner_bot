@@ -3,7 +3,7 @@ import os
 from bot.utils.config import DATABASE_PATH
 
 async def init_db():
-    os.makedirs(os.path.dirname(DATABASE_PATH), exists_ok=True)
+    os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
 
     async with aiosqlite.connect(DATABASE_PATH) as db:
         # main
