@@ -1,5 +1,5 @@
 aiogram==3.4.1
 python-dotenv==1.0.1
 aiosqlite==0.19.0
-databases[postgresql]==0.7.4
-asyncpg==0.28.0
+databases[postgresql]
+asyncpg
