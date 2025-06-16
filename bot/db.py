@@ -19,6 +19,11 @@ async def init_db():
         last_energy_update TIMESTAMP DEFAULT NOW()
     );
     """)
+    await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1;")
+    await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS xp BIGINT DEFAULT 0;")
+    await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS energy INTEGER DEFAULT 5;")
+    await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_energy_update TIMESTAMP DEFAULT NOW();")
+
     await db.execute("""
     CREATE TABLE IF NOT EXISTS inventory (
         user_id INTEGER,
