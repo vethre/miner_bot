@@ -1,4 +1,5 @@
-from aiogram import Router, types, F
+from aiogram import Router, types, F, Bot
+from aiogram.filters import Command, CommandStart
 from bot.db import (
     create_user, get_user, db, add_item,
     get_inventory, add_xp, update_energy, update_streak
@@ -18,7 +19,7 @@ ORE_ITEMS = {
 # Duration of mining
 MINE_DURATION = 60 # test
 
-async def mining_task(bot: types.Bot, user_id: int, chat_id: int):
+async def mining_task(bot: Bot, user_id: int, chat_id: int):
     await asyncio.sleep(MINE_DURATION)
     user = await get_user(user_id)
     # Дроп і оновлення
@@ -38,7 +39,7 @@ async def mining_task(bot: types.Bot, user_id: int, chat_id: int):
     )
 
 # ===== Команди =====
-@router.message(F.text == "/start")
+@router.message(CommandStart())
 async def start_cmd(message: types.Message):
     await create_user(
         message.from_user.id,
@@ -48,7 +49,7 @@ async def start_cmd(message: types.Message):
         "Привіт, шахтарю! ⛏️ Реєстрація пройшла успішно. Використовуй /mine, щоб копати ресурси!"
     )
 
-@router.message(F.text == "/profile")
+@router.message(Command("profile"))
 async def profile_cmd(message: types.Message):
     user = await get_user(message.from_user.id)
     if not user:
@@ -107,7 +108,7 @@ async def profile_callback(callback: types.CallbackQuery):
         parse_mode="HTML"
     )
 
-@router.message(F.text == "/mine")
+@router.message(Command("mine"))
 async def mine_cmd(message: types.Message):
     user = await get_user(message.from_user.id)
     if not user:
@@ -126,7 +127,7 @@ async def mine_cmd(message: types.Message):
         f"⛏️ Іду в шахту на {MINE_DURATION} сек. Повернуся із ресурсами та XP!"
     )
 
-@router.message(F.text == "/inventory")
+@router.message(Command("inventory"))
 async def inventory_cmd(message: types.Message):
     user = await get_user(message.from_user.id)
     if not user:
@@ -138,50 +139,51 @@ async def inventory_cmd(message: types.Message):
         lines.append(f"{ore['emoji']} {ore['name']}: {row['quantity']}")
     return await message.reply("\n".join(lines), parse_mode="HTML")
 
-@router.message(F.text.startswith("/sell"))
+@router.message(Command("sell"))
 async def sell_cmd(message: types.Message):
-    user_id = message.from_user.id
-    parts = message.text.split(maxsplit=2)
-    if len(parts) < 3:
-        return await message.reply(
-            "Як продати: /sell <назва> <кількість>, наприклад /sell Золото 3"
-        )
+    args = message.get_args().split()  # усе після /sell
+    if len(args) < 2:
+        return await message.reply("Як продати: /sell <назва ресурсу> <кількість>")
 
-    name_input = parts[1].strip()
+    # Останній аргумент — це кількість
     try:
-        qty = int(parts[2].strip())
+        qty = int(args[-1])
     except ValueError:
         return await message.reply("Кількість має бути числом!")
 
-    # Знаходимо ore_id за назвою (без emoji)
-    ore_id = next(
-        (key for key, val in ORE_ITEMS.items() if val['name'].lower() == name_input.lower()),
-        None
-    )
-    if not ore_id:
-        return await message.reply("Ти не можеш торгувати цим ресурсом 😕")
+    # Усе решта — назва ресурсу (може складатися з кількох слів)
+    item_name = " ".join(args[:-1]).lower()  # нормалізуємо регістр
 
-    inv = await get_inventory(user_id)
-    inv_dict = {row['item']: row['quantity'] for row in inv}
-    have = inv_dict.get(ore_id, 0)
+    # Опис ресурсів (ключі мають бути в нижньому регістрі)
+    PRICE = {
+        "камінь": 2,
+        "вугілля": 5,
+        "залізна руда": 10,
+        "золото": 20,
+    }
+
+    if item_name not in PRICE:
+        return await message.reply(f"Ресурс «{item_name}» не торгується 😕")
+
+    inv = await get_inventory(message.from_user.id)
+    inv_dict = {row["item"]: row["quantity"] for row in inv}
+    have = inv_dict.get(item_name, 0)
     if have < qty:
-        return await message.reply(f"У тебе лише {have} шт. {ORE_ITEMS[ore_id]['name']}")
+        return await message.reply(f"У тебе лише {have}×{item_name}")
 
-    price = ORE_ITEMS[ore_id]['price']
-    earned = price * qty
-
-    # Оновлюємо БД: віднімаємо руду та додаємо монети
+    # Знімаємо з інвентаря і додаємо монети
     await db.execute(
-        "UPDATE inventory SET quantity = quantity - :qty WHERE user_id = :user_id AND item = :ore_id",
-        {"qty": qty, "user_id": user_id, "ore_id": ore_id}
+        """
+        UPDATE inventory
+           SET quantity = quantity - :qty
+         WHERE user_id = :uid AND item = :item
+        """,
+        {"qty": qty, "uid": message.from_user.id, "item": item_name}
     )
+    earned = PRICE[item_name] * qty
     await db.execute(
-        "UPDATE users SET balance = balance + :earned WHERE user_id = :user_id",
-        {"earned": earned, "user_id": user_id}
+        "UPDATE users SET balance = balance + :earned WHERE user_id = :uid",
+        {"earned": earned, "uid": message.from_user.id}
     )
 
-    emoji = ORE_ITEMS[ore_id]['emoji']
-    name = ORE_ITEMS[ore_id]['name']
-    await message.reply(
-        f"Продано {qty}×{emoji} {name} за {earned} монет 💰", parse_mode="HTML"
-    )
+    return await message.reply(f"Продано {qty}×{item_name} за {earned} монет 💰")
