@@ -1,4 +1,5 @@
 import aiosqlite
+import os
 from bot.utils.config import DATABASE_PATH
 
 async def init_db():
