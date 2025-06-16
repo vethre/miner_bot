@@ -1,11 +1,9 @@
-# bot/handlers/base_commands.py
 from aiogram import Router, types, F
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.db import (
     create_user, get_user, db, add_item,
-    get_inventory, add_xp, update_energy
+    get_inventory, add_xp, update_energy, update_streak
 )
-import time, random
+import time, random, asyncio
 
 router = Router()
 
@@ -16,6 +14,28 @@ ORE_ITEMS = {
     "iron":  {"name": "Залізна руда", "emoji": "⛏️", "drop_range": (1,3), "price": 10},
     "gold":  {"name": "Золото",       "emoji": "🪙", "drop_range": (1,2), "price": 20},
 }
+
+# Duration of mining
+MINE_DURATION = 60 # test
+
+async def mining_task(bot: types.Bot, user_id: int, chat_id: int):
+    await asyncio.sleep(MINE_DURATION)
+    user = await get_user(user_id)
+    # Дроп і оновлення
+    ore_id = random.choice(list(ORE_ITEMS.keys()))
+    low, high = ORE_ITEMS[ore_id]["drop_range"]
+    amount = random.randint(low, high)
+    await add_item(user_id, ore_id, amount)
+    await add_xp(user_id, amount)
+    streak = await update_streak(user)
+    ore = ORE_ITEMS[ore_id]
+    # Повідомлення
+    await bot.send_message(
+        chat_id,
+        f"🏔️ Повернувся з шахти! Здобуто <b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
+        f"XP +{amount}, streak: {streak}, витрачено 1 енергію.",
+        parse_mode="HTML"
+    )
 
 # ===== Команди =====
 @router.message(F.text == "/start")
@@ -92,51 +112,31 @@ async def mine_cmd(message: types.Message):
     user = await get_user(message.from_user.id)
     if not user:
         return await message.reply("Спершу /start")
-
-    # Оновлюємо енергію
     energy, _ = await update_energy(user)
     if energy < 1:
-        return await message.reply("😴 Недостатньо енергії. Зачекай відновлення.")
-
-    # Віднімаємо 1 енергію
+        return await message.reply("😴 Недостатньо енергії. Зачекай.")
+    # Віднімаємо енергію та ставимо next доступ
     await db.execute(
-        "UPDATE users SET energy = energy - 1 WHERE user_id = :uid",
-        {"uid": message.from_user.id}
+        "UPDATE users SET energy = energy - 1, last_mine = :next WHERE user_id = :uid",
+        {"next": int(time.time()) + MINE_DURATION, "uid": message.from_user.id}
     )
-
-    # Генеруємо дроп
-    ore_id = random.choice(list(ORE_ITEMS.keys()))
-    low, high = ORE_ITEMS[ore_id]["drop_range"]
-    amount = random.randint(low, high)
-
-    await add_item(message.from_user.id, ore_id, amount)
-    await db.execute(
-        "UPDATE users SET last_mine = :now WHERE user_id = :uid",
-        {"now": int(time.time()), "uid": message.from_user.id}
-    )
-    await add_xp(message.from_user.id, amount)
-
-    ore = ORE_ITEMS[ore_id]
-    await message.reply(
-        f"Ти здобув <b>{amount}×{ore['emoji']} {ore['name']}</b>!\n"
-        f"Енергія -1, XP +{amount}.",
-        parse_mode="HTML"
+    # Старт задачі
+    asyncio.create_task(mining_task(message.bot, message.from_user.id, message.chat.id))
+    return await message.reply(
+        f"⛏️ Іду в шахту на {MINE_DURATION} сек. Повернуся із ресурсами та XP!"
     )
 
 @router.message(F.text == "/inventory")
 async def inventory_cmd(message: types.Message):
-    user_id = message.from_user.id
-    user = await get_user(user_id)
+    user = await get_user(message.from_user.id)
     if not user:
-        return await message.reply("Спершу введи /start")
-
-    inv = await get_inventory(user_id)
+        return await message.reply("Спершу /start")
+    inv = await get_inventory(message.from_user.id)
     lines = [f"🧾 Баланс: {user['balance']} монет", "<b>📦 Інвентар:</b>"]
     for row in inv:
-        ore = ORE_ITEMS.get(row['item'])
-        if ore:
-            lines.append(f"{ore['emoji']} {ore['name']}: {row['quantity']}")
-    await message.reply("\n".join(lines), parse_mode="HTML")
+        ore = ORE_ITEMS[row['item']]
+        lines.append(f"{ore['emoji']} {ore['name']}: {row['quantity']}")
+    return await message.reply("\n".join(lines), parse_mode="HTML")
 
 @router.message(F.text.startswith("/sell"))
 async def sell_cmd(message: types.Message):
