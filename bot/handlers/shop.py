@@ -1,59 +1,73 @@
-from aiogram import Router, F, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+# bot/handlers/shop.py
+from aiogram import Router, F
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.db import get_user, add_item, db
 
 router = Router()
 
-# Список товарів у магазині
+# Список товарів у магазині з ключами без емодзі для БД
 SHOP_ITEMS = {
-    "🪓 Дерев’яна кирка": {"price": 50, "bonus": 1},
-    "⛏️ Кам’яна кирка": {"price": 200, "bonus": 5},
-    "💎 Золота кирка": {"price": 1000, "bonus": 20},
+    "wooden_pickaxe": {
+        "name": "Дерев’яна кирка",
+        "emoji": "🪓",
+        "price": 50,
+        "bonus": 1,
+    },
+    "stone_pickaxe": {
+        "name": "Кам’яна кирка",
+        "emoji": "⛏️",
+        "price": 200,
+        "bonus": 5,
+    },
+    "gold_pickaxe": {
+        "name": "Золота кирка",
+        "emoji": "💎",
+        "price": 1000,
+        "bonus": 20,
+    },
 }
 
 @router.message(F.text == "/shop")
 async def shop_cmd(message: types.Message):
-    # Створюємо інлайн-кнопки для кожного товару
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    for name, props in SHOP_ITEMS.items():
-        btn = InlineKeyboardButton(
-            text=f"{name} — {props['price']} монет",
-            callback_data=f"buy:{name}"
-        )
-        keyboard.add(btn)
+    user = await get_user(message.from_user.id)
+    if not user:
+        return await message.reply("Спершу введи /start")
+
+    # Створюємо builder для інлайн-кнопок
+    builder = InlineKeyboardBuilder()
+    for item_id, item in SHOP_ITEMS.items():
+        text = f"{item['emoji']} {item['name']} — {item['price']} монет"
+        builder.button(text=text, callback_data=f"buy:{item_id}")
+    builder.adjust(1)
 
     await message.reply(
         "🛒 <b>Магазин кирок</b> — натисни кнопку, щоб купити:",
         parse_mode="HTML",
-        reply_markup=keyboard
+        reply_markup=builder.as_markup()
     )
 
 @router.callback_query(F.data.startswith("buy:"))
-async def shop_buy_callback(callback: types.CallbackQuery):
+async def shop_buy_callback(callback: CallbackQuery):
+    await callback.answer()  # acknowledge to remove loading state
     user_id = callback.from_user.id
-    item_name = callback.data.split(':', 1)[1]
     user = await get_user(user_id)
-
     if not user:
-        await callback.answer("Спершу /start", show_alert=True)
-        return
+        return await callback.message.reply("Спершу /start")
 
-    item = SHOP_ITEMS.get(item_name)
+    item_id = callback.data.split(':', 1)[1]
+    item = SHOP_ITEMS.get(item_id)
     if not item:
-        await callback.answer("Товар не знайдено", show_alert=True)
-        return
+        return await callback.message.reply("Товар не знайдено 😕")
 
     if user['balance'] < item['price']:
-        await callback.answer("Недостатньо монет 💸", show_alert=True)
-        return
+        return await callback.message.reply("Недостатньо монет 💸")
 
-    # Віднімаємо монети та додаємо товар
+    # Віднімаємо монети та додаємо товар в інвентар (за id)
     await db.execute(
         "UPDATE users SET balance = balance - :price WHERE user_id = :user_id",
         {"price": item['price'], "user_id": user_id}
     )
-    await add_item(user_id, item_name, 1)
+    await add_item(user_id, item_id, 1)
 
-    await callback.answer(f"Ти придбав {item_name}! 🎉", show_alert=True)
-    # Опціонально оновити клавіатуру
-    # await callback.message.edit_reply_markup()
+    await callback.message.reply(f"Ти придбав {item['emoji']} <b>{item['name']}</b>! 🎉", parse_mode="HTML")
