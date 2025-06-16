@@ -26,6 +26,7 @@ async def init_db():
     await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_energy_update TIMESTAMP DEFAULT NOW();")
     await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS streak INTEGER DEFAULT 0;")
     await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_mine_day DATE DEFAULT CURRENT_DATE;")
+    await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS mining_end BIGINT DEFAULT 0;")
 
     await db.execute("""
     CREATE TABLE IF NOT EXISTS inventory (
@@ -47,8 +48,7 @@ async def create_user(user_id, username):
 
 async def get_user(user_id):
     return await db.fetch_one("""
-        SELECT user_id, username, balance, last_mine,
-               level, xp, energy, last_energy_update
+        SELECT user_id, username, balance, level, xp, energy, last_energy_update, mining_end, streak, last_mine_day
           FROM users
          WHERE user_id = :uid
     """, {"uid": user_id})
@@ -121,19 +121,23 @@ async def update_energy(user):
 # Cave Streaks
 async def update_streak(user):
     today = datetime.date.today()
-    last_day = user["last_mine_day"]
-    streak = user["streak"]
-    if last_day == today - datetime.timedelta(days=1):
-        streak += 1
-    elif last_day == today:
-        pass  # той самий день, не змінюємо
+    last = user["last_mine_day"]
+    current = user["streak"] or 0
+
+    if last == today - datetime.timedelta(days=1):
+        current += 1
+    elif last == today:
+        # вже сьогодні були в шахті
+        pass
     else:
-        streak = 1
+        current = 1
+
     await db.execute(
         """
-        UPDATE users SET streak = :st, last_mine_day = :lday
+        UPDATE users
+           SET streak = :st, last_mine_day = :lm
          WHERE user_id = :uid
         """,
-        {"st": streak, "lday": today, "uid": user["user_id"]}
+        {"st": current, "lm": today, "uid": user["user_id"]}
     )
-    return streak
+    return current

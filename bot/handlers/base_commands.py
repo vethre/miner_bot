@@ -1,4 +1,5 @@
-from aiogram import Router, types, F, Bot
+from aiogram import Router, types, Bot
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters import Command, CommandStart
 from bot.db import (
     create_user, get_user, db, add_item,
@@ -22,19 +23,30 @@ MINE_DURATION = 60 # test
 async def mining_task(bot: Bot, user_id: int, chat_id: int):
     await asyncio.sleep(MINE_DURATION)
     user = await get_user(user_id)
-    # Дроп і оновлення
+
+    # drop
     ore_id = random.choice(list(ORE_ITEMS.keys()))
     low, high = ORE_ITEMS[ore_id]["drop_range"]
     amount = random.randint(low, high)
+
     await add_item(user_id, ore_id, amount)
     await add_xp(user_id, amount)
     streak = await update_streak(user)
+
+    # очищаємо mining_end
+    await db.execute(
+        "UPDATE users SET mining_end = 0 WHERE user_id = :uid",
+        {"uid": user_id}
+    )
+
     ore = ORE_ITEMS[ore_id]
-    # Повідомлення
     await bot.send_message(
         chat_id,
-        f"🏔️ Повернувся з шахти! Здобуто <b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
-        f"XP +{amount}, streak: {streak}, витрачено 1 енергію.",
+        (
+            f"🏔️ Повернувся з шахти!\n"
+            f"Здобуто <b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
+            f"XP +{amount}, streak: {streak} днів."
+        ),
         parse_mode="HTML"
     )
 
@@ -113,19 +125,30 @@ async def mine_cmd(message: types.Message):
     user = await get_user(message.from_user.id)
     if not user:
         return await message.reply("Спершу /start")
+
+    # оновлюємо енергію
     energy, _ = await update_energy(user)
     if energy < 1:
         return await message.reply("😴 Недостатньо енергії. Зачекай.")
-    # Віднімаємо енергію та ставимо next доступ
+
+    now = int(time.time())
+    if user["mining_end"] and user["mining_end"] > now:
+        return await message.reply(f"⛏️ Ти ще в шахті, залишилось {user['mining_end']-now} сек.")
+
+    # списуємо 1 енергію і ставимо mining_end
     await db.execute(
-        "UPDATE users SET energy = energy - 1, last_mine = :next WHERE user_id = :uid",
-        {"next": int(time.time()) + MINE_DURATION, "uid": message.from_user.id}
+        """
+        UPDATE users
+           SET energy = energy - 1,
+               mining_end = :end
+         WHERE user_id = :uid
+        """,
+        {"end": now + MINE_DURATION, "uid": user["user_id"]}
     )
-    # Старт задачі
-    asyncio.create_task(mining_task(message.bot, message.from_user.id, message.chat.id))
-    return await message.reply(
-        f"⛏️ Іду в шахту на {MINE_DURATION} сек. Повернуся із ресурсами та XP!"
-    )
+
+    await message.reply(f"⛏️ Іду в шахту на {MINE_DURATION} сек. Успіхів!")
+    # фоновий похід
+    asyncio.create_task(mining_task(message.bot, user["user_id"], message.chat.id))
 
 @router.message(Command("inventory"))
 async def inventory_cmd(message: types.Message):
