@@ -15,12 +15,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 CEST = pytz.timezone("Europe/Prague")
-BOT: Bot | None = None
 
 async def main():
     logger.info(f"▶️ Using DB_DSN: {DB_DSN!r}")
     logger.info("🔌 Ініціалізую бота...")
-    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    global BOT
+    BOT = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
 
     # Підключаємо БД (Supabase)
@@ -29,7 +29,7 @@ async def main():
     register_handlers(dp)
 
     logger.info("🚀 Стартую polling...")
-    await dp.start_polling(bot)
+    await dp.start_polling(BOT)
 
     # По завершенню (якщо кине SIGTERM чи Exception)
     await db.disconnect()
