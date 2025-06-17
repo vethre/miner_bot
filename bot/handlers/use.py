@@ -3,9 +3,9 @@ from aiogram.filters import Command
 from bot.db import get_user, get_inventory, db
 
 PICKAXES = {
-    "wooden_pickaxe": {"bonus": 0.1,  "name": "Дерев’яна кирка", "emoji": "🔨 "},
-    "iron_pickaxe":   {"bonus": 0.2, "name": "Залізна кирка", "emoji": "⛏️ "},
-    "gold_pickaxe":   {"bonus": 0.4, "name": "Золота кирка", "emoji": "✨ "},
+    "wooden_pickaxe": {"bonus": 0.1,  "name": "дерев’яна кирка", "emoji": "🔨 "},
+    "iron_pickaxe":   {"bonus": 0.2, "name": "залізна кирка", "emoji": "⛏️ "},
+    "gold_pickaxe":   {"bonus": 0.4, "name": "золота кирка", "emoji": "✨ "},
 }
 
 router = Router()
