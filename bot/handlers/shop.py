@@ -18,7 +18,7 @@ SHOP_ITEMS = {
     "meat":  {"price": 120, "name": "М’ясо","hunger": 60, "emoji": "🍖 "},
 }
 
-@router.message(Command("/shop"))
+@router.message(Command("shop"))
 async def shop_cmd(message: types.Message, user_id: int | None = None):
     uid = user_id or message.from_user.id
     user = await get_user(uid)

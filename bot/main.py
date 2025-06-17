@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 CEST = pytz.timezone("Europe/Prague")
+BOT: Bot | None = None
 
 async def main():
     logger.info(f"▶️ Using DB_DSN: {DB_DSN!r}")
@@ -35,9 +36,12 @@ async def main():
     logger.info("📴 Polling завершено")
 
 @aiocron.crontab('*/1 * * * *')
-async def daily_reward(bot: Bot):
+async def daily_reward():
+    if BOT is None:
+        return
     now  = datetime.datetime.now(tz=CEST)
     today= now.date()
+
     async with db.transaction():
         users = await db.fetch_all("SELECT user_id, level, last_daily FROM users")
         for u in users:
@@ -64,7 +68,7 @@ async def daily_reward(bot: Bot):
 
             # сповіщаємо юзера
             try:
-                await bot.send_message(
+                await BOT.send_message(
                     u["user_id"],
                     f"🎁 Щоденний бонус!\n+{money} монет, +{xp} XP. Гарного копання!"
                 )
