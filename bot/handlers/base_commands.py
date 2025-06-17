@@ -236,39 +236,37 @@ ALIASES = {
 @router.message(Command("sell"))
 async def sell_cmd(message: types.Message):
     text = message.text or ""
-    parts = text.split(maxsplit=1)                     # ['/sell', 'Смарагд 3']
+    parts = text.split(maxsplit=1)
     if len(parts) < 2:
-        return await message.reply(
-            "Як продати: /sell 'назва ресурсу' 'кількість'"
-        )
+        return await message.reply("Як продати: /sell <назва ресурсу> <кількість>")
 
-    # ── відокремлюємо кількість ────────────────────────
+    # розділяємо назву й кількість
     try:
         item_part, qty_str = parts[1].rsplit(maxsplit=1)
     except ValueError:
-        return await message.reply(
-            "Як продати: /sell 'назва ресурсу' 'кількість>'"
-        )
+        return await message.reply("Як продати: /sell <назва ресурсу> <кількість>")
 
     if not qty_str.isdigit():
         return await message.reply("Кількість має бути числом!")
     qty = int(qty_str)
 
-    # ── нормалізуємо назву й шукаємо ключ БД ────────────
-    item_name = item_part.lower().strip()              # 'смарагд'
+    # нормалізуємо назву
+    item_name = item_part.lower().strip()
     item_key  = ALIASES.get(item_name, item_name)      # 'emerald'
 
-    PRICE = {k: v["price"] for k, v in ITEM_DEFS.items()}
+    # формуємо прайс-лист тільки для тих, у кого price є
+    PRICE = {k: v["price"] for k, v in ITEM_DEFS.items() if "price" in v}
+
     if item_key not in PRICE:
         return await message.reply(f"Ресурс «{item_name}» не торгується 😕")
 
-    # ── перевіряємо інвентар ───────────────────────────
+    # перевіряємо інвентар
     inv = await get_inventory(message.from_user.id)
     have = {row["item"]: row["quantity"] for row in inv}.get(item_key, 0)
     if have < qty:
         return await message.reply(f"У тебе лише {have}×{item_part}")
 
-    # ── списуємо ресурс ────────────────────────────────
+    # списуємо ресурс
     await db.execute(
         """
         UPDATE inventory
