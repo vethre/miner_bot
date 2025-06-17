@@ -65,29 +65,6 @@ async def start_cmd(message: types.Message):
         "Привіт, шахтарю! ⛏️ Реєстрація пройшла успішно. Використовуй /mine, щоб копати ресурси!"
     )
 
-def profile_keyboard() -> types.InlineKeyboardMarkup:
-    kb = [
-        [
-            types.InlineKeyboardButton(
-                text="🎒 Інвентар",
-                switch_inline_query_current_chat="/inventory"
-            )
-        ],
-        [
-            types.InlineKeyboardButton(
-                text="⛏ Шахта",
-                switch_inline_query_current_chat="/mine"
-            )
-        ],
-        [
-            types.InlineKeyboardButton(
-                text="🛒 Магазин",
-                switch_inline_query_current_chat="/shop"
-            )
-        ],
-    ]
-    return types.InlineKeyboardMarkup(inline_keyboard=kb)
-
 @router.message(Command("profile"))
 async def profile_cmd(message: types.Message):
     user = await get_user(message.from_user.id)
@@ -113,12 +90,12 @@ async def profile_cmd(message: types.Message):
     pick_name = pick["name"] if pick else "–"
 
     # будуємо інлайн-кнопки
-    '''builder = InlineKeyboardBuilder()
+    builder = InlineKeyboardBuilder()
     builder.button(text="📦 Інвентар",    callback_data="profile:inventory")
     builder.button(text="🛒 Магазин",     callback_data="profile:shop")
     builder.button(text="⛏️ Шахта",       callback_data="profile:mine")
     # builder.button(text="🏆 Ачивки",      callback_data="profile:achievements")
-    builder.adjust(2) '''
+    builder.adjust(2)
 
     text = [
         f"👤 <b>Профіль:</b> {message.from_user.full_name}",
@@ -131,7 +108,7 @@ async def profile_cmd(message: types.Message):
     await message.reply(
         "\n".join(text),
         parse_mode="HTML",
-        reply_markup=profile_keyboard()
+        reply_markup=builder.as_markup()
     )
 # Profile Callback
 @router.callback_query(F.data.startswith("profile:"))
@@ -140,11 +117,11 @@ async def profile_callback(callback: types.CallbackQuery):
     action = callback.data.split(":", 1)[1]
 
     if action == "inventory":
-        await inventory_cmd(callback.message)
+        await inventory_cmd(callback.message, user_id=callback.from_user.id)
     elif action == "shop":
-        await shop_cmd(callback.message)
+        await shop_cmd(callback.message, user_id=callback.from_user.id)
     elif action == "mine":
-        await mine_cmd(callback.message)
+        await mine_cmd(callback.message, user_id=callback.from_user.id)
         
 
 @router.message(Command("mine"))
