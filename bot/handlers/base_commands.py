@@ -164,8 +164,8 @@ async def inventory_cmd(message: types.Message):
     return await message.reply("\n".join(lines), parse_mode="HTML")
 
 @router.message(Command("sell"))
-async def sell_cmd(message: types.Message):
-    args = message.get_args().split()  # усе після /sell
+async def sell_cmd(message: types.Message, command: Command):
+    args = command.args.split()  # усе після /sell
     if len(args) < 2:
         return await message.reply("Як продати: /sell <назва ресурсу> <кількість>")
 
@@ -213,8 +213,8 @@ async def sell_cmd(message: types.Message):
     return await message.reply(f"Продано {qty}×{item_name} за {earned} монет 💰")
 
 @router.message(Command("smelt"))
-async def smelt_cmd(message: types.Message):
-    args = message.get_args().split()
+async def smelt_cmd(message: types.Message, command: Command):
+    args = command.args.split()
     if len(args) < 2:
         return await message.reply("Як переплавити: /smelt <руда> <кількість>")
 
@@ -256,8 +256,8 @@ async def smelt_cmd(message: types.Message):
     )
 
 @router.message(Command("craft"))
-async def craft_cmd(message: types.Message):
-    args = message.get_args().split()
+async def craft_cmd(message: types.Message, command: Command):
+    args = command.args.split()
     if not args:
         return await message.reply("Як крафтити: /craft <назва предмету>")
 
