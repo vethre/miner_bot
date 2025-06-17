@@ -3,10 +3,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters import Command, CommandStart
 from bot.db import (
     create_user, get_user, db, add_item,
-    get_inventory, add_xp, update_energy, update_streak
+    get_inventory, add_xp, update_energy, update_streak, update_hunger
 )
 from bot.handlers.crafting import SMELT_INPUT_MAP, SMELT_RECIPES, CRAFT_RECIPES
 from bot.handlers.items import ITEM_DEFS
+from bot.handlers.use import PICKAXES
 import time, random, asyncio
 
 router = Router()
@@ -68,59 +69,57 @@ async def profile_cmd(message: types.Message):
     user = await get_user(message.from_user.id)
     if not user:
         return await message.reply("Спершу введи /start")
-    # Оновлюємо енергію
+
+    # поновлюємо енергію та голод
     energy, _ = await update_energy(user)
-    max_e = 5 + (user["level"] - 1) * 2
+    hunger, _ = await update_hunger(user)
+
+    # рівень і XP
     lvl = user["level"]
     xp = user["xp"]
     next_xp = lvl * 100
 
-    # Inline-кнопки для деталей
+    # поточна кирка
+    current = user.get("current_pickaxe", "none")
+    pick = PICKAXES.get(current)
+    pick_name = pick["name"] if pick else "–"
+
+    # будуємо інлайн-кнопки
     builder = InlineKeyboardBuilder()
-    builder.button(text="Основні", callback_data="profile:basic")
-    builder.button(text="Секретні", callback_data="profile:secret")
+    builder.button(text="📦 Інвентар",    callback_data="profile:inventory")
+    builder.button(text="🛒 Магазин",     callback_data="profile:shop")
+    builder.button(text="⛏️ Шахта",       callback_data="profile:mine")
+    # builder.button(text="🏆 Ачивки",      callback_data="profile:achievements")
     builder.adjust(2)
 
+    text = [
+        f"👤 <b>Профіль:</b> {message.from_user.full_name}",
+        f"⭐ <b>Рівень:</b> {lvl} (XP: {xp}/{next_xp})",
+        f"🔋 <b>Енергія:</b> {energy}/100",
+        f"🍗 <b>Голод:</b> {hunger}/100",
+        f"⛏️ <b>Кирка:</b> {pick_name}",
+        f"💰 <b>Баланс:</b> {user['balance']} монет"
+    ]
     await message.reply(
-        f"👤 <b>Профіль</b> — вибери, що показати:",
+        "\n".join(text),
         parse_mode="HTML",
         reply_markup=builder.as_markup()
     )
 
-@router.callback_query(F.data.startswith("profile:"))
-async def profile_callback(callback: types.CallbackQuery):
+router.callback_query(F.data.startswith("profile:"))
+async def profile_callback(callback: types.CallbackQuery, message: types.Message):
     action = callback.data.split(':',1)[1]
     user = await get_user(callback.from_user.id)
     if not user:
         return await callback.message.reply("Спершу /start")
 
-    if action == "basic":
-        energy, _ = await update_energy(user)
-        max_e = 5 + (user["level"] - 1) * 2
-        lvl = user["level"]
-        xp = user["xp"]
-        next_xp = lvl * 100
-        text = [
-            f"👤 <b>Профіль:</b> {callback.from_user.full_name}",
-            f"⭐ <b>Рівень:</b> {lvl} (XP: {xp}/{next_xp})",
-            f"🔋 <b>Енергія:</b> {energy}/{max_e}",
-            f"💰 <b>Баланс:</b> {user['balance']} монет"
-        ]
-    else:  # secret stats
-        inv = await get_inventory(callback.from_user.id)
-        total_items = sum(row['quantity'] for row in inv)
-        distinct = len(inv)
-        text = [
-            f"🔍 <b>Секретна статистика</b>",
-            f"🗃️ Різних ресурсів: {distinct}",
-            f"📦 Загальна кількість ресурсів: {total_items}",
-            f"💎 Загальний XP: {user['xp']}"
-        ]
-    # Відповідаємо і оновлюємо повідомлення
-    await callback.message.edit_text(
-        "\n".join(text),
-        parse_mode="HTML"
-    )
+    if action == "inventory":
+        return await message.answer("/inventory")
+    elif action == "shop":
+        return await message.answer("/shop")
+    elif action == "mine":
+        return await message.answer("/mine")
+        
 
 @router.message(Command("mine"))
 async def mine_cmd(message: types.Message):

@@ -27,6 +27,9 @@ async def init_db():
     await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS streak INTEGER DEFAULT 0;")
     await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_mine_day DATE DEFAULT CURRENT_DATE;")
     await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS mining_end BIGINT DEFAULT 0;")
+    await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS hunger INTEGER DEFAULT 100;")
+    await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_hunger_update TIMESTAMP DEFAULT NOW();")
+    await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS current_pickaxe TEXT DEFAULT 'none';")
 
     await db.execute("""
     CREATE TABLE IF NOT EXISTS inventory (
@@ -141,3 +144,24 @@ async def update_streak(user):
         {"st": current, "lm": today, "uid": user["user_id"]}
     )
     return current
+
+# Hunger
+async def update_hunger(user):
+    now = datetime.datetime.utcnow()
+    last = user["last_hunger_update"]
+    elapsed_sec = (now - last).total_seconds()
+
+    decount = int(elapsed_sec // 3600) * 10
+    if decount < 0:
+        return user["hunger"], last
+    
+    new_h = max(0, user["hunger"] - decount)
+    hours = decount // 10
+    new_last = last + datetime.timedelta(hours=hours)
+    await db.execute("""
+        UPDATE users
+           SET hunger = :h, last_hunger_update = :lupd
+         WHERE user_id = :uid
+        """,
+        {"h": new_h, "lupd": new_last, "uid": user["user_id"]})
+    return new_h, new_last
