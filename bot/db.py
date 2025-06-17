@@ -42,6 +42,14 @@ async def init_db():
     );
     """)
 
+    await db.execute("""
+    CREATE TABLE IF NOT EXISTS groups (
+        chat_id   BIGINT PRIMARY KEY,
+        title     TEXT,
+        added_at  TIMESTAMP DEFAULT NOW() 
+    );
+    """)
+
 # CRUD для користувача
 async def create_user(user_id, username):
     await db.execute("""

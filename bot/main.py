@@ -35,23 +35,26 @@ async def main():
     await db.disconnect()
     logger.info("📴 Polling завершено")
 
-@aiocron.crontab('*/1 * * * *')
+@aiocron.crontab('*/1 * * * *')          # (для тесту) щохвилини
 async def daily_reward():
     if BOT is None:
         return
-    now  = datetime.datetime.now(tz=CEST)
-    today= now.date()
+
+    now   = datetime.datetime.now(tz=CEST)
+    today = now.date()
+
+    msgs = []        # сюди складемо строки для групи
 
     async with db.transaction():
-        users = await db.fetch_all("SELECT user_id, level, last_daily FROM users")
+        users = await db.fetch_all("SELECT user_id, level, username, full_name, last_daily FROM users")
         for u in users:
             if u["last_daily"].date() == today:
-                continue  # вже видано
+                continue
 
-            # визначаємо суму
+            # — сума бонусу —
             lvl = u["level"]
             if lvl < 5:   money, xp = 60, 40
-            elif lvl <10: money, xp =70, 50
+            elif lvl <10: money, xp = 70, 50
             elif lvl <15: money, xp =130, 60
             else:         money, xp =300, 70
 
@@ -66,14 +69,25 @@ async def daily_reward():
                 {"m": money, "xp": xp, "now": now, "uid": u["user_id"]}
             )
 
-            # сповіщаємо юзера
+            # — формуємо красивий mention —
+            nick = u["username"]
+            if nick:
+                mention = f"@{nick}"
+            else:
+                mention = f'<a href="tg://user?id={u["user_id"]}">{u["full_name"]}</a>'
+
+            msgs.append(f"{mention}  →  +{money}💰 +{xp} XP")
+
+    if msgs:
+        text = "🎁 <b>Щоденний бонус&nbsp;{}</b>\n".format(today.strftime('%d.%m.%Y')) + "\n".join(msgs)
+        groups = await db.fetch_all("SELECT chat_id FROM groups")
+        for g in groups:
             try:
-                await BOT.send_message(
-                    u["user_id"],
-                    f"🎁 Щоденний бонус!\n+{money} монет, +{xp} XP. Гарного копання!"
-                )
+                await BOT.send_message(g["chat_id"], text, parse_mode="HTML")
             except Exception:
                 pass 
+    logger.info("🎁 Daily reward batch complete")
+
 
 if __name__ == "__main__":
     try:
