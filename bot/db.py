@@ -147,16 +147,18 @@ async def update_streak(user):
 
 # Hunger
 async def update_hunger(user):
+    import math
     now = datetime.datetime.utcnow()
     last = user.get("last_hunger_update")
     if last is None:
-        last = datetime.datetime.utcnow()
+        last = now
         await db.execute("UPDATE users SET last_hunger_update = :ts WHERE user_id = :uid",
         {"ts": last, "uid": user["user_id"]})
+        return user["hunger"], last
     elapsed_sec = (now - last).total_seconds()
 
-    decount = int(elapsed_sec // 3600) * 10
-    if decount < 0:
+    decount = math.floor(elapsed_sec / 3600) * 10
+    if decount <= 0:
         return user["hunger"], last
     
     new_h = max(0, user["hunger"] - decount)
