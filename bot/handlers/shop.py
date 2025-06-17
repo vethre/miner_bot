@@ -1,5 +1,6 @@
 # bot/handlers/shop.py
 from aiogram import Router, F, types
+from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.db import get_user, add_item, db
@@ -17,7 +18,7 @@ SHOP_ITEMS = {
     "meat":  {"price": 120, "name": "М’ясо","hunger": 60, "emoji": "🍖 "},
 }
 
-@router.message(F.text == "/shop")
+@router.message(Command("/shop"))
 async def shop_cmd(message: types.Message, user_id: int | None = None):
     uid = user_id or message.from_user.id
     user = await get_user(uid)

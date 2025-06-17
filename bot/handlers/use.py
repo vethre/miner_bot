@@ -4,8 +4,9 @@ from bot.db import get_user, get_inventory, db
 
 PICKAXES = {
     "wooden_pickaxe": {"bonus": 0.1,  "name": "дерев’яна кирка", "emoji": "🔨 "},
-    "iron_pickaxe":   {"bonus": 0.2, "name": "залізна кирка", "emoji": "⛏️ "},
-    "gold_pickaxe":   {"bonus": 0.4, "name": "золота кирка", "emoji": "✨ "},
+    "iron_pickaxe":   {"bonus": 0.15, "name": "залізна кирка", "emoji": "⛏️ "},
+    "gold_pickaxe":   {"bonus": 0.3, "name": "золота кирка", "emoji": "✨ "},
+    "roundstone_pickaxe": {"bonus": 0.05,  "name": "круглякова кирка", "emoji": "🔨 "},
 }
 
 router = Router()

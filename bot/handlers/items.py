@@ -52,7 +52,8 @@ for rec in CRAFT_RECIPES.values():
 # Додати ручку
 ITEM_DEFS["wood_handle"] = {"name": "Рукоять", "emoji": "🪵"}
 # І магазинні товари, їжа, бустери тощо:
-# ITEM_DEFS["bread"] = {"name": "Хліб", "emoji": "🍞"}
+ITEM_DEFS["bread"] = {"name": "Хліб", "emoji": "🍞"}
+ITEM_DEFS["meat"] = {"name": "М'со", "emoji": "🍖"}
 
 EXTRA_ORES = {
     "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1,2), "price": 40},
@@ -65,3 +66,20 @@ EXTRA_ORES = {
 ORE_ITEMS.update(EXTRA_ORES)
 for k, v in EXTRA_ORES.items():
     ITEM_DEFS[k] = v         # щоб /inventory їх знав
+
+ALIASES = {
+    "камінь": "stone",
+    "вугілля": "coal",
+    "залізна руда": "iron",
+    "залізо": "iron",
+    "золото": "gold",
+    "аметист": "amethyst",
+    "діамант": "diamond",
+    "смарагд": "emerald",
+    "лазурит": "lapis",
+    "рубин":   "ruby",
+
+    "💎": "diamond",
+    "💚": "emerald",
+    "💜": "amethyst",
+}

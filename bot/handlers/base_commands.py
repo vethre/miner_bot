@@ -215,62 +215,76 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
 
     await message.reply("\n".join(lines), parse_mode="HTML")
 
+# 🔗 Синоніми «як пише юзер» → «ключ у БД»
+ALIASES = {
+    "камінь": "stone",
+    "вугілля": "coal",
+    "залізна руда": "iron",
+    "залізо": "iron",
+    "золото": "gold",
+    "аметист": "amethyst",
+    "діамант": "diamond",
+    "смарагд": "emerald",
+    "лазурит": "lapis",
+    "рубин":   "ruby",
+    # emoji-шорткоди, якщо хочеш
+    "💎": "diamond",
+    "💚": "emerald",
+    "💜": "amethyst",
+}
+
 @router.message(Command("sell"))
 async def sell_cmd(message: types.Message):
     text = message.text or ""
-    parts = text.split(maxsplit=1)  # ['/sell', '<ресурс> <к-сть>']
+    parts = text.split(maxsplit=1)                     # ['/sell', 'Смарагд 3']
     if len(parts) < 2:
-        return await message.reply("Як продати: /sell 'назва ресурсу' 'кількість'")
+        return await message.reply(
+            "Як продати: /sell 'назва ресурсу' 'кількість'"
+        )
 
-    rest = parts[1]
+    # ── відокремлюємо кількість ────────────────────────
     try:
-        item_part, qty_str = rest.rsplit(maxsplit=1)  # ['Залізна руда', '3']
+        item_part, qty_str = parts[1].rsplit(maxsplit=1)
     except ValueError:
-        return await message.reply("Як продати: /sell 'назва ресурсу' 'кількість'")
+        return await message.reply(
+            "Як продати: /sell 'назва ресурсу' 'кількість>'"
+        )
 
-    item_name = item_part.lower().strip()
     if not qty_str.isdigit():
         return await message.reply("Кількість має бути числом!")
     qty = int(qty_str)
 
-    # Ціни
-    PRICE = {
-        "камінь": 2,
-        "вугілля": 5,
-        "залізна руда": 10,
-        "золото": 20,
-        "аметист": 40,
-        "діамант": 60,
-        "смарагд": 55,
-        "лазурит": 35,
-        "рубин":   50,
-    }
-    if item_name not in PRICE:
+    # ── нормалізуємо назву й шукаємо ключ БД ────────────
+    item_name = item_part.lower().strip()              # 'смарагд'
+    item_key  = ALIASES.get(item_name, item_name)      # 'emerald'
+
+    PRICE = {k: v["price"] for k, v in ITEM_DEFS.items()}
+    if item_key not in PRICE:
         return await message.reply(f"Ресурс «{item_name}» не торгується 😕")
 
+    # ── перевіряємо інвентар ───────────────────────────
     inv = await get_inventory(message.from_user.id)
-    inv_dict = {row["item"]: row["quantity"] for row in inv}
-    have = inv_dict.get(item_name, 0)
+    have = {row["item"]: row["quantity"] for row in inv}.get(item_key, 0)
     if have < qty:
-        return await message.reply(f"У тебе лише {have}×{item_name}")
+        return await message.reply(f"У тебе лише {have}×{item_part}")
 
-    # Списуємо ресурси
+    # ── списуємо ресурс ────────────────────────────────
     await db.execute(
         """
         UPDATE inventory
            SET quantity = quantity - :qty
          WHERE user_id = :uid AND item = :item
         """,
-        {"qty": qty, "uid": message.from_user.id, "item": item_name}
+        {"qty": qty, "uid": message.from_user.id, "item": item_key}
     )
-    earned = PRICE[item_name] * qty
-    # Додаємо монети
+
+    earned = PRICE[item_key] * qty
     await db.execute(
         "UPDATE users SET balance = balance + :earned WHERE user_id = :uid",
         {"earned": earned, "uid": message.from_user.id}
     )
 
-    await message.reply(f"Продано {qty}×{item_name} за {earned} монет 💰")
+    await message.reply(f"Продано {qty}×{item_part} за {earned} монет 💰")
 
 @router.message(Command("smelt"))
 async def smelt_cmd(message: types.Message):
