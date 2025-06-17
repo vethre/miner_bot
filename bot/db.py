@@ -51,7 +51,7 @@ async def create_user(user_id, username):
 
 async def get_user(user_id):
     return await db.fetch_one("""
-        SELECT user_id, username, balance, level, xp, energy, last_energy_update, mining_end, streak, last_mine_day, last_hunger_update, current_pickaxe
+        SELECT user_id, username, balance, level, xp, energy, last_energy_update, mining_end, streak, last_mine_day, last_hunger_update, hunger, current_pickaxe
           FROM users
          WHERE user_id = :uid
     """, {"uid": user_id})
