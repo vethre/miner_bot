@@ -34,7 +34,7 @@ async def main():
     await db.disconnect()
     logger.info("📴 Polling завершено")
 
-@aiocron.crontab('1 6 * * *')
+@aiocron.crontab('*/1 * * * *')
 async def daily_reward(bot: Bot):
     now  = datetime.datetime.now(tz=CEST)
     today= now.date()
@@ -46,10 +46,10 @@ async def daily_reward(bot: Bot):
 
             # визначаємо суму
             lvl = u["level"]
-            if lvl < 5:   money, xp = 50, 10
-            elif lvl <10: money, xp =100, 20
-            elif lvl <15: money, xp =200, 30
-            else:         money, xp =400, 40
+            if lvl < 5:   money, xp = 60, 40
+            elif lvl <10: money, xp =70, 50
+            elif lvl <15: money, xp =130, 60
+            else:         money, xp =300, 70
 
             await db.execute(
                 """
