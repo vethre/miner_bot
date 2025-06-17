@@ -6,6 +6,7 @@ from bot.db import (
     get_inventory, add_xp, update_energy, update_streak
 )
 from bot.handlers.crafting import SMELT_INPUT_MAP, SMELT_RECIPES, CRAFT_RECIPES
+from bot.handlers.items import ITEM_DEFS
 import time, random, asyncio
 
 router = Router()
@@ -156,12 +157,19 @@ async def inventory_cmd(message: types.Message):
     user = await get_user(message.from_user.id)
     if not user:
         return await message.reply("Спершу /start")
+
     inv = await get_inventory(message.from_user.id)
     lines = [f"🧾 Баланс: {user['balance']} монет", "<b>📦 Інвентар:</b>"]
+
     for row in inv:
-        ore = ORE_ITEMS[row['item']]
-        lines.append(f"{ore['emoji']} {ore['name']}: {row['quantity']}")
-    return await message.reply("\n".join(lines), parse_mode="HTML")
+        key = row["item"]
+        qty = row["quantity"]
+        item = ITEM_DEFS.get(key, {"name": key, "emoji": ""})
+        # Якщо є emoji — додаємо зліва
+        prefix = f"{item['emoji']} " if item["emoji"] else ""
+        lines.append(f"{prefix}{item['name']}: {qty}")
+
+    await message.reply("\n".join(lines), parse_mode="HTML")
 
 @router.message(Command("sell"))
 async def sell_cmd(message: types.Message):
