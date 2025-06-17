@@ -85,7 +85,7 @@ async def profile_cmd(message: types.Message):
         current = user["current_pickaxe"] or "none"
     except KeyError:
         current = "none"
-        
+
     pick    = PICKAXES.get(current)
     pick_name = pick["name"] if pick else "–"
 
@@ -110,8 +110,8 @@ async def profile_cmd(message: types.Message):
         parse_mode="HTML",
         reply_markup=builder.as_markup()
     )
-
-router.callback_query(F.data.startswith("profile:"))
+# Profile Callback
+@router.callback_query(types.CallbackQuery.data.startswith("profile:"))
 async def profile_callback(callback: types.CallbackQuery):
     action = callback.data.split(':',1)[1]
     user = await get_user(callback.from_user.id)
