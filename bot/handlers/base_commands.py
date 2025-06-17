@@ -111,12 +111,10 @@ async def profile_cmd(message: types.Message):
         reply_markup=builder.as_markup()
     )
 # Profile Callback
-@router.callback_query(types.CallbackQuery.data.startswith("profile:"))
+@router.callback_query(F.data.startswith("profile:"))
 async def profile_callback(callback: types.CallbackQuery):
-    action = callback.data.split(':',1)[1]
-    user = await get_user(callback.from_user.id)
-    if not user:
-        return await callback.message.reply("Спершу /start")
+    await callback.answer()                # прибираємо спінер на кнопці
+    action = callback.data.split(":", 1)[1]
 
     if action == "inventory":
         await inventory_cmd(callback.message)
