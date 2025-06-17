@@ -5,6 +5,7 @@ from bot.db import (
     create_user, get_user, db, add_item,
     get_inventory, add_xp, update_energy, update_streak
 )
+from bot.handlers.crafting import SMELT_INPUT_MAP, SMELT_RECIPES, CRAFT_RECIPES
 import time, random, asyncio
 
 router = Router()
@@ -210,3 +211,79 @@ async def sell_cmd(message: types.Message):
     )
 
     return await message.reply(f"Продано {qty}×{item_name} за {earned} монет 💰")
+
+@router.message(Command("smelt"))
+async def smelt_cmd(message: types.Message):
+    args = message.get_args().split()
+    if len(args) < 2:
+        return await message.reply("Як переплавити: /smelt <руда> <кількість>")
+
+    qty_str = args[-1]
+    try:
+        qty = int(qty_str)
+    except ValueError:
+        return await message.reply("Кількість має бути числом!")
+    ore_name = " ".join(args[:-1]).lower()
+
+    ore_key = SMELT_INPUT_MAP.get(ore_name)
+    if not ore_key:
+        return await message.reply(f"Не можу переплавити «{ore_name}» 😕")
+    
+    recipe = SMELT_RECIPES.get(ore_key)
+    if not recipe:
+        return await message.reply(f"«{ore_name}» не плавиться 🔥")
+    
+    inv = await get_inventory(message.from_user.id)
+    inv_dict = {row["item"]: row["quantity"] for row in inv}
+    have = inv_dict.get(ore_key, 0)
+    if have < qty:
+        return await message.reply(f"У тебе лише {have}×{ore_name}")
+    
+    in_qty = recipe["in_qty"]
+    cnt = qty // in_qty
+    if cnt < 1:
+        return await message.reply(f"Потрібно щонайменше {in_qty}×{ore_name} для 1 {recipe['out_name']}")
+    
+    used = cnt * in_qty
+
+    await db.execute("UPDATE inventory SET quantity = quantity - :used WHERE user_id = :uid AND item = :ore",
+        {"used": used, "uid": message.from_user.id, "ore": ore_key})
+    
+    await add_item(message.from_user.id, recipe["out_key"], cnt)
+
+    return await message.reply(
+        f"🔔 Піч завершила: {cnt}×{recipe['out_name']} (витрачено {used}×{ore_name})"
+    )
+
+@router.message(Command("craft"))
+async def craft_cmd(message: types.Message):
+    args = message.get_args().split()
+    if not args:
+        return await message.reply("Як крафтити: /craft <назва предмету>")
+
+    craft_name = " ".join(args).lower()
+    recipe = CRAFT_RECIPES.get(craft_name)
+    if not recipe:
+        return await message.reply(f"Рецепт для «{craft_name}» не знайдено 😕")
+
+    # Перевірка інвентаря
+    inv = await get_inventory(message.from_user.id)
+    inv_dict = {row["item"]: row["quantity"] for row in inv}
+
+    # Перевіряємо кожний інгредієнт
+    for key, need in recipe["in"].items():
+        have = inv_dict.get(key, 0)
+        if have < need:
+            name = recipe["out_name"]
+            return await message.reply(f"Для {name} потрібно {need}×{key}, у тебе лише {have}")
+
+    # Списуємо інгредієнти
+    for key, need in recipe["in"].items():
+        await db.execute(
+            "UPDATE inventory SET quantity = quantity - :need WHERE user_id = :uid AND item = :key",
+            {"need": need, "uid": message.from_user.id, "key": key}
+        )
+    # Додаємо готовий предмет
+    await add_item(message.from_user.id, recipe["out_key"], 1)
+
+    return await message.reply(f"🎉 Скрафтлено: {recipe['out_name']}!")
