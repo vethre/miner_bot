@@ -8,6 +8,7 @@ from bot.db import (
 from bot.handlers.crafting import SMELT_INPUT_MAP, SMELT_RECIPES, CRAFT_RECIPES
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.use import PICKAXES
+from bot.handlers.shop import shop_cmd
 import time, random, asyncio
 
 router = Router()
@@ -80,8 +81,8 @@ async def profile_cmd(message: types.Message):
     next_xp = lvl * 100
 
     # поточна кирка
-    current = user.get("current_pickaxe", "none")
-    pick = PICKAXES.get(current)
+    current = user.get("current_pickaxe") or "none"
+    pick    = PICKAXES.get(current)
     pick_name = pick["name"] if pick else "–"
 
     # будуємо інлайн-кнопки
@@ -107,18 +108,18 @@ async def profile_cmd(message: types.Message):
     )
 
 router.callback_query(F.data.startswith("profile:"))
-async def profile_callback(callback: types.CallbackQuery, message: types.Message):
+async def profile_callback(callback: types.CallbackQuery):
     action = callback.data.split(':',1)[1]
     user = await get_user(callback.from_user.id)
     if not user:
         return await callback.message.reply("Спершу /start")
 
     if action == "inventory":
-        return await message.answer("/inventory")
+        await inventory_cmd(callback.message)
     elif action == "shop":
-        return await message.answer("/shop")
+        await shop_cmd(callback.message)
     elif action == "mine":
-        return await message.answer("/mine")
+        await mine_cmd(callback.message)
         
 
 @router.message(Command("mine"))
