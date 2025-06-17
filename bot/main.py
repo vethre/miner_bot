@@ -47,7 +47,7 @@ async def daily_reward():
     if BOT is None:
         return
 
-    now   = datetime.utcnow()
+    now   = datetime.datetime.utcnow()
     today = now.date()
 
     msgs = []        # сюди складемо строки для групи
