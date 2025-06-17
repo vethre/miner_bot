@@ -125,8 +125,9 @@ async def profile_callback(callback: types.CallbackQuery):
         
 
 @router.message(Command("mine"))
-async def mine_cmd(message: types.Message):
-    user = await get_user(message.from_user.id)
+async def mine_cmd(message: types.Message, user_id: int | None = None):
+    uid = user_id or message.from_user.id
+    user = await get_user(uid)
     if not user:
         return await message.reply("Спершу /start")
 
@@ -155,8 +156,9 @@ async def mine_cmd(message: types.Message):
     asyncio.create_task(mining_task(message.bot, user["user_id"], message.chat.id))
 
 @router.message(Command("inventory"))
-async def inventory_cmd(message: types.Message):
-    user = await get_user(message.from_user.id)
+async def inventory_cmd(message: types.Message, user_id: int | None = None):
+    uid = user_id or message.from_user.id
+    user = await get_user(uid)
     if not user:
         return await message.reply("Спершу /start")
 

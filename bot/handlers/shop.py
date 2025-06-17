@@ -18,8 +18,9 @@ SHOP_ITEMS = {
 }
 
 @router.message(F.text == "/shop")
-async def shop_cmd(message: types.Message):
-    user = await get_user(message.from_user.id)
+async def shop_cmd(message: types.Message, user_id: int | None = None):
+    uid = user_id or message.from_user.id
+    user = await get_user(uid)
     if not user:
         return await message.reply("Спершу введи /start")
 
