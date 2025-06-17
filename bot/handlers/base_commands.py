@@ -168,13 +168,13 @@ async def sell_cmd(message: types.Message):
     text = message.text or ""
     parts = text.split(maxsplit=1)  # ['/sell', '<ресурс> <к-сть>']
     if len(parts) < 2:
-        return await message.reply("Як продати: /sell <назва ресурсу> <кількість>")
+        return await message.reply("Як продати: /sell 'назва ресурсу' 'кількість'")
 
     rest = parts[1]
     try:
         item_part, qty_str = rest.rsplit(maxsplit=1)  # ['Залізна руда', '3']
     except ValueError:
-        return await message.reply("Як продати: /sell <назва ресурсу> <кількість>")
+        return await message.reply("Як продати: /sell 'назва ресурсу' 'кількість'")
 
     item_name = item_part.lower().strip()
     if not qty_str.isdigit():
@@ -220,13 +220,13 @@ async def smelt_cmd(message: types.Message):
     text = message.text or ""
     parts = text.split(maxsplit=1)  # ['/smelt', 'Залізна руда 17']
     if len(parts) < 2:
-        return await message.reply("Як переплавити: /smelt <руда> <кількість>")
+        return await message.reply("Як переплавити: /smelt 'руда' 'кількість'")
 
     rest = parts[1]  # 'Залізна руда 17'
     try:
         ore_part, qty_str = rest.rsplit(maxsplit=1)  # ['Залізна руда', '17']
     except ValueError:
-        return await message.reply("Як переплавити: /smelt <руда> <кількість>")
+        return await message.reply("Як переплавити: /smelt 'руда' 'кількість'")
 
     ore_name = ore_part.lower()
     if not qty_str.isdigit():
@@ -266,7 +266,7 @@ async def craft_cmd(message: types.Message):
     text = message.text or ""
     parts = text.split(maxsplit=1)  # ['/craft', '<назва предмету>']
     if len(parts) < 2:
-        return await message.reply("Як крафтити: /craft <назва предмету>")
+        return await message.reply("Як крафтити: /craft 'назва предмету'")
 
     craft_name = parts[1].lower().strip()  # вся решта — назва
     recipe = CRAFT_RECIPES.get(craft_name)
