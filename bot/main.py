@@ -28,6 +28,12 @@ async def main():
 
     register_handlers(dp)
 
+    aiocron.crontab(
+        '*/1 * * * *',          # 07:00 UTC ≈ 09:00 CEST
+        func=daily_reward,
+        start=True            # одразу активувати
+    )
+
     logger.info("🚀 Стартую polling...")
     await dp.start_polling(BOT)
 
@@ -35,7 +41,6 @@ async def main():
     await db.disconnect()
     logger.info("📴 Polling завершено")
 
-@aiocron.crontab('*/1 * * * *')          # (для тесту) щохвилини
 async def daily_reward():
     logger.debug("[CRON-DEBUG] tick")
 
