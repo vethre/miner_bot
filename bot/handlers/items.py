@@ -53,3 +53,15 @@ for rec in CRAFT_RECIPES.values():
 ITEM_DEFS["wood_handle"] = {"name": "Рукоять", "emoji": "🪵"}
 # І магазинні товари, їжа, бустери тощо:
 # ITEM_DEFS["bread"] = {"name": "Хліб", "emoji": "🍞"}
+
+EXTRA_ORES = {
+    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1,2), "price": 40},
+    "diamond":  {"name": "Діамант",  "emoji": "💎", "drop_range": (1,1), "price": 60},
+    "emerald":  {"name": "Смарагд",  "emoji": "💚", "drop_range": (1,2), "price": 55},
+    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (2,4), "price": 35},
+    "ruby":     {"name": "Рубін",    "emoji": "❤️", "drop_range": (1,2), "price": 50},
+}
+
+ORE_ITEMS.update(EXTRA_ORES)
+for k, v in EXTRA_ORES.items():
+    ITEM_DEFS[k] = v         # щоб /inventory їх знав

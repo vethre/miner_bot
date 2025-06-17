@@ -15,16 +15,31 @@ router = Router()
 
 # Опис руд
 ORE_ITEMS = {
-    "stone": {"name": "Камінь",       "emoji": "🪨", "drop_range": (1,5), "price": 2},
-    "coal":  {"name": "Вугілля",      "emoji": "🧱", "drop_range": (1,4), "price": 5},
-    "iron":  {"name": "Залізна руда", "emoji": "⛏️", "drop_range": (1,3), "price": 10},
-    "gold":  {"name": "Золото",       "emoji": "🪙", "drop_range": (1,2), "price": 20},
+    "stone": {"name": "Камінь", "emoji": "🪨", "drop_range": (3,10), "price": 2},
+    "coal":  {"name": "Вугілля", "emoji": "🧱", "drop_range": (3,8), "price": 5},
+    "iron":  {"name": "Залізна руда", "emoji": "⛏️", "drop_range": (2,7), "price": 10},
+    "gold":  {"name": "Золото", "emoji": "🪙", "drop_range": (2,6), "price": 20},
+    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1,5), "price": 40},
+    "diamond":  {"name": "Діамант",  "emoji": "💎", "drop_range": (1,2), "price": 60},
+    "emerald":  {"name": "Смарагд",  "emoji": "💚", "drop_range": (1,3), "price": 55},
+    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3,6), "price": 35},
+    "ruby":     {"name": "Рубін",    "emoji": "❤️", "drop_range": (1,4), "price": 50},
 }
+
+TIER_TABLE = [
+    {"level_min": 1,  "ores": ["stone","coal"]},
+    {"level_min": 5,  "ores": ["stone","coal","iron"]},
+    {"level_min":10,  "ores": ["stone","coal","iron","gold"]},
+    {"level_min":15,  "ores": ["stone","coal","iron","gold","amethyst","lapis"]},
+    {"level_min":20,  "ores": ["stone","coal","iron","gold","amethyst","lapis","emerald","ruby"]},
+    {"level_min":25,  "ores": ["stone","coal","iron","gold","amethyst","lapis","emerald","ruby","diamond"]},
+]
+BONUS_BY_TIER = {i+1: 1.0 + i*0.2 for i in range(len(TIER_TABLE))}
 
 # Duration of mining
 MINE_DURATION = 60 # test
 
-async def mining_task(bot: Bot, user_id: int, chat_id: int):
+async def mining_task(bot: Bot, user_id: int, chat_id: int, tier: int, ores: list[str], bonus: float):
     await asyncio.sleep(MINE_DURATION)
     user = await get_user(user_id)
 
@@ -32,6 +47,7 @@ async def mining_task(bot: Bot, user_id: int, chat_id: int):
     ore_id = random.choice(list(ORE_ITEMS.keys()))
     low, high = ORE_ITEMS[ore_id]["drop_range"]
     amount = random.randint(low, high)
+    amount = int(amount * bonus)
 
     await add_item(user_id, ore_id, amount)
     await add_xp(user_id, amount)
@@ -123,6 +139,12 @@ async def profile_callback(callback: types.CallbackQuery):
     elif action == "mine":
         await mine_cmd(callback.message, user_id=callback.from_user.id)
         
+def get_tier(level: int) -> int:
+    tier = 1
+    for i, row in enumerate(TIER_TABLE, start=1):
+        if level >= row["level_min"]:
+            tier = i
+        return tier
 
 @router.message(Command("mine"))
 async def mine_cmd(message: types.Message, user_id: int | None = None):
@@ -135,6 +157,10 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     energy, _ = await update_energy(user)
     if energy < 1:
         return await message.reply("😴 Недостатньо енергії. Зачекай.")
+    
+    tier = get_tier(user["level"])
+    ores = TIER_TABLE[tier-1]["ores"]
+    bonus_tier = BONUS_BY_TIER[tier]
 
     now = int(time.time())
     if user["mining_end"] and user["mining_end"] > now:
@@ -153,7 +179,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
 
     await message.reply(f"⛏️ Іду в шахту на {MINE_DURATION} сек. Успіхів!")
     # фоновий похід
-    asyncio.create_task(mining_task(message.bot, user["user_id"], message.chat.id))
+    asyncio.create_task(mining_task(message.bot, user["user_id"], message.chat.id, tier, ores, bonus_tier))
 
 @router.message(Command("inventory"))
 async def inventory_cmd(message: types.Message, user_id: int | None = None):
@@ -199,6 +225,11 @@ async def sell_cmd(message: types.Message):
         "вугілля": 5,
         "залізна руда": 10,
         "золото": 20,
+        "аметист": 40,
+        "діамант": 60,
+        "смарагд": 55,
+        "лазурит": 35,
+        "рубин":   50,
     }
     if item_name not in PRICE:
         return await message.reply(f"Ресурс «{item_name}» не торгується 😕")
