@@ -53,7 +53,7 @@ async def daily_reward():
     msgs = []        # сюди складемо строки для групи
 
     async with db.transaction():
-        users = await db.fetch_all("SELECT user_id, level, username, full_name, last_daily FROM users")
+        users = await db.fetch_all("SELECT user_id, level, username, last_daily FROM users")
         for u in users:
             if u["last_daily"].date() == today:
                 continue
