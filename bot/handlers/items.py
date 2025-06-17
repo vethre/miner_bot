@@ -2,10 +2,10 @@
 
 # Руди
 ORE_ITEMS = {
-    "stone": {"name": "Камінь",       "emoji": "🪨"},
-    "coal":  {"name": "Вугілля",      "emoji": "🧱"},
-    "iron":  {"name": "Залізна руда", "emoji": "⛏️"},
-    "gold":  {"name": "Золото",       "emoji": "🪙"},
+    "stone": {"name": "Камінь",       "emoji": "🪨", "price": 2},
+    "coal":  {"name": "Вугілля",      "emoji": "🧱", "price": 5},
+    "iron":  {"name": "Залізна руда", "emoji": "⛏️", "price": 10},
+    "gold":  {"name": "Золото",       "emoji": "🪙", "price": 20},
 }
 
 # Рецепти переплавки (ті ж, що й раніше)
