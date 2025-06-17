@@ -30,6 +30,7 @@ async def init_db():
     await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS hunger INTEGER DEFAULT 100;")
     await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_hunger_update TIMESTAMP DEFAULT NOW();")
     await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS current_pickaxe TEXT DEFAULT 'none';")
+    await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_daily TIMESTAMP DEFAULT '1970-01-01';")
 
     await db.execute("""
     CREATE TABLE IF NOT EXISTS inventory (

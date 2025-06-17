@@ -1,5 +1,6 @@
 # bot/main.py
 import asyncio
+import aiocron, pytz, datetime
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
@@ -12,6 +13,8 @@ from bot.handlers import register_handlers
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+CEST = pytz.timezone("Europe/Prague")
 
 async def main():
     logger.info(f"▶️ Using DB_DSN: {DB_DSN!r}")
@@ -30,6 +33,43 @@ async def main():
     # По завершенню (якщо кине SIGTERM чи Exception)
     await db.disconnect()
     logger.info("📴 Polling завершено")
+
+@aiocron.crontab('1 6 * * *')
+async def daily_reward(bot: Bot):
+    now  = datetime.datetime.now(tz=CEST)
+    today= now.date()
+    async with db.transaction():
+        users = await db.fetch_all("SELECT user_id, level, last_daily FROM users")
+        for u in users:
+            if u["last_daily"].date() == today:
+                continue  # вже видано
+
+            # визначаємо суму
+            lvl = u["level"]
+            if lvl < 5:   money, xp = 50, 10
+            elif lvl <10: money, xp =100, 20
+            elif lvl <15: money, xp =200, 30
+            else:         money, xp =400, 40
+
+            await db.execute(
+                """
+                UPDATE users
+                   SET balance = balance + :m,
+                       xp      = xp + :xp,
+                       last_daily = :now
+                 WHERE user_id = :uid
+                """,
+                {"m": money, "xp": xp, "now": now, "uid": u["user_id"]}
+            )
+
+            # сповіщаємо юзера
+            try:
+                await bot.send_message(
+                    u["user_id"],
+                    f"🎁 Щоденний бонус!\n+{money} монет, +{xp} XP. Гарного копання!"
+                )
+            except Exception:
+                pass 
 
 if __name__ == "__main__":
     try:
