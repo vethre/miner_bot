@@ -149,12 +149,22 @@ async def update_streak(user):
 async def update_hunger(user):
     import math
     now = datetime.datetime.utcnow()
-    last = user.get("last_hunger_update")
-    if last is None:
-        last = now
-        await db.execute("UPDATE users SET last_hunger_update = :ts WHERE user_id = :uid",
-        {"ts": last, "uid": user["user_id"]})
-        return user["hunger"], last
+    try:
+        last = user["last_hunger_update"]
+    except KeyError:
+        # колонка ще не створена ─ одразу повертаємо поточний hunger
+        return user["hunger"], now
+
+    if last is None:               # значення NULL у старих рядках
+        await db.execute(
+            """
+            UPDATE users
+               SET last_hunger_update = :ts
+             WHERE user_id = :uid
+            """,
+            {"ts": now, "uid": user["user_id"]}
+        )
+        return user["hunger"], now
     elapsed_sec = (now - last).total_seconds()
 
     decount = math.floor(elapsed_sec / 3600) * 10
