@@ -81,7 +81,11 @@ async def profile_cmd(message: types.Message):
     next_xp = lvl * 100
 
     # поточна кирка
-    current = user.get("current_pickaxe") or "none"
+    try:
+        current = user["current_pickaxe"] or "none"
+    except KeyError:
+        current = "none"
+        
     pick    = PICKAXES.get(current)
     pick_name = pick["name"] if pick else "–"
 
