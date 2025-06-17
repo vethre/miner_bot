@@ -38,6 +38,8 @@ BONUS_BY_TIER = {i+1: 1.0 + i*0.2 for i in range(len(TIER_TABLE))}
 
 # Duration of mining
 MINE_DURATION = 60 # test
+HUNGER_COST = 10
+HUNGER_LIMIT = 20
 
 async def mining_task(bot: Bot, user_id: int, chat_id: int, tier: int, ores: list[str], bonus: float):
     await asyncio.sleep(MINE_DURATION)
@@ -48,6 +50,9 @@ async def mining_task(bot: Bot, user_id: int, chat_id: int, tier: int, ores: lis
     low, high = ORE_ITEMS[ore_id]["drop_range"]
     amount = random.randint(low, high)
     amount = int(amount * bonus)
+
+    pick_bonus = PICKAXES.get(user["current_pickaxe"], {}).get("bonus", 0)
+    amount += int(amount * pick_bonus)
 
     await add_item(user_id, ore_id, amount)
     await add_xp(user_id, amount)
@@ -60,12 +65,17 @@ async def mining_task(bot: Bot, user_id: int, chat_id: int, tier: int, ores: lis
     )
 
     ore = ORE_ITEMS[ore_id]
+
+    username = user["username"] or user["full_name"]
+    mention = f'<a href="tg://user?id={user_id}">{username}</a>'
+
     await bot.send_message(
         chat_id,
         (
-            f"🏔️ Повернувся з шахти!\n"
-            f"Здобуто <b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
-            f"XP +{amount}, streak: {streak} днів."
+            f"🏔️ {mention}, ти повернувся з шахти!\n"
+            f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
+            f"Tier {tier} бонус: ×{bonus:.1f}, "
+            f"Кирка: +{int(pick_bonus*100)} %, streak {streak} дн."
         ),
         parse_mode="HTML"
     )
@@ -155,8 +165,11 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
 
     # оновлюємо енергію
     energy, _ = await update_energy(user)
-    if energy < 1:
+    hunger, _ = await update_hunger(user)
+    if energy <= 15:
         return await message.reply("😴 Недостатньо енергії. Зачекай.")
+    if hunger < HUNGER_LIMIT:
+        return await message.reply("🍽️ Ти занадто голодний, спершу /eat!")
     
     tier = get_tier(user["level"])
     ores = TIER_TABLE[tier-1]["ores"]
@@ -170,11 +183,12 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     await db.execute(
         """
         UPDATE users
-           SET energy = energy - 1,
+           SET energy = energy - 12,
+               hunger = hunger - :hc,
                mining_end = :end
          WHERE user_id = :uid
         """,
-        {"end": now + MINE_DURATION, "uid": user["user_id"]}
+        {"hc": HUNGER_COST, "end": now + MINE_DURATION, "uid": user["user_id"]}
     )
 
     await message.reply(f"⛏️ Іду в шахту на {MINE_DURATION} сек. Успіхів!")
