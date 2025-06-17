@@ -8,13 +8,13 @@ router = Router()
 
 # Список товарів у магазині з ключами без емодзі для БД
 SHOP_ITEMS = {
-    "wood_handle":    {"price": 100,  "name": "🪵 Рукоять"},
-    "wooden_pickaxe": {"price": 200,  "name": "🔨 Дерев’яна кирка"},
-    "iron_pickaxe":   {"price": 1000, "name": "⛏️ Залізна кирка"},
-    "gold_pickaxe":   {"price": 2000, "name": "✨ Золота кирка"},
+    "wood_handle":    {"price": 100,  "name": "Рукоять", "emoji": "🪵 "},
+    "wooden_pickaxe": {"price": 200,  "name": "Дерев’яна кирка", "emoji": "🔨 "},
+    "iron_pickaxe":   {"price": 1000, "name": "Залізна кирка", "emoji": "⛏️ "},
+    "gold_pickaxe":   {"price": 2000, "name": "Золота кирка", "emoji": "✨ "},
     # їжа
-    "bread": {"price": 50,  "name": "🍞 Хліб", "hunger": 30},
-    "meat":  {"price": 120, "name": "🍖 М’ясо","hunger": 60},
+    "bread": {"price": 50,  "name": "Хліб", "hunger": 30, "emoji": "🍞 "},
+    "meat":  {"price": 120, "name": "М’ясо","hunger": 60, "emoji": "🍖 "},
 }
 
 @router.message(F.text == "/shop")
