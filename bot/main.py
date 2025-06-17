@@ -35,6 +35,12 @@ async def main():
     await db.disconnect()
     logger.info("📴 Polling завершено")
 
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logger.exception(f"🔥 Бот звалився з помилкою: {e}")
+
 @aiocron.crontab('*/1 * * * *')          # (для тесту) щохвилини
 async def daily_reward():
     if BOT is None:
@@ -87,10 +93,3 @@ async def daily_reward():
             except Exception:
                 pass 
     logger.info("🎁 Daily reward batch complete")
-
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except Exception as e:
-        logger.exception(f"🔥 Бот звалився з помилкою: {e}")
