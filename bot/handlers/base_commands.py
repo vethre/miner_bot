@@ -129,7 +129,7 @@ async def smelt_timer(bot: Bot, cid: int, uid: int, rec: dict, cnt: int):
         {"c": cid, "u": uid},
     )
 
-    await bot.send_message(uid, f"🔥 Піч готова: {cnt}×{rec['out_name']}")
+    await bot.send_message(cid, f"🔥 Піч готова: {cnt}×{rec['out_name']}")
 
 # ────────── /start ──────────
 @router.message(CommandStart())
@@ -214,7 +214,7 @@ async def profile_callback(cb: types.CallbackQuery):
     if act == "inventory":
         await inventory_cmd(cb.message, cb.from_user.id)
     elif act == "shop":
-        await shop_cmd(cb.message)
+        await shop_cmd(cb.message, cb.from_user.id)
     elif act == "mine":
         await mine_cmd(cb.message, cb.from_user.id)
 
