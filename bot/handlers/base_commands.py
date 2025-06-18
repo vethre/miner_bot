@@ -103,7 +103,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: Lis
             (
                 f"🏔️ {mention}, ти повернувся з шахти!\n"
                 f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
-                f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
+                f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)}%, streak {streak} дн."
             ),
             parse_mode="HTML",
         )
@@ -203,7 +203,7 @@ async def profile_callback(callback: types.CallbackQuery):
     if action == "inventory":
         await inventory_cmd(callback.message, user_id=orig_uid)
     elif action == "shop":
-        await shop_cmd(callback.message, user_id=orig_uid)
+        await shop_cmd(callback.message)
     elif action == "mine":
         await mine_cmd(callback.message, user_id=orig_uid)
 
