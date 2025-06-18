@@ -1,222 +1,235 @@
-from aiogram import Router, types, Bot, F
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from __future__ import annotations
+
+import asyncio
+import random
+import time
+import datetime as dt
+from typing import List
+
+from aiogram import Router, Bot, types, F
 from aiogram.filters import Command, CommandStart
-from bot.db import (
-    create_user, get_user, db, add_item,
-    get_inventory, add_xp, update_energy, update_streak, update_hunger
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from bot.db import db, create_user, get_user, update_streak
+from bot.db_local import (
+    cid_uid,
+    add_item,
+    add_money,
+    add_xp,
+    get_inventory,
+    get_money,
+    update_energy,
+    update_hunger,
+    get_progress,
 )
-from bot.handlers.crafting import SMELT_INPUT_MAP, SMELT_RECIPES, CRAFT_RECIPES
 from bot.handlers.items import ITEM_DEFS
+from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
 from bot.handlers.use import PICKAXES
 from bot.handlers.shop import shop_cmd
-import time, random, asyncio
 
 router = Router()
 
-# Опис руд
-ORE_ITEMS = {
-    "stone": {"name": "Камінь", "emoji": "🪨", "drop_range": (3,10), "price": 2},
-    "coal":  {"name": "Вугілля", "emoji": "🧱", "drop_range": (3,8), "price": 5},
-    "iron":  {"name": "Залізна руда", "emoji": "⛏️", "drop_range": (2,7), "price": 10},
-    "gold":  {"name": "Золото", "emoji": "🪙", "drop_range": (2,6), "price": 20},
-    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1,5), "price": 40},
-    "diamond":  {"name": "Діамант",  "emoji": "💎", "drop_range": (1,2), "price": 60},
-    "emerald":  {"name": "Смарагд",  "emoji": "💚", "drop_range": (1,3), "price": 55},
-    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3,6), "price": 35},
-    "ruby":     {"name": "Рубін",    "emoji": "❤️", "drop_range": (1,4), "price": 50},
-}
-
-TIER_TABLE = [
-    {"level_min": 1,  "ores": ["stone","coal"]},
-    {"level_min": 5,  "ores": ["stone","coal","iron"]},
-    {"level_min":10,  "ores": ["stone","coal","iron","gold"]},
-    {"level_min":15,  "ores": ["stone","coal","iron","gold","amethyst","lapis"]},
-    {"level_min":20,  "ores": ["stone","coal","iron","gold","amethyst","lapis","emerald","ruby"]},
-    {"level_min":25,  "ores": ["stone","coal","iron","gold","amethyst","lapis","emerald","ruby","diamond"]},
-]
-BONUS_BY_TIER = {i+1: 1.0 + i*0.2 for i in range(len(TIER_TABLE))}
-
-# Duration of mining
-MINE_DURATION = 60 # test
+# ────────── Константи ──────────
+MINE_DURATION = 60  # sec (dev)
 HUNGER_COST = 10
 HUNGER_LIMIT = 20
 
-async def mining_task(bot: Bot, user_id: int, chat_id: int, tier: int, ores: list[str], bonus: float):
-    await asyncio.sleep(MINE_DURATION)
-    user = await get_user(user_id)
+# ────────── Руди  + Tiers ──────────
+ORE_ITEMS = {
+    "stone":    {"name": "Камінь",   "emoji": "🪨", "drop_range": (3, 10), "price": 2},
+    "coal":     {"name": "Вугілля",  "emoji": "🧱", "drop_range": (3, 8),  "price": 5},
+    "iron":     {"name": "Залізна руда", "emoji": "⛏️", "drop_range": (2, 7),  "price": 10},
+    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (2, 6),  "price": 20},
+    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1, 5),  "price": 40},
+    "diamond":  {"name": "Діамант",  "emoji": "💎", "drop_range": (1, 2),  "price": 60},
+    "emerald":  {"name": "Смарагд",  "emoji": "💚", "drop_range": (1, 3),  "price": 55},
+    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 35},
+    "ruby":     {"name": "Рубін",    "emoji": "❤️", "drop_range": (1, 4),  "price": 50},
+}
 
-    # drop
-    ore_id = random.choice(list(ORE_ITEMS.keys()))
-    low, high = ORE_ITEMS[ore_id]["drop_range"]
-    amount = random.randint(low, high)
-    amount = int(amount * bonus)
+TIER_TABLE = [
+    {"level_min": 1,  "ores": ["stone", "coal"]},
+    {"level_min": 5,  "ores": ["stone", "coal", "iron"]},
+    {"level_min": 10, "ores": ["stone", "coal", "iron", "gold"]},
+    {"level_min": 15, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis"]},
+    {"level_min": 20, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby"]},
+    {"level_min": 25, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby", "diamond"]},
+]
+BONUS_BY_TIER = {i + 1: 1.0 + i * 0.2 for i in range(len(TIER_TABLE))}
 
-    pick_bonus = PICKAXES.get(user["current_pickaxe"], {}).get("bonus", 0)
-    amount += int(amount * pick_bonus)
+# ────────── Helper ──────────
 
-    await add_item(user_id, ore_id, amount)
-    await add_xp(user_id, amount)
-    streak = await update_streak(user)
-
-    # очищаємо mining_end
-    await db.execute(
-        "UPDATE users SET mining_end = 0 WHERE user_id = :uid",
-        {"uid": user_id}
-    )
-
-    ore = ORE_ITEMS[ore_id]
-
-    username = user["username"] or user["full_name"]
-    mention = f'<a href="tg://user?id={user_id}">{username}</a>'
-
-    await bot.send_message(
-        chat_id,
-        (
-            f"🏔️ {mention}, ти повернувся з шахти!\n"
-            f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
-            f"Tier {tier} бонус: ×{bonus:.1f}, "
-            f"Кирка: +{int(pick_bonus*100)} %, streak {streak} дн."
-        ),
-        parse_mode="HTML"
-    )
-
-# ===== Команди =====
-@router.message(CommandStart())
-async def start_cmd(message: types.Message):
-    await create_user(
-        message.from_user.id,
-        message.from_user.username or message.from_user.full_name
-    )
-    await message.reply(
-        "Привіт, шахтарю! ⛏️ Реєстрація пройшла успішно. Використовуй /mine, щоб копати ресурси!"
-    )
-
-@router.message(Command("profile"))
-async def profile_cmd(message: types.Message):
-    user = await get_user(message.from_user.id)
-    if not user:
-        return await message.reply("Спершу введи /start")
-
-    # поновлюємо енергію та голод
-    energy, _ = await update_energy(user)
-    hunger, _ = await update_hunger(user)
-
-    # рівень і XP
-    lvl = user["level"]
-    xp = user["xp"]
-    next_xp = lvl * 100
-
-    # поточна кирка
-    try:
-        current = user["current_pickaxe"] or "none"
-    except KeyError:
-        current = "none"
-
-    pick    = PICKAXES.get(current)
-    pick_name = pick["name"] if pick else "–"
-
-    # будуємо інлайн-кнопки
-    builder = InlineKeyboardBuilder()
-    builder.button(text="📦 Інвентар",    callback_data="profile:inventory")
-    builder.button(text="🛒 Магазин",     callback_data="profile:shop")
-    builder.button(text="⛏️ Шахта",       callback_data="profile:mine")
-    # builder.button(text="🏆 Ачивки",      callback_data="profile:achievements")
-    builder.adjust(2)
-
-    text = [
-        f"👤 <b>Профіль:</b> {message.from_user.full_name}",
-        f"⭐ <b>Рівень:</b> {lvl} (XP: {xp}/{next_xp})",
-        f"🔋 <b>Енергія:</b> {energy}/100",
-        f"🍗 <b>Голод:</b> {hunger}/100",
-        f"⛏️ <b>Кирка:</b> {pick_name}",
-        f"💰 <b>Баланс:</b> {user['balance']} монет"
-    ]
-    await message.reply(
-        "\n".join(text),
-        parse_mode="HTML",
-        reply_markup=builder.as_markup()
-    )
-# Profile Callback
-@router.callback_query(F.data.startswith("profile:"))
-async def profile_callback(callback: types.CallbackQuery):
-    await callback.answer()                # прибираємо спінер на кнопці
-    action = callback.data.split(":", 1)[1]
-
-    if action == "inventory":
-        await inventory_cmd(callback.message, user_id=callback.from_user.id)
-    elif action == "shop":
-        await shop_cmd(callback.message, user_id=callback.from_user.id)
-    elif action == "mine":
-        await mine_cmd(callback.message, user_id=callback.from_user.id)
-        
 def get_tier(level: int) -> int:
     tier = 1
     for i, row in enumerate(TIER_TABLE, start=1):
         if level >= row["level_min"]:
             tier = i
-        return tier
+    return tier
 
+# ────────── Mining Task ──────────
+async def mining_task(bot: Bot, cid: int, uid: int, tier: int, ores: List[str], bonus: float):
+    await asyncio.sleep(MINE_DURATION)
+
+    prog = await get_progress(cid, uid)
+
+    ore_id = random.choice(ores)
+    low, high = ORE_ITEMS[ore_id]["drop_range"]
+    amount = random.randint(low, high)
+
+    # Tier + кирка бонус
+    amount = int(amount * bonus)
+    pick_bonus = PICKAXES.get(prog["current_pickaxe"], {}).get("bonus", 0)
+    amount += int(amount * pick_bonus)
+
+    # Додаємо лут
+    await add_item(cid, uid, ore_id, amount)
+    await add_xp(cid, uid, amount)
+    streak = await update_streak(uid)  # streak поки глобальний
+
+    # очищаємо таймер
+    await db.execute(
+        """UPDATE progress_local SET mining_end=NULL WHERE chat_id=:c AND user_id=:u""",
+        {"c": cid, "u": uid},
+    )
+
+    ore = ORE_ITEMS[ore_id]
+    mention = f'<a href="tg://user?id={uid}">шахтар</a>'
+
+    await bot.send_message(
+        cid,
+        (
+            f"🏔️ {mention}, ти повернувся з шахти!\n"
+            f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
+            f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
+        ),
+        parse_mode="HTML",
+    )
+
+# ────────── Smelt Task ──────────
+async def smelt_timer(bot: Bot, cid: int, uid: int, rec: dict, cnt: int):
+    duration = cnt * 5
+    await asyncio.sleep(duration)
+
+    await add_item(cid, uid, rec["out_key"], cnt)
+    await db.execute(
+        "UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid},
+    )
+
+    await bot.send_message(uid, f"🔥 Піч готова: {cnt}×{rec['out_name']}")
+
+# ────────── /start ──────────
+@router.message(CommandStart())
+async def start_cmd(message: types.Message):
+    await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
+    await message.reply("Привіт, шахтарю! ⛏️ Реєстрація пройшла успішно. Використовуй /mine, щоб копати ресурси!")
+
+# ────────── /profile ──────────
+@router.message(Command("profile"))
+async def profile_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    await create_user(uid, message.from_user.username or message.from_user.full_name)
+    energy, _ = await update_energy(cid, uid)
+    hunger, _ = await update_hunger(cid, uid)
+
+    prog = await get_progress(cid, uid)
+    lvl = prog.get("level", 1)
+    xp = prog.get("xp", 0)
+    next_xp = lvl * 100
+    pick_name = PICKAXES.get(prog["current_pickaxe"], {"name": "–"})["name"]
+    balance = await get_money(cid, uid)
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text="📦 Інвентар", callback_data="profile:inventory")
+    kb.button(text="🛒 Магазин", callback_data="profile:shop")
+    kb.button(text="⛏️ Шахта",   callback_data="profile:mine")
+    kb.adjust(2)
+
+    text = (
+        f"👤 <b>Профіль:</b> {message.from_user.full_name}\n"
+        f"⭐ <b>Рівень:</b> {lvl} (XP {xp}/{next_xp})\n"
+        f"🔋 <b>Енергія:</b> {energy}/100\n"
+        f"🍗 <b>Голод:</b> {hunger}/100\n"
+        f"⛏️ <b>Кирка:</b> {pick_name}\n"
+        f"💰 <b>Баланс:</b> {balance} монет"
+    )
+    await message.reply(text, parse_mode="HTML", reply_markup=kb.as_markup())
+
+@router.callback_query(F.data.startswith("profile:"))
+async def profile_callback(cb: types.CallbackQuery):
+    await cb.answer()
+    act = cb.data.split(":", 1)[1]
+    if act == "inventory":
+        await inventory_cmd(cb.message, cb.from_user.id)
+    elif act == "shop":
+        await shop_cmd(cb.message, cb.from_user.id)
+    elif act == "mine":
+        await mine_cmd(cb.message, cb.from_user.id)
+
+# ────────── /mine ──────────
 @router.message(Command("mine"))
 async def mine_cmd(message: types.Message, user_id: int | None = None):
-    uid = user_id or message.from_user.id
+    cid, uid = await cid_uid(message)
+    if user_id:
+        uid = user_id
     user = await get_user(uid)
     if not user:
         return await message.reply("Спершу /start")
 
-    # оновлюємо енергію
-    energy, _ = await update_energy(user)
-    hunger, _ = await update_hunger(user)
+    energy, _ = await update_energy(cid, uid)
+    hunger, _ = await update_hunger(cid, uid)
     if energy <= 15:
         return await message.reply("😴 Недостатньо енергії. Зачекай.")
     if hunger < HUNGER_LIMIT:
         return await message.reply("🍽️ Ти занадто голодний, спершу /eat!")
-    
-    tier = get_tier(user["level"])
-    ores = TIER_TABLE[tier-1]["ores"]
+
+    prog = await get_progress(cid, uid)
+    if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
+        left = int((prog["mining_end"] - dt.datetime.utcnow()).total_seconds())
+        return await message.reply(f"⛏️ Ти ще в шахті, залишилось {left} сек.")
+
+    tier = get_tier(prog["level"])
     bonus_tier = BONUS_BY_TIER[tier]
+    ores = TIER_TABLE[tier - 1]["ores"]
 
-    now = int(time.time())
-    if user["mining_end"] and user["mining_end"] > now:
-        return await message.reply(f"⛏️ Ти ще в шахті, залишилось {user['mining_end']-now} сек.")
-
-    # списуємо 1 енергію і ставимо mining_end
+    # списуємо енергію/голод + ставимо таймер
     await db.execute(
-        """
-        UPDATE users
-           SET energy = energy - 12,
-               hunger = hunger - :hc,
-               mining_end = :end
-         WHERE user_id = :uid
-        """,
-        {"hc": HUNGER_COST, "end": now + MINE_DURATION, "uid": user["user_id"]}
+        """UPDATE progress_local
+               SET energy = GREATEST(0, energy - 12),
+                   hunger = GREATEST(0, hunger - :hc),
+                   mining_end = :end
+             WHERE chat_id=:c AND user_id=:u""",
+        {
+            "hc": HUNGER_COST,
+            "end": dt.datetime.utcnow() + dt.timedelta(seconds=MINE_DURATION),
+            "c": cid,
+            "u": uid,
+        },
     )
 
     await message.reply(f"⛏️ Іду в шахту на {MINE_DURATION} сек. Успіхів!")
-    # фоновий похід
-    asyncio.create_task(mining_task(message.bot, user["user_id"], message.chat.id, tier, ores, bonus_tier))
+    asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
+# ────────── /inventory ──────────
 @router.message(Command("inventory"))
 async def inventory_cmd(message: types.Message, user_id: int | None = None):
-    uid = user_id or message.from_user.id
-    user = await get_user(uid)
-    if not user:
-        return await message.reply("Спершу /start")
+    cid, uid = await cid_uid(message)
+    if user_id:
+        uid = user_id
+    inv = await get_inventory(cid, uid)
+    balance = await get_money(cid, uid)
 
-    inv = await get_inventory(message.from_user.id)
-    lines = [f"🧾 Баланс: {user['balance']} монет", "<b>📦 Інвентар:</b>"]
-
+    lines = [f"🧾 Баланс: {balance} монет", "<b>📦 Інвентар:</b>"]
     for row in inv:
-        key = row["item"]
-        qty = row["quantity"]
-        item = ITEM_DEFS.get(key, {"name": key, "emoji": ""})
-        # Якщо є emoji — додаємо зліва
-        prefix = f"{item['emoji']} " if item["emoji"] else ""
-        lines.append(f"{prefix}{item['name']}: {qty}")
+        meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": ""})
+        pre = f"{meta['emoji']} " if meta.get("emoji") else ""
+        lines.append(f"{pre}{meta['name']}: {row['qty']}")
 
     await message.reply("\n".join(lines), parse_mode="HTML")
 
-# 🔗 Синоніми «як пише юзер» → «ключ у БД»
-ALIASES = {
+# ────────── /sell (локальний) ──────────
+ALIASES = {k: k for k in ORE_ITEMS}
+ALIASES.update({
     "камінь": "stone",
     "вугілля": "coal",
     "залізна руда": "iron",
@@ -226,145 +239,89 @@ ALIASES = {
     "діамант": "diamond",
     "смарагд": "emerald",
     "лазурит": "lapis",
-    "рубин":   "ruby",
-    # emoji-шорткоди, якщо хочеш
-    "💎": "diamond",
-    "💚": "emerald",
-    "💜": "amethyst",
-}
+    "рубин": "ruby",
+})
 
 @router.message(Command("sell"))
 async def sell_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
     text = message.text or ""
     parts = text.split(maxsplit=1)
     if len(parts) < 2:
-        return await message.reply("Як продати: /sell <назва ресурсу> <кількість>")
-
-    # розділяємо назву й кількість
+        return await message.reply("Як продати: /sell 'ресурс' 'к-сть'")
     try:
         item_part, qty_str = parts[1].rsplit(maxsplit=1)
     except ValueError:
-        return await message.reply("Як продати: /sell <назва ресурсу> <кількість>")
-
+        return await message.reply("Як продати: /sell 'ресурс' 'к-сть'")
     if not qty_str.isdigit():
         return await message.reply("Кількість має бути числом!")
     qty = int(qty_str)
-
-    # нормалізуємо назву
-    item_name = item_part.lower().strip()
-    item_key  = ALIASES.get(item_name, item_name)      # 'emerald'
-
-    # формуємо прайс-лист тільки для тих, у кого price є
-    PRICE = {k: v["price"] for k, v in ITEM_DEFS.items() if "price" in v}
-
-    if item_key not in PRICE:
-        return await message.reply(f"Ресурс «{item_name}» не торгується 😕")
-
-    # перевіряємо інвентар
-    inv = await get_inventory(message.from_user.id)
-    have = {row["item"]: row["quantity"] for row in inv}.get(item_key, 0)
+    item_key = ALIASES.get(item_part.lower(), item_part.lower())
+    if item_key not in ITEM_DEFS or "price" not in ITEM_DEFS[item_key]:
+        return await message.reply("Не торгується 😕")
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    have = inv.get(item_key, 0)
     if have < qty:
         return await message.reply(f"У тебе лише {have}×{item_part}")
-
-    # списуємо ресурс
-    await db.execute(
-        """
-        UPDATE inventory
-           SET quantity = quantity - :qty
-         WHERE user_id = :uid AND item = :item
-        """,
-        {"qty": qty, "uid": message.from_user.id, "item": item_key}
-    )
-
-    earned = PRICE[item_key] * qty
-    await db.execute(
-        "UPDATE users SET balance = balance + :earned WHERE user_id = :uid",
-        {"earned": earned, "uid": message.from_user.id}
-    )
-
+    await add_item(cid, uid, item_key, -qty)
+    earned = ITEM_DEFS[item_key]["price"] * qty
+    await add_money(cid, uid, earned)
     await message.reply(f"Продано {qty}×{item_part} за {earned} монет 💰")
 
+# ────────── /smelt (async) ──────────
 @router.message(Command("smelt"))
 async def smelt_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+
     text = message.text or ""
-    parts = text.split(maxsplit=1)  # ['/smelt', 'Залізна руда 17']
+    parts = text.split(maxsplit=1)
     if len(parts) < 2:
         return await message.reply("Як переплавити: /smelt 'руда' 'кількість'")
-
-    rest = parts[1]  # 'Залізна руда 17'
     try:
-        ore_part, qty_str = rest.rsplit(maxsplit=1)  # ['Залізна руда', '17']
+        ore_part, qty_str = parts[1].rsplit(maxsplit=1)
     except ValueError:
-        return await message.reply("Як переплавити: /smelt 'руда' 'кількість'")
-
-    ore_name = ore_part.lower()
+        return await message.reply("/smelt 'руда' 'кількість'")
     if not qty_str.isdigit():
         return await message.reply("Кількість має бути числом!")
-
     qty = int(qty_str)
-
-    # Твоя мапа input→ключ
-    ore_key = SMELT_INPUT_MAP.get(ore_name)
+    ore_key = SMELT_INPUT_MAP.get(ore_part.lower())
     if not ore_key:
-        return await message.reply(f"Не знаю таку руду «{ore_name}» 😕")
-
-    recipe = SMELT_RECIPES[ore_key]
-    have = {row["item"]: row["quantity"] for row in await get_inventory(message.from_user.id)}.get(ore_key, 0)
+        return await message.reply("Невідома руда")
+    rec = SMELT_RECIPES[ore_key]
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    have = inv.get(ore_key, 0)
     if have < qty:
-        return await message.reply(f"У тебе лише {have}×{ore_name}")
-
-    cnt = qty // recipe["in_qty"]
+        return await message.reply(f"У тебе лише {have}")
+    cnt = qty // rec["in_qty"]
     if cnt < 1:
-        return await message.reply(f"Потрібно щонайменше {recipe['in_qty']}×{ore_name} для 1×{recipe['out_name']}")
-
-    used = cnt * recipe["in_qty"]
-    # Списуємо руду
+        return await message.reply(f"Потрібно {rec['in_qty']}× для одного інгота")
+    used = cnt * rec["in_qty"]
+    await add_item(cid, uid, ore_key, -used)
+    # Таймер
+    duration = cnt * 5  # 5 сек за інгот (dev)
     await db.execute(
-        "UPDATE inventory SET quantity = quantity - :used WHERE user_id = :uid AND item = :ore",
-        {"used": used, "uid": message.from_user.id, "ore": ore_key}
+        "UPDATE progress_local SET smelt_end=:e WHERE chat_id=:c AND user_id=:u",
+        {"e": dt.datetime.utcnow() + dt.timedelta(seconds=duration), "c": cid, "u": uid},
     )
-    # Додаємо інготи
-    await add_item(message.from_user.id, recipe["out_key"], cnt)
+    asyncio.create_task(smelt_timer(message.bot, cid, uid, rec, cnt))
+    await message.reply(f"⏲️ Піч працює {duration} сек…")
 
-    return await message.reply(
-        f"🔔 Піч завершила: {cnt}×{recipe['out_name']} (витрачено {used}×{ore_name})"
-    )
-
+# ────────── /craft ──────────
 @router.message(Command("craft"))
 async def craft_cmd(message: types.Message):
-    text = message.text or ""
-    parts = text.split(maxsplit=1)  # ['/craft', '<назва предмету>']
+    cid, uid = await cid_uid(message)
+    parts = message.text.split(maxsplit=1)
     if len(parts) < 2:
-        return await message.reply("Як крафтити: /craft 'назва предмету'")
-
-    craft_name = parts[1].lower().strip()  # вся решта — назва
+        return await message.reply("/craft 'назва'")
+    craft_name = parts[1].lower().strip()
     recipe = CRAFT_RECIPES.get(craft_name)
     if not recipe:
-        return await message.reply(f"Рецепт для «{craft_name}» не знайдено 😕")
-
-    # Перевіряємо інвентар
-    inv = await get_inventory(message.from_user.id)
-    inv_dict = {row["item"]: row["quantity"] for row in inv}
-
-    for key, need in recipe["in"].items():
-        have = inv_dict.get(key, 0)
-        if have < need:
-            return await message.reply(
-                f"Для {recipe['out_name']} потрібно {need}×{key}, у тебе лише {have}"
-            )
-
-    # Списуємо інгредієнти
-    for key, need in recipe["in"].items():
-        await db.execute(
-            """
-            UPDATE inventory
-               SET quantity = quantity - :need
-             WHERE user_id = :uid AND item = :key
-            """,
-            {"need": need, "uid": message.from_user.id, "key": key}
-        )
-
-    # Додаємо готовий предмет
-    await add_item(message.from_user.id, recipe["out_key"], 1)
-
+        return await message.reply("Рецепт не знайдено")
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    for k, need in recipe["in"].items():
+        if inv.get(k, 0) < need:
+            return await message.reply("Не вистачає ресурсів")
+    for k, need in recipe["in"].items():
+        await add_item(cid, uid, k, -need)
+    await add_item(cid, uid, recipe["out_key"], 1)
     await message.reply(f"🎉 Скрафтлено: {recipe['out_name']}!")
