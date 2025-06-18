@@ -214,7 +214,7 @@ async def profile_callback(cb: types.CallbackQuery):
     if act == "inventory":
         await inventory_cmd(cb.message, cb.from_user.id)
     elif act == "shop":
-        await shop_cmd(cb.message, cb.from_user.id)
+        await shop_cmd(cb.message)
     elif act == "mine":
         await mine_cmd(cb.message, cb.from_user.id)
 
