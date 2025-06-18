@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from os import link
 import random
 import time
 import datetime as dt
@@ -23,6 +24,7 @@ from bot.db_local import (
     update_hunger,
     get_progress,
     update_streak,
+    AUTO_DELETE
 )
 from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.items import ITEM_DEFS
@@ -32,6 +34,7 @@ from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID
 
 router = Router()
+MESSAGE_CACHE = []
 
 # ────────── Константи ──────────
 MINE_DURATION = 60  # sec (dev)
@@ -123,7 +126,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: lis
         else:
             mention = f'<a href="tg://user?id={tg_user.id}">{tg_user.full_name}</a>'
 
-        await bot.send_message(
+        msg = await bot.send_message(
             chat_id,
             (
                 f"🏔️ {mention}, ти повернувся з шахти!\n"
@@ -136,6 +139,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: lis
         )
     except Exception as e:
         print(f"Error in mining_task: {e}")
+    register_msg_for_autodelete(bot.chat.id, msg.message_id)
 
 # ────────── Smelt Task ──────────
 async def smelt_timer(bot: Bot, cid: int, uid: int, rec: dict, cnt: int):
@@ -154,7 +158,8 @@ async def smelt_timer(bot: Bot, cid: int, uid: int, rec: dict, cnt: int):
 @router.message(CommandStart())
 async def start_cmd(message: types.Message):
     await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
-    await message.reply("Привіт, шахтарю! ⛏️ Реєстрація пройшла успішно. Використовуй /mine, щоб копати ресурси!")
+    msg = await message.reply("Привіт, шахтарю! ⛏️ Реєстрація пройшла успішно. Використовуй /mine, щоб копати ресурси!")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /profile ──────────
 @router.message(Command("profile"))
@@ -207,12 +212,15 @@ async def profile_cmd(message: types.Message):
         f"💎 <b>Cave Pass:</b> {pass_str}\n"
         f"💰 <b>Баланс:</b> {balance} монет"
     )
-    await message.answer_photo(
+
+    msg = await message.answer_photo(
         photo=PROFILE_IMG_ID,
         caption=text,
         parse_mode="HTML",
-        reply_to_message_id=message.message_id
+        reply_to_message_id=message.message_id,
+        reply_markup=builder.as_markup()
     )
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
     # await message.reply(text, parse_mode="HTML", reply_markup=builder.as_markup())
 
 # Profile Callback
@@ -293,7 +301,8 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         },
     )
 
-    await message.reply(f"⛏️ Іду в шахту на {MINE_DURATION} сек. Успіхів!")
+    msg = await message.reply(f"⛏️ Іду в шахту на {MINE_DURATION} сек. Успіхів!")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
 # ────────── /inventory ──────────
@@ -311,12 +320,14 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         pre = f"{meta['emoji']} " if meta.get("emoji") else ""
         lines.append(f"{pre}{meta['name']}: {row['qty']}")
 
-    await message.answer_photo(
+    msg = await message.answer_photo(
         photo=INV_IMG_ID,
         caption="\n".join(lines),
         parse_mode="HTML",
         reply_to_message_id=message.message_id
     )
+
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
     #await message.reply("\n".join(lines), parse_mode="HTML")
 
 # ────────── /sell (локальний) ──────────
@@ -358,7 +369,8 @@ async def sell_cmd(message: types.Message):
     await add_item(cid, uid, item_key, -qty)
     earned = ITEM_DEFS[item_key]["price"] * qty
     await add_money(cid, uid, earned)
-    await message.reply(f"Продано {qty}×{item_part} за {earned} монет 💰")
+    msg = await message.reply(f"Продано {qty}×{item_part} за {earned} монет 💰")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /smelt (async) ──────────
 @router.message(Command("smelt"))
@@ -396,7 +408,8 @@ async def smelt_cmd(message: types.Message):
         {"e": dt.datetime.utcnow() + dt.timedelta(seconds=duration), "c": cid, "u": uid},
     )
     asyncio.create_task(smelt_timer(message.bot, cid, uid, rec, cnt))
-    await message.reply(f"⏲️ Піч працює {duration} сек…")
+    msg = await message.reply(f"⏲️ Піч працює {duration} сек…")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /craft ──────────
 @router.message(Command("craft"))
@@ -416,7 +429,8 @@ async def craft_cmd(message: types.Message):
     for k, need in recipe["in"].items():
         await add_item(cid, uid, k, -need)
     await add_item(cid, uid, recipe["out_key"], 1)
-    await message.reply(f"🎉 Скрафтлено: {recipe['out_name']}!")
+    msg = await message.reply(f"🎉 Скрафтлено: {recipe['out_name']}!")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /stats ──────────
 @router.message(Command("stats"))
@@ -427,11 +441,12 @@ async def stats_cmd(message: types.Message):
     builder.button(text="🎖️ Топ за рівнем", callback_data="stats:level")
     builder.button(text="📊 Топ за ресурсами", callback_data="stats:resources")
     builder.adjust(1)
-    await message.reply(
+    msg = await message.reply(
         "📊 <b>Статистика</b> — оберіть топ:",
         parse_mode="HTML",
         reply_markup=builder.as_markup()
     )
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 @router.callback_query(F.data.startswith("stats:"))
 async def stats_callback(callback: CallbackQuery):
@@ -496,7 +511,8 @@ async def stats_callback(callback: CallbackQuery):
         return
 
     text = "\n".join(lines) if lines else "Немає даних для показу"
-    await callback.message.edit_text(text, parse_mode="HTML")
+    msg = await callback.message.edit_text(text, parse_mode="HTML")
+    register_msg_for_autodelete(callback.chat.id, msg.message_id)
 
 @router.message(Command("repair"))
 async def repair_cmd(message: types.Message):
@@ -518,3 +534,92 @@ async def repair_cmd(message: types.Message):
         {"max": dur_max, "c": cid, "u": uid}
     )
     return await message.reply(f"🛠️ Кирку полагоджено до {dur_max}/{dur_max} за {cost} монет!")
+
+TELEGRAPH_LINK = "https://telegra.ph/Cave-Miner---Info-06-17" 
+
+# /about
+@router.message(Command("about"))
+async def about_cmd(message: types.Message):
+    msg = await message.reply(f"🔍 Детальніше про бота — {link('читати на Telegraph', TELEGRAPH_LINK)}", parse_mode="HTML")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
+
+# /report <bug text>
+@router.message(Command("report"))
+async def report_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        return await message.reply("❗ Використання: /report 'опис багу'")
+
+    bug_text = args[1]
+    report_line = f"🐞 Баг від {message.from_user.full_name} ({uid}):\n{bug_text}"
+
+    # відправка мені
+    ADMIN_ID = 700929765 
+    try:
+        msg = await message.bot.send_message(ADMIN_ID, report_line)
+    except:
+        pass
+
+    msg = await message.reply("✅ Дякую, баг передано!")
+
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
+
+@router.message(Command("autodelete"))
+async def autodelete_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    parts = message.text.strip().split()
+    
+    if len(parts) != 2 or not parts[1].isdigit():
+        return await message.reply("❗ Використання: /autodelete 60 (від 1 до 720 хв, або 0 щоб вимкнути)")
+
+    minutes = int(parts[1])
+    if not (0 <= minutes <= 720):
+        return await message.reply("❗ Введи значення від 0 до 720 хвилин")
+
+    await db.execute(
+        "UPDATE progress_local SET autodelete_minutes=:m WHERE chat_id=:c AND user_id=:u",
+        {"m": minutes, "c": cid, "u": uid}
+    )
+    
+    if minutes == 0:
+        await message.reply("🧹 Автовидалення вимкнено. Повідомлення залишатимуться в чаті.")
+    else:
+        await message.reply(f"🧼 Автовидалення активовано: кожні {minutes} хвилин бот чиститиме свої повідомлення.")
+
+async def auto_cleanup_task(bot: Bot):
+    while True:
+        now = dt.datetime.utcnow()
+        to_remove = []
+
+        for msg in MESSAGE_CACHE:
+            chat_id = msg["chat_id"]
+            if chat_id not in AUTO_DELETE:
+                continue
+
+            conf = AUTO_DELETE[chat_id]
+            if not conf.get("enabled"):
+                continue
+
+            interval = conf.get("interval", 60)
+            age = (now - msg["created"]).total_seconds() / 60
+
+            if age >= interval:
+                to_remove.append(msg)
+
+        for msg in to_remove:
+            try:
+                await bot.delete_message(msg["chat_id"], msg["message_id"])
+                MESSAGE_CACHE.remove(msg)
+            except Exception as e:
+                print(f"❌ Не вдалося видалити повідомлення {msg['message_id']} в чаті {msg['chat_id']}: {e}")
+
+        await asyncio.sleep(60)  # Перевіряти щохвилини
+
+def register_msg_for_autodelete(chat_id: int, message_id: int):
+    MESSAGE_CACHE.append({
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "created": dt.datetime.utcnow()
+    })
+

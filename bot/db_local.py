@@ -52,8 +52,10 @@ CREATE TABLE IF NOT EXISTS case_rewards (
 
 ALTER TABLE progress_local
   ADD COLUMN IF NOT EXISTS streak INT DEFAULT 0;
-"""
 
+ALTER TABLE progress_local ADD COLUMN autodelete_minutes INTEGER DEFAULT 0;
+"""
+AUTO_DELETE = {}
 # ────────── INIT ──────────
 async def init_local():
     """Виконати міграцію DDL після підключення БД."""
