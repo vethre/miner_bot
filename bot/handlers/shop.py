@@ -8,6 +8,7 @@ from bot.db_local import cid_uid, get_money, add_money, add_item
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.cases import give_case_to_user
 from bot.assets import SHOP_IMG_ID
+from bot.handlers.base_commands import MESSAGE_CACHE, register_msg_for_autodelete
 
 router = Router()
 
@@ -33,13 +34,14 @@ async def shop_cmd(message: types.Message):
         builder.button(text=text, callback_data=f"buy:{item_id}")
     builder.adjust(1)
 
-    await message.answer_photo(
+    msg = await message.answer_photo(
         photo=SHOP_IMG_ID,
         caption="🛒 <b>Магазин</b> — обери товар:",
         parse_mode="HTML",
         reply_to_message_id=message.message_id,
         reply_markup=builder.as_markup()
     )
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
     """
     await message.reply(
         "🛒 <b>Магазин</b> — обери товар:",
@@ -65,7 +67,8 @@ async def shop_buy_callback(callback: CallbackQuery):
     await add_money(cid, uid, -price)
     await add_item(cid, uid, item_id, 1)
 
-    await callback.message.reply(
+    msg = await callback.message.reply(
         f"Ти придбав {item['emoji']}<b>{item['name']}</b> за {price} монет! 🎉",
         parse_mode="HTML"
     )
+    register_msg_for_autodelete(callback.chat.id, msg.message_id)

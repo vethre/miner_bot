@@ -11,7 +11,7 @@ from bot.handlers.items import ITEM_DEFS
 router = Router()
 
 PASS_PRICE_COINS = 1000           # якщо все ж хочете альтернативно за внутрішню валюту
-PASS_PRICE_UAH = 1               # реальна ціна в гривнях
+PASS_PRICE_UAH = 53               # реальна ціна в гривнях
 PAYMENT_LINK = "https://send.monobank.ua/jar/A8ew2aMM3S"  # замініть на ваш
 
 PASS_DURATION_DAYS = 30

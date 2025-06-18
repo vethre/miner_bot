@@ -7,6 +7,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 
+from bot.handlers.base_commands import auto_cleanup_task
 from bot.utils.config import BOT_TOKEN, DB_DSN
 from bot.db import init_db, db
 from bot.db_local import init_local
@@ -38,6 +39,8 @@ async def main():
 
     logger.info("🚀 Стартую polling...")
     await dp.start_polling(BOT)
+
+    asyncio.create_task(auto_cleanup_task(BOT))
 
     # По завершенню (якщо кине SIGTERM чи Exception)
     await db.disconnect()
