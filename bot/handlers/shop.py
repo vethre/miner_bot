@@ -6,6 +6,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.db_local import cid_uid, get_money, add_money, add_item
 from bot.handlers.items import ITEM_DEFS
+from bot.handlers.cases import give_case_to_user
 
 router = Router()
 
@@ -17,6 +18,7 @@ SHOP_ITEMS = {
     "gold_pickaxe":   {"price": 2000, "name": "Золота кирка",    "emoji": "✨"},
     "bread":          {"price": 50,   "name": "Хліб",            "emoji": "🍞", "hunger": 30},
     "meat":           {"price": 120,  "name": "М’ясо",           "emoji": "🍖", "hunger": 60},
+    "cave_case":      {"prie": 300, "name": "Cave Case",    "emoji": "📦"},
 }
 
 @router.message(Command("shop"))
