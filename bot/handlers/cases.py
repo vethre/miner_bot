@@ -11,7 +11,7 @@ CASE_POOL = [
     {"key": "rich_pack",      "weight": 1},
 ]
 
-import random
+import random, json
 from aiogram import Router, types
 from aiogram.filters import Command
 from typing import List, Dict
@@ -42,17 +42,21 @@ async def case_cmd(message: types.Message):
     if prog["cave_cases"] < 1:
         return await message.reply("У тебе немає Cave Case 😕")
 
+    # отнимаем кейс
     await db.execute(
-      "UPDATE progress_local SET cave_cases = cave_cases - 1 WHERE chat_id=:c AND user_id=:u",
-      {"c": cid, "u": uid}
+        "UPDATE progress_local SET cave_cases = cave_cases - 1 WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
     )
 
     reward = await pick_case_reward()
     rtype = reward["reward_type"]
-    data = reward["reward_data"]
+    # raw JSON из БД
+    raw = reward["reward_data"]
+    # парсим в dict
+    data = raw if isinstance(raw, dict) else json.loads(raw)
 
-    descr_parts = []
-    # якщо це декілька айтемів:
+    descr_parts: List[str] = []
+
     if rtype == "item" and "items" in data:
         for it in data["items"]:
             if "item" in it and "qty" in it:
@@ -65,21 +69,25 @@ async def case_cmd(message: types.Message):
             elif "xp" in it:
                 await add_xp(cid, uid, it["xp"])
                 descr_parts.append(f"{it['xp']} XP")
+
     elif rtype == "item":
-        # старий формат: однотипна нагорода
+        # единичный айтем
         it = data
         await add_item(cid, uid, it["item"], it["qty"])
         meta = ITEM_DEFS[it["item"]]
         descr_parts.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
+
     elif rtype == "coins":
         await add_money(cid, uid, data["coins"])
         descr_parts.append(f"{data['coins']} монет")
+
     elif rtype == "xp":
         await add_xp(cid, uid, data["xp"])
         descr_parts.append(f"{data['xp']} XP")
 
     descr = " + ".join(descr_parts)
     await message.reply(f"📦 Твій Cave Case відкритий! Випало: {descr}")
+
 
 async def give_case_to_user(chat_id: int, user_id: int, count: int) -> None:
     """
