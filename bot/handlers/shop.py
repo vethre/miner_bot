@@ -7,6 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.db_local import cid_uid, get_money, add_money, add_item
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.cases import give_case_to_user
+from bot.assets import SHOP_IMG_ID
 
 router = Router()
 
@@ -32,11 +33,19 @@ async def shop_cmd(message: types.Message):
         builder.button(text=text, callback_data=f"buy:{item_id}")
     builder.adjust(1)
 
+    await message.answer_photo(
+        photo=SHOP_IMG_ID,
+        caption="🛒 <b>Магазин</b> — обери товар:",
+        parse_mode="HTML",
+        reply_to_message_id=message.message_id,
+        reply_markup=builder.as_markup()
+    )
+    """
     await message.reply(
         "🛒 <b>Магазин</b> — обери товар:",
         parse_mode="HTML",
         reply_markup=builder.as_markup()
-    )
+    ) """
 
 @router.callback_query(F.data.startswith("buy:"))
 async def shop_buy_callback(callback: CallbackQuery):

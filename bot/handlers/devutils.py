@@ -12,23 +12,32 @@ ADMINS = {700929765, 988127866}  # заміни на свої ID
 
 # ───────────── Команда /db ─────────────
 @router.message(Command("db"))
-async def db_query_cmd(message: types.Message, command: CommandObject):
+async def db_cmd(message: types.Message):
     if message.from_user.id not in ADMINS:
-        return await message.reply("⛔ Ти не маєш доступу до цієї команди")
+        return await message.reply("⛔ Тільки для адмінів!")
 
-    if not command.args:
-        return await message.reply("❓ Приклад: /db SELECT * FROM progress_local LIMIT 1")
+    cid, uid = await cid_uid(message)
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
+        return await message.reply("⚠️ Введи SQL-запит після команди, наприклад:\n/db SELECT * FROM progress_local")
 
-    query = command.args.strip()
+    sql = parts[1]
     try:
-        rows = await db.fetch_all(query)
-        if not rows:
-            return await message.reply("✅ Запит виконано. Пустий результат.")
-        text = "\n".join(hcode(str(dict(r))) for r in rows[:5])
-        return await message.reply(f"🔍 Перші 5 записів:\n{text}")
+        # Автоматично визначаємо тип запиту
+        if sql.strip().lower().startswith("select"):
+            rows = await db.fetch_all(sql)
+            if not rows:
+                return await message.reply("✅ Запит виконано, але нічого не знайдено.")
+            # Форматуємо перший рядок як приклад
+            first = rows[0]
+            lines = [f"<code>{k}</code>: {v}" for k, v in first.items()]
+            return await message.reply("\n".join(lines), parse_mode="HTML")
+        else:
+            # Наприклад: UPDATE ... або INSERT ...
+            await db.execute(sql)
+            return await message.reply("✅ Успішно виконано.")
     except Exception as e:
-        logging.exception("DB Error")
-        return await message.reply(f"❌ Помилка: {e}")
+        return await message.reply(f"❌ Помилка:\n<code>{e}</code>", parse_mode="HTML")
 
 # ───────────── Команда /id ─────────────
 @router.message(Command("id"))
