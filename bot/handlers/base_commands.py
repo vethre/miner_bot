@@ -127,7 +127,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: lis
             (
                 f"🏔️ {mention}, ти повернувся з шахти!\n"
                 f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
-                f"XP +{xp_gain} (Pass ×1.5)\n",
+                f"XP +{xp_gain} (Pass ×1.5)\n"
                 f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
                 + ("\n⚠️ Твоя кирка зламалася! Скористайся /repair" if broken else "")
             ),
