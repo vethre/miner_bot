@@ -6,10 +6,10 @@ from bot.db_local import cid_uid, get_inventory, db
 
 # Опис кирок та їх бонусів
 PICKAXES = {
-    "wooden_pickaxe":    {"bonus": 0.1,  "name": "Дерев’яна кирка",   "emoji": "🔨"},
-    "iron_pickaxe":      {"bonus": 0.15, "name": "Залізна кирка",      "emoji": "⛏️"},
-    "gold_pickaxe":      {"bonus": 0.3,  "name": "Золота кирка",      "emoji": "✨"},
-    "roundstone_pickaxe":{"bonus": 0.05, "name": "Круглякова кирка",  "emoji": "🔨"},
+    "wooden_pickaxe":    {"bonus": 0.1,  "name": "дерев’яна кирка",   "emoji": "🔨"},
+    "iron_pickaxe":      {"bonus": 0.15, "name": "залізна кирка",      "emoji": "⛏️"},
+    "gold_pickaxe":      {"bonus": 0.3,  "name": "золота кирка",      "emoji": "✨"},
+    "roundstone_pickaxe":{"bonus": 0.05, "name": "круглякова кирка",  "emoji": "🔨"},
 }
 
 router = Router()
