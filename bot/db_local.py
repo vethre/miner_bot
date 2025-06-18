@@ -44,9 +44,27 @@ CREATE TABLE IF NOT EXISTS progress_local (
 
     PRIMARY KEY(chat_id, user_id)
 );
+CREATE TABLE IF NOT EXISTS case_rewards (
+  reward_key   TEXT    PRIMARY KEY,
+  reward_type  TEXT    NOT NULL,       -- 'item' | 'coins' | 'xp'
+  reward_data  JSONB   NOT NULL        -- напр. {"item":"stone","qty":5} або {"coins":100}
+);
 
 ALTER TABLE progress_local
   ADD COLUMN IF NOT EXISTS streak INT DEFAULT 0;
+
+-- вставляємо (або оновлюємо) всі ключі з потрібними даними
+INSERT INTO case_rewards (reward_key, reward_type, reward_data) VALUES
+  ('stone_pack',    'item', '{"items":[{"item":"stone","qty":25},  {"item":"gold","qty":100}]}'),
+  ('coin_pack',     'coins','{"coins":500}'),
+  ('xp_boost',      'xp',   '{"xp":120}'),
+  ('gold_nugget',   'item', '{"items":[{"item":"gold","qty":20},   {"item":"wood_handle","qty":5}]}'),
+  ('food_pack',     'item', '{"items":[{"item":"bread","qty":5},    {"item":"meat","qty":3}]}'),
+  ('exclusive_pack','item', '{"items":[{"item":"iron_pickaxe","qty":1}, {"coins":150}]}'),
+  ('repair_pack',   'coins','{"coins":200}'),
+  ('rich_pack',     'item', '{"items":[{"item":"lapis","qty":2}]}')
+ON CONFLICT (reward_key) DO UPDATE SET reward_type=EXCLUDED.reward_type, reward_data=EXCLUDED.reward_data;
+
 """
 
 # ────────── INIT ──────────
