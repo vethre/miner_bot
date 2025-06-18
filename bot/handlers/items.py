@@ -53,7 +53,7 @@ for rec in CRAFT_RECIPES.values():
 ITEM_DEFS["wood_handle"] = {"name": "Рукоять", "emoji": "🪵"}
 # І магазинні товари, їжа, бустери тощо:
 ITEM_DEFS["bread"] = {"name": "Хліб", "emoji": "🍞"}
-ITEM_DEFS["meat"] = {"name": "М'со", "emoji": "🍖"}
+ITEM_DEFS["meat"] = {"name": "М'ясо", "emoji": "🍖"}
 
 EXTRA_ORES = {
     "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1,2), "price": 40},

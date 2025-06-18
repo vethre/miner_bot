@@ -9,6 +9,7 @@ from typing import List
 from aiogram import Router, Bot, types, F
 from aiogram.filters import Command, CommandStart
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import CallbackQuery
 
 from bot.db import db, create_user, get_user, update_streak
 from bot.db_local import (
@@ -377,3 +378,63 @@ async def craft_cmd(message: types.Message):
         await add_item(cid, uid, k, -need)
     await add_item(cid, uid, recipe["out_key"], 1)
     await message.reply(f"🎉 Скрафтлено: {recipe['out_name']}!")
+
+# ────────── /stats ──────────
+@router.message(Command("stats"))
+async def stats_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🏆 Топ за балансом", callback_data="stats:balance")
+    builder.button(text="🎖️ Топ за рівнем", callback_data="stats:level")
+    builder.button(text="📊 Топ за ресурсами", callback_data="stats:resources")
+    builder.adjust(1)
+    await message.reply(
+        "📊 <b>Статистика</b> — оберіть топ:",
+        parse_mode="HTML",
+        reply_markup=builder.as_markup()
+    )
+
+@router.callback_query(F.data.startswith("stats:"))
+async def stats_callback(callback: CallbackQuery):
+    await callback.answer()
+    cid, _ = await cid_uid(callback.message)
+    typ = callback.data.split(":", 1)[1]
+    lines = []
+    if typ == "balance":
+        rows = await db.fetch_all(
+            "SELECT user_id, coins FROM balance_local WHERE chat_id=:c ORDER BY coins DESC LIMIT 10",
+            {"c": cid}
+        )
+        for i, r in enumerate(rows, start=1):
+            uid = r["user_id"]
+            coins = r["coins"]
+            mention = f'<a href="tg://user?id={uid}">{uid}</a>'
+            lines.append(f"{i}. {mention} — {coins} монет")
+    elif typ == "level":
+        rows = await db.fetch_all(
+            "SELECT user_id, level, xp FROM progress_local WHERE chat_id=:c ORDER BY level DESC, xp DESC LIMIT 10",
+            {"c": cid}
+        )
+        for i, r in enumerate(rows, start=1):
+            uid = r["user_id"]
+            lvl = r["level"]
+            xp = r["xp"]
+            mention = f'<a href="tg://user?id={uid}">{uid}</a>'
+            lines.append(f"{i}. {mention} — рівень {lvl} (XP {xp})")
+    elif typ == "resources":
+        rows = await db.fetch_all(
+            "SELECT user_id, SUM(qty) AS total FROM inventory_local WHERE chat_id=:c GROUP BY user_id ORDER BY total DESC LIMIT 10",
+            {"c": cid}
+        )
+        for i, r in enumerate(rows, start=1):
+            uid = r["user_id"]
+            total = r["total"]
+            mention = f'<a href="tg://user?id={uid}">{uid}</a>'
+            lines.append(f"{i}. {mention} — {total} ресурсів")
+    else:
+        return
+    text = "\n".join(lines) if lines else "Немає даних для показу"
+    await callback.message.edit_text(
+        text,
+        parse_mode="HTML"
+    )
