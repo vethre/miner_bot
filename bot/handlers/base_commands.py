@@ -72,6 +72,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: Lis
         await asyncio.sleep(MINE_DURATION)
 
         prog = await get_progress(chat_id, user_id)
+        user = await get_user(user_id)
 
         ore_id = random.choice(ores)
         low, high = ORE_ITEMS[ore_id]["drop_range"]
@@ -85,7 +86,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: Lis
         # Додаємо лут
         await add_item(chat_id, user_id, ore_id, amount)
         await add_xp(chat_id, user_id, amount)
-        streak = await update_streak(user_id)  # streak поки глобальний
+        streak = await update_streak(user)  # streak поки глобальний
 
         # очищаємо таймер
         await db.execute(
@@ -94,7 +95,8 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: Lis
         )
 
         ore = ORE_ITEMS[ore_id]
-        mention = f'<a href="tg://user?id={user_id}">шахтар</a>'
+        username = user.get("username") or user.get("full_name")
+        mention = f'<a href="tg://user?id={user_id}">{username}</a>'
 
         await bot.send_message(
             chat_id,
@@ -139,7 +141,10 @@ async def start_cmd(message: types.Message):
 @router.message(Command("profile"))
 async def profile_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
-    await create_user(uid, message.from_user.username or message.from_user.full_name)
+    # ensure user exists
+    await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
+
+    # обчислюємо енергію та голод
     energy, _ = await update_energy(cid, uid)
     hunger, _ = await update_hunger(cid, uid)
 
@@ -147,26 +152,62 @@ async def profile_cmd(message: types.Message):
     lvl = prog.get("level", 1)
     xp = prog.get("xp", 0)
     next_xp = lvl * 100
-    pick_name = PICKAXES.get(prog["current_pickaxe"], {"name": "–"})["name"]
+    pick_name = PICKAXES.get(prog.get("current_pickaxe", "wood_pickaxe"), {}).get("name", "–")
     balance = await get_money(cid, uid)
 
-    kb = InlineKeyboardBuilder()
-    kb.button(text="📦 Інвентар", callback_data="profile:inventory")
-    kb.button(text="🛒 Магазин", callback_data="profile:shop")
-    kb.button(text="⛏️ Шахта",   callback_data="profile:mine")
-    kb.adjust(2)
+    # Inline-кнопки тільки для автора
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="📦 Інвентар",
+        callback_data=f"profile:inventory:{uid}"
+    )
+    builder.button(
+        text="🛒 Магазин",
+        callback_data=f"profile:shop:{uid}"
+    )
+    builder.button(
+        text="⛏️ Шахта",
+        callback_data=f"profile:mine:{uid}"
+    )
+    builder.adjust(2)
 
     text = (
-        f"👤 <b>Профіль:</b> {message.from_user.full_name}\n"
-        f"⭐ <b>Рівень:</b> {lvl} (XP {xp}/{next_xp})\n"
-        f"🔋 <b>Енергія:</b> {energy}/100\n"
-        f"🍗 <b>Голод:</b> {hunger}/100\n"
-        f"⛏️ <b>Кирка:</b> {pick_name}\n"
+        f"👤 <b>Профіль:</b> {message.from_user.full_name}"
+        f"⭐ <b>Рівень:</b> {lvl} (XP {xp}/{next_xp})"
+        f"🔋 <b>Енергія:</b> {energy}/100"
+        f"🍗 <b>Голод:</b> {hunger}/100"
+        f"⛏️ <b>Кирка:</b> {pick_name}"
         f"💰 <b>Баланс:</b> {balance} монет"
     )
-    await message.reply(text, parse_mode="HTML", reply_markup=kb.as_markup())
+    await message.reply(
+        text,
+        parse_mode="HTML",
+        reply_markup=builder.as_markup()
+    )
 
+# Profile Callback
 @router.callback_query(F.data.startswith("profile:"))
+async def profile_callback(callback: types.CallbackQuery):
+    data = callback.data.split(":")
+    # format: ['profile', action, original_uid]
+    if len(data) != 3:
+        return await callback.answer()
+    _, action, orig_uid = data
+    orig_uid = int(orig_uid)
+    # тільки автор може натискати
+    if callback.from_user.id != orig_uid:
+        return await callback.answer("Ця кнопка не для тебе", show_alert=True)
+    await callback.answer()
+
+    # передаємо виконання команді
+    if action == "inventory":
+        await inventory_cmd(callback.message, user_id=orig_uid)
+    elif action == "shop":
+        await shop_cmd(callback.message, user_id=orig_uid)
+    elif action == "mine":
+        await mine_cmd(callback.message, user_id=orig_uid)
+
+# ────────── /mine ──────────(F.data.startswith("profile:"))
 async def profile_callback(cb: types.CallbackQuery):
     await cb.answer()
     act = cb.data.split(":", 1)[1]
