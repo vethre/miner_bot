@@ -83,7 +83,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: lis
         # додаємо ресурси та XP
         await add_item(chat_id, user_id, ore_id, amount)
         await add_xp(chat_id, user_id, amount)
-        streak = await update_streak(chat_id, user_id)
+        streak = await update_streak(user_id)
 
         # віднімаємо 1 одиницю міцності
         new_dur = prog.get("pick_dur", prog.get("pick_dur_max", 100)) - 1
