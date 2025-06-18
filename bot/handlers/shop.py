@@ -43,6 +43,7 @@ async def shop_cmd(message: types.Message):
 
 @router.callback_query(F.data.startswith("buy:"))
 async def shop_buy_callback(callback: CallbackQuery):
+    print(f"🔥 BUY callback: {callback.data}) from {callback.from_user.id}")
     await callback.answer()
     cid = callback.message.chat.id
     data = callback.data.split(":", 2)
