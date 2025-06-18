@@ -8,7 +8,7 @@ from bot.db_local import cid_uid, get_money, add_money, add_item
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.cases import give_case_to_user
 from bot.assets import SHOP_IMG_ID
-from bot.handlers.base_commands import MESSAGE_CACHE, register_msg_for_autodelete
+from bot.utils.autodelete import register_msg_for_autodelete
 
 router = Router()
 
@@ -71,4 +71,4 @@ async def shop_buy_callback(callback: CallbackQuery):
         f"Ти придбав {item['emoji']}<b>{item['name']}</b> за {price} монет! 🎉",
         parse_mode="HTML"
     )
-    register_msg_for_autodelete(callback.chat.id, msg.message_id)
+    register_msg_for_autodelete(callback.message.chat.id, msg.message_id)

@@ -11,6 +11,7 @@ PICKAXES = {
     "gold_pickaxe":      {"bonus": 0.3,  "name": "золота кирка",      "emoji": "✨"},
     "roundstone_pickaxe":{"bonus": 0.05, "name": "круглякова кирка",  "emoji": "🔨"},
     "crystal_pickaxe":    {"bonus": 2.5,  "name": "кристальна кирка",   "emoji": "💎"},
+    "amethyst_pickaxe":    {"bonus": 0.7,  "name": "аметистова кирка",   "emoji": "✨"},
 }
 
 router = Router()
@@ -21,6 +22,7 @@ PICKAXE_ALIASES = {
     "залізна кирка":      "iron_pickaxe",
     "золота кирка":       "gold_pickaxe",
     "круглякова кирка":   "roundstone_pickaxe",
+    "аметистова кирка":    "amethyst_pickaxe",
 }
 
 @router.message(Command("use"))
