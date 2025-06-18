@@ -46,14 +46,13 @@ CREATE TABLE IF NOT EXISTS progress_local (
 );
 CREATE TABLE IF NOT EXISTS case_rewards (
   reward_key   TEXT    PRIMARY KEY,
-  reward_type  TEXT    NOT NULL,       -- 'item' | 'coins' | 'xp'
-  reward_data  JSONB   NOT NULL        -- напр. {"item":"stone","qty":5} або {"coins":100}
+  reward_type  TEXT    NOT NULL,      
+  reward_data  JSONB   NOT NULL       
 );
 
 ALTER TABLE progress_local
   ADD COLUMN IF NOT EXISTS streak INT DEFAULT 0;
 
--- вставляємо (або оновлюємо) всі ключі з потрібними даними
 INSERT INTO case_rewards (reward_key, reward_type, reward_data) VALUES
   ('stone_pack',    'item', '{"items":[{"item":"stone","qty":25},  {"item":"gold","qty":100}]}'),
   ('coin_pack',     'coins','{"coins":500}'),
