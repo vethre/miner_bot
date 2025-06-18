@@ -1,10 +1,9 @@
+# bot/db_local.py
 import datetime as dt
 from typing import Tuple, List, Dict, Any
-from bot.db import db               # глобальний async-connection (Supabase / Railway)
+from bot.db import db               # глобальний async-connection
 
-# ────────── AUTO-DDL ──────────
-# запуск після імпорту файлу (await _migrate() — див. униз)
-
+# ────────── DDL ──────────
 DDL = """
 CREATE TABLE IF NOT EXISTS inventory_local (
     chat_id  BIGINT,
@@ -38,7 +37,6 @@ CREATE TABLE IF NOT EXISTS progress_local (
     last_mine_day DATE DEFAULT '1970-01-01',
     last_daily    DATE DEFAULT '1970-01-01',
 
-    -- локальна стаміна / голод
     energy               INT DEFAULT 100,
     last_energy_update   TIMESTAMP,
     hunger               INT DEFAULT 100,
@@ -48,44 +46,36 @@ CREATE TABLE IF NOT EXISTS progress_local (
 );
 """
 
-
-async def _migrate():
-    """Створює таблиці та відсутні колонки (idempotent)."""
+# ────────── INIT ──────────
+async def init_local():
+    """Виконати міграцію DDL після підключення БД."""
     for stmt in DDL.strip().split(";"):
         if stmt.strip():
             await db.execute(stmt + ";")
-# викликаємо одразу
-import asyncio, inspect
-if inspect.iscoroutinefunction(db.execute):      # переконуємось, що db вже async
-    asyncio.get_event_loop().run_until_complete(_migrate())
 
-# ────────── КОНСТАНТИ energy/hunger ──────────
-ENERGY_MAX, ENERGY_REGEN, ENERGY_INTERVAL_S = 100, 15, 30 * 60   # +15 / 30 хв
-HUNGER_MAX, HUNGER_DECAY, HUNGER_INTERVAL_S = 100, 10, 60 * 60   # −10 / 1 год
+# ────────── КОНСТАНТИ ──────────
+ENERGY_MAX, ENERGY_REGEN, ENERGY_INTERVAL_S = 100, 15, 30 * 60
+HUNGER_MAX, HUNGER_DECAY, HUNGER_INTERVAL_S   = 100, 10, 60 * 60
 
 # ────────── HELPER ──────────
 async def cid_uid(msg) -> Tuple[int, int]:
     cid = msg.chat.id if msg.chat.type in ("group", "supergroup") else 0
     return cid, msg.from_user.id
 
-
 async def _ensure_progress(cid: int, uid: int):
     await db.execute(
-        """INSERT INTO progress_local(chat_id,user_id) VALUES(:c,:u)
-           ON CONFLICT DO NOTHING""",
+        "INSERT INTO progress_local(chat_id,user_id) VALUES(:c,:u) ON CONFLICT DO NOTHING",
         {"c": cid, "u": uid}
     )
 
-# ────────── INVENTORY ──────────
+# ────────── ІНВЕНТАР ──────────
 async def add_item(cid: int, uid: int, item: str, delta: int):
     await _ensure_progress(cid, uid)
     await db.execute(
-        """INSERT INTO inventory_local VALUES(:c,:u,:i,:d)
-           ON CONFLICT (chat_id,user_id,item)
-             DO UPDATE SET qty = inventory_local.qty + :d""",
+        "INSERT INTO inventory_local VALUES(:c,:u,:i,:d) "
+        "ON CONFLICT (chat_id,user_id,item) DO UPDATE SET qty = inventory_local.qty + :d",
         {"c": cid, "u": uid, "i": item, "d": delta}
     )
-
 
 async def get_inventory(cid: int, uid: int) -> List[Dict[str, Any]]:
     return await db.fetch_all(
@@ -94,16 +84,14 @@ async def get_inventory(cid: int, uid: int) -> List[Dict[str, Any]]:
         {"c": cid, "u": uid}
     )
 
-# ────────── MONEY ──────────
+# ────────── ГРОШІ ──────────
 async def add_money(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)
     await db.execute(
-        """INSERT INTO balance_local VALUES(:c,:u,:d)
-           ON CONFLICT (chat_id,user_id)
-             DO UPDATE SET coins = balance_local.coins + :d""",
+        "INSERT INTO balance_local VALUES(:c,:u,:d) "
+        "ON CONFLICT (chat_id,user_id) DO UPDATE SET coins = balance_local.coins + :d",
         {"c": cid, "u": uid, "d": delta}
     )
-
 
 async def get_money(cid: int, uid: int) -> int:
     row = await db.fetch_one(
@@ -116,8 +104,7 @@ async def get_money(cid: int, uid: int) -> int:
 async def add_xp(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)
     await db.execute(
-        """UPDATE progress_local SET xp = xp + :d
-             WHERE chat_id=:c AND user_id=:u""",
+        "UPDATE progress_local SET xp = xp + :d WHERE chat_id=:c AND user_id=:u",
         {"d": delta, "c": cid, "u": uid}
     )
 
@@ -148,7 +135,6 @@ async def update_energy(cid: int, uid: int):
         )
     return energy, now
 
-
 async def update_hunger(cid: int, uid: int):
     await _ensure_progress(cid, uid)
     now = dt.datetime.utcnow()
@@ -167,8 +153,3 @@ async def update_hunger(cid: int, uid: int):
             {"h": hunger, "n": now, "c": cid, "u": uid}
         )
     return hunger, now
-
-async def init_local():
-    for stmt in DDL.strip().split(";"):
-        if stmt.strip():
-            await db.execute(stmt + ";")
