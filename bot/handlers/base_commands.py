@@ -171,6 +171,7 @@ async def profile_cmd(message: types.Message):
     pick_name = pick["name"]
     dur = prog.get("pick_dur", 0)
     dur_max = prog.get("pick_dur_max", 100)
+    cave_cases = prog.get("cave_cases", 0)
 
     balance = await get_money(cid, uid)
 
@@ -186,6 +187,7 @@ async def profile_cmd(message: types.Message):
         f"🔋 <b>Енергія:</b> {energy}/100\n"
         f"🍗 <b>Голод:</b> {hunger}/100\n"
         f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})\n"
+        f"📦 <b>Cave Cases:</b> {cave_cases}\n"
         f"💰 <b>Баланс:</b> {balance} монет"
     )
     await message.reply(text, parse_mode="HTML", reply_markup=builder.as_markup())
