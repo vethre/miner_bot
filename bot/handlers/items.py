@@ -13,6 +13,7 @@ SMELT_RECIPES = {
     "iron":  {"in_qty": 3,  "out_key": "iron_ingot",  "out_name": "Залізний злиток"},
     "stone": {"in_qty": 10, "out_key": "roundstone",   "out_name": "Кругляк"},
     "gold":  {"in_qty": 2,  "out_key": "gold_ingot",   "out_name": "Золотий злиток"},
+    "amethyst":  {"in_qty": 2,  "out_key": "amethyst_ingot",  "out_name": "Аметистовий злиток"},
 }
 
 # Рецепти крафту
@@ -31,6 +32,11 @@ CRAFT_RECIPES = {
         "in": {"gold_ingot": 5, "wood_handle": 1},
         "out_key": "gold_pickaxe",
         "out_name": "Золота кирка",
+    },
+    "аметистова кирка": {
+        "in": {"gold_ingot": 3, "wood_handle": 2},
+        "out_key": "amethyst_pickaxe",
+        "out_name": "Аметистова кирка",
     },
 }
 
@@ -56,7 +62,7 @@ ITEM_DEFS["bread"] = {"name": "Хліб", "emoji": "🍞"}
 ITEM_DEFS["meat"] = {"name": "М'ясо", "emoji": "🍖"}
 
 EXTRA_ORES = {
-    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1,2), "price": 40},
+    "amethyst": {"name": "Аметистова руда",  "emoji": "💜", "drop_range": (1,2), "price": 40},
     "diamond":  {"name": "Діамант",  "emoji": "💎", "drop_range": (1,1), "price": 60},
     "emerald":  {"name": "Смарагд",  "emoji": "💚", "drop_range": (1,2), "price": 55},
     "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (2,4), "price": 35},
@@ -73,7 +79,7 @@ ALIASES = {
     "залізна руда": "iron",
     "залізо": "iron",
     "золото": "gold",
-    "аметист": "amethyst",
+    "аметистова руда": "amethyst",
     "діамант": "diamond",
     "смарагд": "emerald",
     "лазурит": "lapis",

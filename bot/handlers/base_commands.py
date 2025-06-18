@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from os import link
+from aiogram.utils.markdown import link
 import random
 import time
 import datetime as dt
@@ -24,7 +24,6 @@ from bot.db_local import (
     update_hunger,
     get_progress,
     update_streak,
-    AUTO_DELETE
 )
 from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.items import ITEM_DEFS
@@ -32,9 +31,9 @@ from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
 from bot.handlers.use import PICKAXES
 from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID
+from bot.utils.autodelete import register_msg_for_autodelete
 
 router = Router()
-MESSAGE_CACHE = []
 
 # ────────── Константи ──────────
 MINE_DURATION = 60  # sec (dev)
@@ -137,10 +136,10 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: lis
             ),
             parse_mode="HTML"
         )
+        register_msg_for_autodelete(chat_id, msg.message_id)
     except Exception as e:
         print(f"Error in mining_task: {e}")
-    register_msg_for_autodelete(bot.chat.id, msg.message_id)
-
+    
 # ────────── Smelt Task ──────────
 async def smelt_timer(bot: Bot, cid: int, uid: int, rec: dict, cnt: int):
     duration = cnt * 5
@@ -512,7 +511,7 @@ async def stats_callback(callback: CallbackQuery):
 
     text = "\n".join(lines) if lines else "Немає даних для показу"
     msg = await callback.message.edit_text(text, parse_mode="HTML")
-    register_msg_for_autodelete(callback.chat.id, msg.message_id)
+    register_msg_for_autodelete(callback.message.chat.id, msg.message_id)
 
 @router.message(Command("repair"))
 async def repair_cmd(message: types.Message):
@@ -586,40 +585,3 @@ async def autodelete_cmd(message: types.Message):
         await message.reply("🧹 Автовидалення вимкнено. Повідомлення залишатимуться в чаті.")
     else:
         await message.reply(f"🧼 Автовидалення активовано: кожні {minutes} хвилин бот чиститиме свої повідомлення.")
-
-async def auto_cleanup_task(bot: Bot):
-    while True:
-        now = dt.datetime.utcnow()
-        to_remove = []
-
-        for msg in MESSAGE_CACHE:
-            chat_id = msg["chat_id"]
-            if chat_id not in AUTO_DELETE:
-                continue
-
-            conf = AUTO_DELETE[chat_id]
-            if not conf.get("enabled"):
-                continue
-
-            interval = conf.get("interval", 60)
-            age = (now - msg["created"]).total_seconds() / 60
-
-            if age >= interval:
-                to_remove.append(msg)
-
-        for msg in to_remove:
-            try:
-                await bot.delete_message(msg["chat_id"], msg["message_id"])
-                MESSAGE_CACHE.remove(msg)
-            except Exception as e:
-                print(f"❌ Не вдалося видалити повідомлення {msg['message_id']} в чаті {msg['chat_id']}: {e}")
-
-        await asyncio.sleep(60)  # Перевіряти щохвилини
-
-def register_msg_for_autodelete(chat_id: int, message_id: int):
-    MESSAGE_CACHE.append({
-        "chat_id": chat_id,
-        "message_id": message_id,
-        "created": dt.datetime.utcnow()
-    })
-
