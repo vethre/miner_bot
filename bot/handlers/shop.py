@@ -1,4 +1,3 @@
-# bot/handlers/shop.py
 from aiogram import Router, F, types
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery
@@ -20,19 +19,14 @@ SHOP_ITEMS = {
 }
 
 @router.message(Command("shop"))
-async def shop_cmd(message: types.Message):
+async def shop_cmd(message: types.Message, owner_id: int | None = None):
     cid, uid = await cid_uid(message)
-    # переконаємось, що є запис у progress_local
-    # (optional) init_local already зробив це
-    
+    orig_uid = owner_id or message.from_user.id
+
     builder = InlineKeyboardBuilder()
     for item_id, props in SHOP_ITEMS.items():
         text = f"{props['emoji']} {props['name']} — {props['price']} монет"
-        # додаєм original uid, щоб лише він міг купити
-        builder.button(
-            text=text,
-            callback_data=f"buy:{item_id}:{uid}"
-        )
+        builder.button(text=text, callback_data=f"buy:{item_id}:{orig_uid}")
     builder.adjust(1)
 
     await message.reply(
@@ -43,20 +37,16 @@ async def shop_cmd(message: types.Message):
 
 @router.callback_query(F.data.startswith("buy:"))
 async def shop_buy_callback(callback: CallbackQuery):
-    print(f"🔥 BUY callback: {callback.data} from {callback.from_user.id}") # log
     await callback.answer()
-    cid = callback.message.chat.id
     data = callback.data.split(":", 2)
-    # формат: ['buy', item_id, orig_uid]
     if len(data) != 3:
         return
     _, item_id, orig_uid = data
     orig_uid = int(orig_uid)
-    # тільки той, хто відкрив магазин
     if callback.from_user.id != orig_uid:
         return await callback.answer("Ця кнопка не для тебе", show_alert=True)
 
-    # перевіряємо баланс локальний
+    cid = callback.message.chat.id
     balance = await get_money(cid, orig_uid)
     item = SHOP_ITEMS.get(item_id)
     if not item:
@@ -65,7 +55,6 @@ async def shop_buy_callback(callback: CallbackQuery):
     if balance < price:
         return await callback.message.reply("Недостатньо монет 💸")
 
-    # списуємо гроші й додаємо в інвентар
     await add_money(cid, orig_uid, -price)
     await add_item(cid, orig_uid, item_id, 1)
 
