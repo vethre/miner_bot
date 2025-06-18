@@ -43,8 +43,8 @@ async def shop_buy_callback(callback: CallbackQuery):
         return
     _, item_id, orig_uid = data
     orig_uid = int(orig_uid)
-    if callback.from_user.id != orig_uid:
-        return await callback.answer("Ця кнопка не для тебе", show_alert=True)
+    """if callback.from_user.id != orig_uid:
+        return await callback.answer("Ця кнопка не для тебе", show_alert=True)"""
 
     cid = callback.message.chat.id
     balance = await get_money(cid, orig_uid)
