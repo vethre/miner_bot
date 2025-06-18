@@ -11,7 +11,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import CallbackQuery
 
-from bot.db import db, create_user, get_user, update_streak
+from bot.db import db, create_user, get_user
 from bot.db_local import (
     cid_uid,
     add_item,
@@ -22,6 +22,7 @@ from bot.db_local import (
     update_energy,
     update_hunger,
     get_progress,
+    update_streak,
 )
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
@@ -83,7 +84,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: lis
         # додаємо ресурси та XP
         await add_item(chat_id, user_id, ore_id, amount)
         await add_xp(chat_id, user_id, amount)
-        streak = await update_streak(user_id)
+        streak = await update_streak(chat_id, user_id)
 
         # віднімаємо 1 одиницю міцності
         new_dur = prog.get("pick_dur", prog.get("pick_dur_max", 100)) - 1

@@ -44,6 +44,9 @@ CREATE TABLE IF NOT EXISTS progress_local (
 
     PRIMARY KEY(chat_id, user_id)
 );
+
+ALTER TABLE progress_local
+  ADD COLUMN IF NOT EXISTS streak INT DEFAULT 0;
 """
 
 # ────────── INIT ──────────
@@ -153,3 +156,25 @@ async def update_hunger(cid: int, uid: int):
             {"h": hunger, "n": now, "c": cid, "u": uid}
         )
     return hunger, now
+
+async def update_streak(cid: int, uid: int) -> int:
+    # дістаємо останній день
+    row = await db.fetch_one(
+        "SELECT last_mine_day FROM progress_local WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
+    )
+    last_day = row["last_mine_day"] or dt.date(1970,1,1)
+    today = dt.date.today()
+    if last_day + dt.timedelta(days=1) == today:
+        streak = (await db.fetch_val(
+            "SELECT streak FROM progress_local WHERE chat_id=:c AND user_id=:u",
+            {"c": cid, "u": uid}
+        )) + 1
+    else:
+        streak = 1
+    # зберігаємо
+    await db.execute(
+        "UPDATE progress_local SET streak=:s, last_mine_day=:d WHERE chat_id=:c AND user_id=:u",
+        {"s": streak, "d": today, "c": cid, "u": uid}
+    )
+    return streak
