@@ -75,6 +75,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: lis
         prog = await get_progress(chat_id, user_id)
         # drop
         ore_id = random.choice(ores)
+        ore = ORE_ITEMS[ore_id]
         low, high = ORE_ITEMS[ore_id]["drop_range"]
         amount = random.randint(low, high)
         amount = int(amount * bonus)
@@ -109,15 +110,23 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: lis
         )
 
         # надсилаємо результат
-        mention = f'<a href="tg://user?id={user_id}">{prog.get("username") or prog.get("full_name")}</a>'
-        text = (
-            f"🏔️ {mention}, ти повернувся з шахти!\n"
-            f"<b>{amount}×{ORE_ITEMS[ore_id]['emoji']} {ORE_ITEMS[ore_id]['name']}</b>\n"
-            f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
+        member = await bot.get_chat_member(chat_id, user_id)
+        tg_user = member.user
+        if tg_user.username:
+            mention = f"@{tg_user.username}"
+        else:
+            mention = f'<a href="tg://user?id={tg_user.id}">{tg_user.full_name}</a>'
+
+        await bot.send_message(
+            chat_id,
+            (
+                f"🏔️ {mention}, ти повернувся з шахти!\n"
+                f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
+                f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
+                + ("\n⚠️ Твоя кирка зламалася! Скористайся /repair" if broken else "")
+            ),
+            parse_mode="HTML"
         )
-        if broken:
-            text += "\n⚠️ Твоя кирка зламалася! Скористайся /repair"
-        await bot.send_message(chat_id, text, parse_mode="HTML")
     except Exception as e:
         print(f"Error in mining_task: {e}")
 
