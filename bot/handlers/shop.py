@@ -16,9 +16,10 @@ SHOP_ITEMS = {
     "wooden_pickaxe": {"price": 200,  "name": "Дерев’яна кирка", "emoji": "🔨"},
     "iron_pickaxe":   {"price": 1000, "name": "Залізна кирка",   "emoji": "⛏️"},
     "gold_pickaxe":   {"price": 2000, "name": "Золота кирка",    "emoji": "✨"},
-    "bread":          {"price": 50,   "name": "Хліб",            "emoji": "🍞", "hunger": 30},
-    "meat":           {"price": 120,  "name": "М’ясо",           "emoji": "🍖", "hunger": 60},
-    "cave_case":      {"prie": 300, "name": "Cave Case",    "emoji": "📦"},
+    "bread":          {"price": 50,   "name": "Хліб",            "emoji": "🍞", "hunger": 20},
+    "meat":           {"price": 120,  "name": "М’ясо",           "emoji": "🍖", "hunger": 50},
+    "borsch":         {"price": 300,  "name": "Борщ",            "emoji": "🥣", "hunger": 100},
+    "cave_case":      {"prie": 350, "name": "Cave Case",         "emoji": "📦"},
 }
 
 @router.message(Command("shop"))

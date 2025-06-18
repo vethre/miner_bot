@@ -10,6 +10,7 @@ PICKAXES = {
     "iron_pickaxe":      {"bonus": 0.15, "name": "залізна кирка",      "emoji": "⛏️"},
     "gold_pickaxe":      {"bonus": 0.3,  "name": "золота кирка",      "emoji": "✨"},
     "roundstone_pickaxe":{"bonus": 0.05, "name": "круглякова кирка",  "emoji": "🔨"},
+    "crystal_pickaxe":    {"bonus": 2.5,  "name": "кристальна кирка",   "emoji": "💎"},
 }
 
 router = Router()

@@ -24,6 +24,7 @@ from bot.db_local import (
     get_progress,
     update_streak,
 )
+from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
 from bot.handlers.use import PICKAXES
@@ -82,9 +83,13 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: lis
         pick_bonus = PICKAXES.get(prog.get("current_pickaxe"), {}).get("bonus", 0)
         amount += int(amount * pick_bonus)
 
+        xp_gain = amount
+        if prog.get("cave_pass", False) and prog.get("pass_expires") > dt.datetime.utcnow():
+            xp_gain = int(xp_gain * 1.5)
+
         # додаємо ресурси та XP
         await add_item(chat_id, user_id, ore_id, amount)
-        await add_xp(chat_id, user_id, amount)
+        await add_xp(chat_id, user_id, xp_gain)
         streak = await update_streak(chat_id, user_id)
 
         # віднімаємо 1 одиницю міцності
@@ -122,6 +127,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: lis
             (
                 f"🏔️ {mention}, ти повернувся з шахти!\n"
                 f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
+                f"XP +{xp_gain} (Pass ×1.5)\n",
                 f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
                 + ("\n⚠️ Твоя кирка зламалася! Скористайся /repair" if broken else "")
             ),
@@ -173,13 +179,22 @@ async def profile_cmd(message: types.Message):
     dur_max = prog.get("pick_dur_max", 100)
     cave_cases = prog.get("cave_cases", 0)
 
+    # Pass
+    has_pass = prog.get("cave_pass", False)
+    expires  = prog.get("pass_expires")
+    if has_pass and expires:
+        pass_str = expires.strftime("%d.%m.%Y")
+    else:
+        pass_str = "неактивний"
+
     balance = await get_money(cid, uid)
 
     builder = InlineKeyboardBuilder()
     builder.button(text="📦 Інвентар", callback_data=f"profile:inventory:{uid}")
     builder.button(text="🛒 Магазин",    callback_data=f"profile:shop:{uid}")
     builder.button(text="⛏️ Шахта",      callback_data=f"profile:mine:{uid}")
-    builder.adjust(2)
+    builder.button(text="💎 Cave Pass",      callback_data=f"profile:cavepass:{uid}")
+    builder.adjust(1)
 
     text = (
         f"👤 <b>Профіль:</b> {message.from_user.full_name}\n"
@@ -188,6 +203,7 @@ async def profile_cmd(message: types.Message):
         f"🍗 <b>Голод:</b> {hunger}/100\n"
         f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})\n"
         f"📦 <b>Cave Cases:</b> {cave_cases}\n"
+        f"💎 <b>Cave Pass:</b> {pass_str}\n"
         f"💰 <b>Баланс:</b> {balance} монет"
     )
     await message.reply(text, parse_mode="HTML", reply_markup=builder.as_markup())
@@ -213,6 +229,8 @@ async def profile_callback(callback: types.CallbackQuery):
         await shop_cmd(callback.message)
     elif action == "mine":
         await mine_cmd(callback.message, user_id=orig_uid)
+    elif action == "cavepass":
+        await cavepass_cmd(callback.message)
 
 # ────────── /mine ──────────(F.data.startswith("profile:"))
 async def profile_callback(cb: types.CallbackQuery):
@@ -224,6 +242,8 @@ async def profile_callback(cb: types.CallbackQuery):
         await shop_cmd(cb.message, cb.from_user.id)
     elif act == "mine":
         await mine_cmd(cb.message, cb.from_user.id)
+    elif act == "cavepass":
+        await cavepass_cmd(cb.message)
 
 # ────────── /mine ──────────
 @router.message(Command("mine"))

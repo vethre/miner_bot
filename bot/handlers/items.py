@@ -18,17 +18,17 @@ SMELT_RECIPES = {
 # Рецепти крафту
 CRAFT_RECIPES = {
     "круглякова кирка": {
-        "in": {"roundstone": 12, "wood_handle": 1},
+        "in": {"roundstone": 10, "wood_handle": 1},
         "out_key": "roundstone_pickaxe",
         "out_name": "Круглякова кирка",
     },
     "залізна кирка": {
-        "in": {"iron_ingot": 10, "wood_handle": 1},
+        "in": {"iron_ingot": 8, "wood_handle": 1},
         "out_key": "iron_pickaxe",
         "out_name": "Залізна кирка",
     },
     "золота кирка": {
-        "in": {"gold_ingot": 7, "wood_handle": 1},
+        "in": {"gold_ingot": 5, "wood_handle": 1},
         "out_key": "gold_pickaxe",
         "out_name": "Золота кирка",
     },
