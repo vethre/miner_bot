@@ -9,6 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.utils.config import BOT_TOKEN, DB_DSN
 from bot.db import init_db, db
+from bot.db_local import init_local
 from bot.handlers import register_handlers
 
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +25,7 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
 
     # Підключаємо БД (Supabase)
+    await init_local()
     await init_db()
 
     register_handlers(dp)

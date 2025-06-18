@@ -167,3 +167,8 @@ async def update_hunger(cid: int, uid: int):
             {"h": hunger, "n": now, "c": cid, "u": uid}
         )
     return hunger, now
+
+async def init_local():
+    for stmt in DDL.strip().split(";"):
+        if stmt.strip():
+            await db.execute(stmt + ";")
