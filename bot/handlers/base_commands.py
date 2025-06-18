@@ -68,56 +68,57 @@ def get_tier(level: int) -> int:
     return tier
 
 # ────────── Mining Task ──────────
-async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: List[str], bonus: float):
+async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: list[str], bonus: float):
     try:
         await asyncio.sleep(MINE_DURATION)
-
         prog = await get_progress(chat_id, user_id)
-        user = await get_user(user_id)
-
+        # drop
         ore_id = random.choice(ores)
         low, high = ORE_ITEMS[ore_id]["drop_range"]
         amount = random.randint(low, high)
-
-        # Tier + кирка бонус
         amount = int(amount * bonus)
-        pick_bonus = PICKAXES.get(prog["current_pickaxe"], {}).get("bonus", 0)
+        pick_bonus = PICKAXES.get(prog.get("current_pickaxe"), {}).get("bonus", 0)
         amount += int(amount * pick_bonus)
 
-        # Додаємо лут
+        # додаємо ресурси та XP
         await add_item(chat_id, user_id, ore_id, amount)
         await add_xp(chat_id, user_id, amount)
-        streak = await update_streak(user)  # streak поки глобальний
+        streak = await update_streak(chat_id, user_id)
 
-        # очищаємо таймер
+        # віднімаємо 1 одиницю міцності
+        new_dur = prog.get("pick_dur", prog.get("pick_dur_max", 100)) - 1
+        broken = False
+        if new_dur <= 0:
+            # кирка зламалася
+            await db.execute(
+                "UPDATE progress_local SET current_pickaxe=NULL, pick_dur=0 WHERE chat_id=:c AND user_id=:u",
+                {"c": chat_id, "u": user_id}
+            )
+            broken = True
+        else:
+            await db.execute(
+                "UPDATE progress_local SET pick_dur=:d WHERE chat_id=:c AND user_id=:u",
+                {"d": new_dur, "c": chat_id, "u": user_id}
+            )
+
+        # очищаємо mining_end
         await db.execute(
-            """UPDATE progress_local SET mining_end=NULL WHERE chat_id=:c AND user_id=:u""",
-            {"c": chat_id, "u": user_id},
+            "UPDATE progress_local SET mining_end=NULL WHERE chat_id=:c AND user_id=:u",
+            {"c": chat_id, "u": user_id}
         )
 
-        ore = ORE_ITEMS[ore_id]
-        username = user["username"] or user["full_name"]
-        mention = f'<a href="tg://user?id={user_id}">{username}</a>'
-
-        await bot.send_message(
-            chat_id,
-            (
-                f"🏔️ {mention}, ти повернувся з шахти!\n"
-                f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
-                f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)}%, streak {streak} дн."
-            ),
-            parse_mode="HTML",
+        # надсилаємо результат
+        mention = f'<a href="tg://user?id={user_id}">{prog.get("username") or prog.get("full_name")}</a>'
+        text = (
+            f"🏔️ {mention}, ти повернувся з шахти!\n"
+            f"<b>{amount}×{ORE_ITEMS[ore_id]['emoji']} {ORE_ITEMS[ore_id]['name']}</b>\n"
+            f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
         )
+        if broken:
+            text += "\n⚠️ Твоя кирка зламалася! Скористайся /repair"
+        await bot.send_message(chat_id, text, parse_mode="HTML")
     except Exception as e:
-        print(f"Error in mining_task: {e}")(
-            chat_id,
-            (
-                f"🏔️ {mention}, ти повернувся з шахти!\n"
-                f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
-                f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
-            ),
-            parse_mode="HTML",
-    )
+        print(f"Error in mining_task: {e}")
 
 # ────────── Smelt Task ──────────
 async def smelt_timer(bot: Bot, cid: int, uid: int, rec: dict, cnt: int):
@@ -153,23 +154,20 @@ async def profile_cmd(message: types.Message):
     lvl = prog.get("level", 1)
     xp = prog.get("xp", 0)
     next_xp = lvl * 100
-    pick_name = PICKAXES.get(prog.get("current_pickaxe", "wood_pickaxe"), {}).get("name", "–")
+
+    # Кирка та її міцність
+    current = prog.get("current_pickaxe") or "wooden_pickaxe"
+    pick = PICKAXES.get(current, {"name":"–"})
+    pick_name = pick["name"]
+    dur = prog.get("pick_dur", 0)
+    dur_max = prog.get("pick_dur_max", 100)
+
     balance = await get_money(cid, uid)
 
-    # Inline-кнопки тільки для автора
     builder = InlineKeyboardBuilder()
-    builder.button(
-        text="📦 Інвентар",
-        callback_data=f"profile:inventory:{uid}"
-    )
-    builder.button(
-        text="🛒 Магазин",
-        callback_data=f"profile:shop:{uid}"
-    )
-    builder.button(
-        text="⛏️ Шахта",
-        callback_data=f"profile:mine:{uid}"
-    )
+    builder.button(text="📦 Інвентар", callback_data=f"profile:inventory:{uid}")
+    builder.button(text="🛒 Магазин",    callback_data=f"profile:shop:{uid}")
+    builder.button(text="⛏️ Шахта",      callback_data=f"profile:mine:{uid}")
     builder.adjust(2)
 
     text = (
@@ -177,14 +175,10 @@ async def profile_cmd(message: types.Message):
         f"⭐ <b>Рівень:</b> {lvl} (XP {xp}/{next_xp})\n"
         f"🔋 <b>Енергія:</b> {energy}/100\n"
         f"🍗 <b>Голод:</b> {hunger}/100\n"
-        f"⛏️ <b>Кирка:</b> {pick_name}\n"
+        f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})\n"
         f"💰 <b>Баланс:</b> {balance} монет"
     )
-    await message.reply(
-        text,
-        parse_mode="HTML",
-        reply_markup=builder.as_markup()
-    )
+    await message.reply(text, parse_mode="HTML", reply_markup=builder.as_markup())
 
 # Profile Callback
 @router.callback_query(F.data.startswith("profile:"))
@@ -399,42 +393,83 @@ async def stats_callback(callback: CallbackQuery):
     await callback.answer()
     cid, _ = await cid_uid(callback.message)
     typ = callback.data.split(":", 1)[1]
-    lines = []
+    lines: list[str] = []
+
     if typ == "balance":
         rows = await db.fetch_all(
-            "SELECT user_id, coins FROM balance_local WHERE chat_id=:c ORDER BY coins DESC LIMIT 10",
+            "SELECT user_id, coins FROM balance_local "
+            "WHERE chat_id=:c ORDER BY coins DESC LIMIT 10",
             {"c": cid}
         )
         for i, r in enumerate(rows, start=1):
             uid = r["user_id"]
             coins = r["coins"]
-            mention = f'<a href="tg://user?id={uid}">{uid}</a>'
+            member = await callback.bot.get_chat_member(cid, uid)
+            user = member.user
+            if user.username:
+                mention = f"@{user.username}"
+            else:
+                mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
             lines.append(f"{i}. {mention} — {coins} монет")
+
     elif typ == "level":
         rows = await db.fetch_all(
-            "SELECT user_id, level, xp FROM progress_local WHERE chat_id=:c ORDER BY level DESC, xp DESC LIMIT 10",
+            "SELECT user_id, level, xp FROM progress_local "
+            "WHERE chat_id=:c ORDER BY level DESC, xp DESC LIMIT 10",
             {"c": cid}
         )
         for i, r in enumerate(rows, start=1):
             uid = r["user_id"]
             lvl = r["level"]
             xp = r["xp"]
-            mention = f'<a href="tg://user?id={uid}">{uid}</a>'
+            member = await callback.bot.get_chat_member(cid, uid)
+            user = member.user
+            if user.username:
+                mention = f"@{user.username}"
+            else:
+                mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
             lines.append(f"{i}. {mention} — рівень {lvl} (XP {xp})")
+
     elif typ == "resources":
         rows = await db.fetch_all(
-            "SELECT user_id, SUM(qty) AS total FROM inventory_local WHERE chat_id=:c GROUP BY user_id ORDER BY total DESC LIMIT 10",
+            "SELECT user_id, SUM(qty) AS total FROM inventory_local "
+            "WHERE chat_id=:c GROUP BY user_id ORDER BY total DESC LIMIT 10",
             {"c": cid}
         )
         for i, r in enumerate(rows, start=1):
             uid = r["user_id"]
             total = r["total"]
-            mention = f'<a href="tg://user?id={uid}">{uid}</a>'
+            member = await callback.bot.get_chat_member(cid, uid)
+            user = member.user
+            if user.username:
+                mention = f"@{user.username}"
+            else:
+                mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
             lines.append(f"{i}. {mention} — {total} ресурсів")
+
     else:
         return
+
     text = "\n".join(lines) if lines else "Немає даних для показу"
-    await callback.message.edit_text(
-        text,
-        parse_mode="HTML"
+    await callback.message.edit_text(text, parse_mode="HTML")
+
+@router.message(Command("repair"))
+async def repair_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    prog = await get_progress(cid, uid)
+    dur = prog.get("pick_dur", 0)
+    dur_max = prog.get("pick_dur_max", 100)
+    if dur >= dur_max:
+        return await message.reply("🛠️ Твоя кирка в ідеальному стані!")
+
+    cost = (dur_max - dur) * 2  # 2 монети за 1 міцності
+    balance = await get_money(cid, uid)
+    if balance < cost:
+        return await message.reply(f"Недостатньо монет для ремонту ({cost} ₴ потрібно).")
+
+    await add_money(cid, uid, -cost)
+    await db.execute(
+        "UPDATE progress_local SET pick_dur=:max WHERE chat_id=:c AND user_id=:u",
+        {"max": dur_max, "c": cid, "u": uid}
     )
+    return await message.reply(f"🛠️ Кирку полагоджено до {dur_max}/{dur_max} за {cost} монет!")
