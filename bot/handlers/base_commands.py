@@ -95,7 +95,7 @@ async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: Lis
         )
 
         ore = ORE_ITEMS[ore_id]
-        username = user.get("username") or user.get("full_name")
+        username = user["username"] or user["full_name"]
         mention = f'<a href="tg://user?id={user_id}">{username}</a>'
 
         await bot.send_message(
@@ -172,11 +172,11 @@ async def profile_cmd(message: types.Message):
     builder.adjust(2)
 
     text = (
-        f"👤 <b>Профіль:</b> {message.from_user.full_name}"
-        f"⭐ <b>Рівень:</b> {lvl} (XP {xp}/{next_xp})"
-        f"🔋 <b>Енергія:</b> {energy}/100"
-        f"🍗 <b>Голод:</b> {hunger}/100"
-        f"⛏️ <b>Кирка:</b> {pick_name}"
+        f"👤 <b>Профіль:</b> {message.from_user.full_name}\n"
+        f"⭐ <b>Рівень:</b> {lvl} (XP {xp}/{next_xp})\n"
+        f"🔋 <b>Енергія:</b> {energy}/100\n"
+        f"🍗 <b>Голод:</b> {hunger}/100\n"
+        f"⛏️ <b>Кирка:</b> {pick_name}\n"
         f"💰 <b>Баланс:</b> {balance} монет"
     )
     await message.reply(
