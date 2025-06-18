@@ -29,6 +29,7 @@ from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
 from bot.handlers.use import PICKAXES
 from bot.handlers.shop import shop_cmd
+from bot.assets import INV_IMG_ID, PROFILE_IMG_ID
 
 router = Router()
 
@@ -206,7 +207,13 @@ async def profile_cmd(message: types.Message):
         f"💎 <b>Cave Pass:</b> {pass_str}\n"
         f"💰 <b>Баланс:</b> {balance} монет"
     )
-    await message.reply(text, parse_mode="HTML", reply_markup=builder.as_markup())
+    await message.answer_photo(
+        photo=PROFILE_IMG_ID,
+        caption=text,
+        parse_mode="HTML",
+        reply_to_message_id=message.message_id
+    )
+    # await message.reply(text, parse_mode="HTML", reply_markup=builder.as_markup())
 
 # Profile Callback
 @router.callback_query(F.data.startswith("profile:"))
@@ -304,7 +311,13 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         pre = f"{meta['emoji']} " if meta.get("emoji") else ""
         lines.append(f"{pre}{meta['name']}: {row['qty']}")
 
-    await message.reply("\n".join(lines), parse_mode="HTML")
+    await message.answer_photo(
+        photo=INV_IMG_ID,
+        caption="\n".join(lines),
+        parse_mode="HTML",
+        reply_to_message_id=message.message_id
+    )
+    #await message.reply("\n".join(lines), parse_mode="HTML")
 
 # ────────── /sell (локальний) ──────────
 ALIASES = {k: k for k in ORE_ITEMS}
