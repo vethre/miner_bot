@@ -24,9 +24,9 @@ async def main():
     BOT = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
 
-    # Підключаємо БД (Supabase)
-    await init_local()
+    # Підключаємо БД ()
     await init_db()
+    await init_local()
 
     register_handlers(dp)
 
