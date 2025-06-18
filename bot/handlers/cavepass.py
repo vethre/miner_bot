@@ -88,7 +88,8 @@ async def activate_pass_cmd(message: types.Message):
            SET cave_pass = TRUE,
                pass_expires = :exp,
                current_pickaxe = :pick,
-               pick_dur = pick_dur_max
+               pick_dur = 94,
+               pick_dur_max = 95
          WHERE chat_id=:c AND user_id=:u
         """,
         {"exp": exp, "pick": EX_KEY, "c": cid, "u": uid}

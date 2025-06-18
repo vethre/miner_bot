@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS progress_local (
     level    INT  DEFAULT 1,
     xp       INT  DEFAULT 0,
 
-    current_pickaxe TEXT DEFAULT 'wood_pickaxe',
-    pick_dur        INT  DEFAULT 0,
+    current_pickaxe TEXT DEFAULT 'wooden_pickaxe',
+    pick_dur        INT  DEFAULT 100,
     pick_dur_max    INT  DEFAULT 100,
 
     cave_pass    BOOL DEFAULT FALSE,

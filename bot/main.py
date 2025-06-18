@@ -88,7 +88,7 @@ async def daily_reward():
             msgs.append(f"{mention}  →  +{money}💰 +{xp} XP")
 
     if msgs:
-        text = "🎁 <b>Щоденний бонус&nbsp;{}</b>\n".format(today.strftime('%d.%m.%Y')) + "\n".join(msgs)
+        text = "🎁 <b>Щоденний бонус {}</b>\n".format(today.strftime('%d.%m.%Y')) + "\n".join(msgs)
         groups = await db.fetch_all("SELECT chat_id FROM groups")
         for g in groups:
             try:
@@ -96,6 +96,20 @@ async def daily_reward():
             except Exception:
                 pass 
     logger.info("🎁 Daily reward batch complete")
+
+@aiocron.crontab('0 * * * *')  # кожну годину на початку
+async def hourly_pass_xp():
+    now = datetime.datetime.utcnow()
+    # даємо +10 XP всім з активним pass_expires > now
+    await db.execute(
+        """
+        UPDATE progress_local
+           SET xp = xp + 10
+         WHERE cave_pass = TRUE
+           AND pass_expires > :now
+        """,
+        {"now": now}
+    )
 
 # одразу під @aiocron.crontab …
     logger.debug(f"[CRON-DEBUG] BOT is {BOT!r}")

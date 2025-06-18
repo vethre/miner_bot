@@ -10,6 +10,7 @@ router = Router()
 FOOD_ITEMS = {
     "bread": {"name": "🍞 Хліб",  "hunger": 30},
     "meat":  {"name": "🍖 М’ясо", "hunger": 60},
+    "borsch": {"name": "🥣 Борщ", "hunger": 100},
 }
 
 @router.message(Command("eat"))
