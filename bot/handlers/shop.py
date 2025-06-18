@@ -1,3 +1,4 @@
+# bot/handlers/shop.py
 from aiogram import Router, F, types
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery
@@ -19,14 +20,13 @@ SHOP_ITEMS = {
 }
 
 @router.message(Command("shop"))
-async def shop_cmd(message: types.Message, owner_id: int | None = None):
+async def shop_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
-    orig_uid = owner_id or message.from_user.id
 
     builder = InlineKeyboardBuilder()
     for item_id, props in SHOP_ITEMS.items():
         text = f"{props['emoji']} {props['name']} — {props['price']} монет"
-        builder.button(text=text, callback_data=f"buy:{item_id}:{orig_uid}")
+        builder.button(text=text, callback_data=f"buy:{item_id}")
     builder.adjust(1)
 
     await message.reply(
@@ -38,25 +38,20 @@ async def shop_cmd(message: types.Message, owner_id: int | None = None):
 @router.callback_query(F.data.startswith("buy:"))
 async def shop_buy_callback(callback: CallbackQuery):
     await callback.answer()
-    data = callback.data.split(":", 2)
-    if len(data) != 3:
-        return
-    _, item_id, orig_uid = data
-    orig_uid = int(orig_uid)
-    """if callback.from_user.id != orig_uid:
-        return await callback.answer("Ця кнопка не для тебе", show_alert=True)"""
+    cid, uid = callback.message.chat.id, callback.from_user.id
+    _, item_id = callback.data.split(":", 1)
 
-    cid = callback.message.chat.id
-    balance = await get_money(cid, orig_uid)
     item = SHOP_ITEMS.get(item_id)
     if not item:
         return await callback.message.reply("Товар не знайдено 😕")
+
+    balance = await get_money(cid, uid)
     price = item["price"]
     if balance < price:
         return await callback.message.reply("Недостатньо монет 💸")
 
-    await add_money(cid, orig_uid, -price)
-    await add_item(cid, orig_uid, item_id, 1)
+    await add_money(cid, uid, -price)
+    await add_item(cid, uid, item_id, 1)
 
     await callback.message.reply(
         f"Ти придбав {item['emoji']}<b>{item['name']}</b> за {price} монет! 🎉",
