@@ -67,42 +67,53 @@ def get_tier(level: int) -> int:
     return tier
 
 # ────────── Mining Task ──────────
-async def mining_task(bot: Bot, cid: int, uid: int, tier: int, ores: List[str], bonus: float):
-    await asyncio.sleep(MINE_DURATION)
+async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: List[str], bonus: float):
+    try:
+        await asyncio.sleep(MINE_DURATION)
 
-    prog = await get_progress(cid, uid)
+        prog = await get_progress(chat_id, user_id)
 
-    ore_id = random.choice(ores)
-    low, high = ORE_ITEMS[ore_id]["drop_range"]
-    amount = random.randint(low, high)
+        ore_id = random.choice(ores)
+        low, high = ORE_ITEMS[ore_id]["drop_range"]
+        amount = random.randint(low, high)
 
-    # Tier + кирка бонус
-    amount = int(amount * bonus)
-    pick_bonus = PICKAXES.get(prog["current_pickaxe"], {}).get("bonus", 0)
-    amount += int(amount * pick_bonus)
+        # Tier + кирка бонус
+        amount = int(amount * bonus)
+        pick_bonus = PICKAXES.get(prog["current_pickaxe"], {}).get("bonus", 0)
+        amount += int(amount * pick_bonus)
 
-    # Додаємо лут
-    await add_item(cid, uid, ore_id, amount)
-    await add_xp(cid, uid, amount)
-    streak = await update_streak(uid)  # streak поки глобальний
+        # Додаємо лут
+        await add_item(chat_id, user_id, ore_id, amount)
+        await add_xp(chat_id, user_id, amount)
+        streak = await update_streak(user_id)  # streak поки глобальний
 
-    # очищаємо таймер
-    await db.execute(
-        """UPDATE progress_local SET mining_end=NULL WHERE chat_id=:c AND user_id=:u""",
-        {"c": cid, "u": uid},
-    )
+        # очищаємо таймер
+        await db.execute(
+            """UPDATE progress_local SET mining_end=NULL WHERE chat_id=:c AND user_id=:u""",
+            {"c": chat_id, "u": user_id},
+        )
 
-    ore = ORE_ITEMS[ore_id]
-    mention = f'<a href="tg://user?id={uid}">шахтар</a>'
+        ore = ORE_ITEMS[ore_id]
+        mention = f'<a href="tg://user?id={user_id}">шахтар</a>'
 
-    await bot.send_message(
-        cid,
-        (
-            f"🏔️ {mention}, ти повернувся з шахти!\n"
-            f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
-            f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
-        ),
-        parse_mode="HTML",
+        await bot.send_message(
+            chat_id,
+            (
+                f"🏔️ {mention}, ти повернувся з шахти!"
+                f"<b>{amount}×{ore['emoji']} {ore['name']}</b>"
+                f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
+            ),
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        print(f"Error in mining_task: {e}")(
+            chat_id,
+            (
+                f"🏔️ {mention}, ти повернувся з шахти!\n"
+                f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
+                f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
+            ),
+            parse_mode="HTML",
     )
 
 # ────────── Smelt Task ──────────
