@@ -60,6 +60,11 @@ ITEM_DEFS["wood_handle"] = {"name": "Рукоять", "emoji": "🪵"}
 # І магазинні товари, їжа, бустери тощо:
 ITEM_DEFS["bread"] = {"name": "Хліб", "emoji": "🍞"}
 ITEM_DEFS["meat"] = {"name": "М'ясо", "emoji": "🍖"}
+ITEM_DEFS.update({
+    "torch_bundle": {"name": "Torch Bundle", "emoji": "🕯️"},
+    "cave_cases": {"name": "Cave Case", "emoji": "📦"},
+    # інші як є …
+})
 
 EXTRA_ORES = {
     "amethyst": {"name": "Аметистова руда",  "emoji": "💜", "drop_range": (1,2), "price": 40},

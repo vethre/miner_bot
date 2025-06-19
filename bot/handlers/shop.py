@@ -8,6 +8,7 @@ from bot.db_local import cid_uid, get_money, add_money, add_item
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.cases import give_case_to_user
 from bot.assets import SHOP_IMG_ID
+from bot.handlers.cases import give_case_to_user
 from bot.utils.autodelete import register_msg_for_autodelete
 
 router = Router()
@@ -18,10 +19,11 @@ SHOP_ITEMS = {
     "wooden_pickaxe": {"price": 200,  "name": "Дерев’яна кирка", "emoji": "🔨"},
     "iron_pickaxe":   {"price": 1000, "name": "Залізна кирка",   "emoji": "⛏️"},
     "gold_pickaxe":   {"price": 2000, "name": "Золота кирка",    "emoji": "✨"},
+    "torch_bundle":   {"price": 150, "name": "Факел",    "emoji": "🕯️"},
     "bread":          {"price": 50,   "name": "Хліб",            "emoji": "🍞", "hunger": 20},
     "meat":           {"price": 120,  "name": "М’ясо",           "emoji": "🍖", "hunger": 50},
     "borsch":         {"price": 300,  "name": "Борщ",            "emoji": "🥣", "hunger": 100},
-    "cave_case":      {"price": 350, "name": "Cave Case",         "emoji": "📦"},
+    "cave_cases":      {"price": 350, "name": "Cave Case",         "emoji": "📦"},
 }
 
 @router.message(Command("shop"))
@@ -65,7 +67,10 @@ async def shop_buy_callback(callback: CallbackQuery):
         return await callback.message.reply("Недостатньо монет 💸")
 
     await add_money(cid, uid, -price)
-    await add_item(cid, uid, item_id, 1)
+    if item_id == "cave_cases":
+        await give_case_to_user(cid, uid, 1)
+    else:
+        await add_item(cid, uid, item_id, 1)
 
     msg = await callback.message.reply(
         f"Ти придбав {item['emoji']}<b>{item['name']}</b> за {price} монет! 🎉",

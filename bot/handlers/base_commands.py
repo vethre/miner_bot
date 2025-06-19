@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import List, Dict
 from aiogram.utils.markdown import link
 import random
 import time
@@ -24,6 +25,8 @@ from bot.db_local import (
     update_hunger,
     get_progress,
     update_streak,
+    add_energy,
+    change_dur,
 )
 from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.items import ITEM_DEFS
@@ -36,7 +39,13 @@ from bot.utils.autodelete import register_msg_for_autodelete
 router = Router()
 
 # ────────── Константи ──────────
-MINE_DURATION = 60  # sec (dev)
+BASE_MINE_SEC   = 45          # Tier-1
+MINE_SEC_STEP   = -5          # −5 с за кожен Tier вище
+MINE_SEC_MIN    = 20
+
+BASE_SMELT_SEC  = 30          # за 1 інгот
+TORCH_SPEEDUP   = 0.7         # Torch Bundle
+
 HUNGER_COST = 10
 HUNGER_LIMIT = 20
 
@@ -65,93 +74,105 @@ BONUS_BY_TIER = {i + 1: 1.0 + i * 0.2 for i in range(len(TIER_TABLE))}
 
 # ────────── Helper ──────────
 
-def get_tier(level: int) -> int:
-    tier = 1
-    for i, row in enumerate(TIER_TABLE, start=1):
-        if level >= row["level_min"]:
-            tier = i
-    return tier
+def get_tier(level:int)->int:
+    t = 1
+    for i,row in enumerate(TIER_TABLE,1):
+        if level>=row["level_min"]: t=i
+    return t
+
+def get_mine_duration(tier:int)->int:
+    return max(BASE_MINE_SEC + MINE_SEC_STEP*(tier-1), MINE_SEC_MIN)
+
+def get_smelt_duration(cnt:int, torch_mult:float=1.0)->int:
+    return round(BASE_SMELT_SEC * cnt * torch_mult)
+
+# ─────────────── “Картки шансу” ───────────────
+ChanceEvent = tuple[str, str, str, int]    
+#          (key , text , effect , weight)
+
+CHANCE_EVENTS: list[ChanceEvent] = [
+    ("found_coins",   "Ти знайшов гаманець 💰  +{n} монет",  "coins:+", 35),
+    ("pet_cat",       "Погладжено кота 😸     +{n} XP",      "xp:+",    30),
+    ("robbery",       "Тебе пограбували! −{n} монет",       "coins:-", 20),
+    ("miner_snack",   "Шахтарський снек 🥪   +{n} енергії",  "energy:+",15),
+]
+
+def pick_chance_event() -> ChanceEvent|None:
+    if random.random() > 0.25:          # лише 25 % шанс, що подія взагалі трапиться
+        return None
+    pool: list[ChanceEvent] = []
+    for ev in CHANCE_EVENTS:
+        pool += [ev] * ev[3]            # ваги
+    return random.choice(pool)
+
+async def apply_chance_event(ev: ChanceEvent, cid: int, uid: int) -> str:
+    n = random.randint(10, 60)
+    field, sign = ev[2].split(":")      # "coins", "+/-"
+    delta =  n if sign == "+" else -n
+
+    if field == "coins":
+        await add_money(cid, uid, delta)
+    elif field == "xp":
+        await add_xp(cid, uid, delta)
+    elif field == "energy":
+        await add_energy(cid, uid, delta)   # нова утиліта
+
+    return ev[1].format(n=abs(delta))
 
 # ────────── Mining Task ──────────
-async def mining_task(bot: Bot, chat_id: int, user_id: int, tier: int, ores: list[str], bonus: float):
-    try:
-        await asyncio.sleep(MINE_DURATION)
-        prog = await get_progress(chat_id, user_id)
-        # drop
-        ore_id = random.choice(ores)
-        ore = ORE_ITEMS[ore_id]
-        low, high = ORE_ITEMS[ore_id]["drop_range"]
-        amount = random.randint(low, high)
-        amount = int(amount * bonus)
-        pick_bonus = PICKAXES.get(prog.get("current_pickaxe"), {}).get("bonus", 0)
-        amount += int(amount * pick_bonus)
+async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus:float):
+    await asyncio.sleep(get_mine_duration(tier))
 
-        xp_gain = amount
-        if prog.get("cave_pass", False) and prog.get("pass_expires") > dt.datetime.utcnow():
-            xp_gain = int(xp_gain * 1.5)
+    prog = await get_progress(cid,uid)
+    ore_id = random.choice(ores)
+    ore    = ORE_ITEMS[ore_id]
+    amount = random.randint(*ore["drop_range"])
+    amount = int(amount*bonus)
+    pick_bonus = PICKAXES.get(prog.get("current_pickaxe"),{}).get("bonus",0)
+    amount+= int(amount*pick_bonus)
 
-        # додаємо ресурси та XP
-        await add_item(chat_id, user_id, ore_id, amount)
-        await add_xp(chat_id, user_id, xp_gain)
-        streak = await update_streak(chat_id, user_id)
+    xp_gain=amount
+    if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():
+        xp_gain=int(xp_gain*1.5)
 
-        # віднімаємо 1 одиницю міцності
-        new_dur = prog.get("pick_dur", prog.get("pick_dur_max", 100)) - 1
+    await add_item(cid,uid,ore_id,amount)
+    await add_xp  (cid,uid,xp_gain)
+    streak=await update_streak(cid,uid)
+
+    # ---- прочність конкретної кирки (JSON-мапа) ----
+    if cur := prog.get("current_pickaxe"):
+        dur, dur_max = await change_dur(cid, uid, cur, -1)
+        broken = dur == 0
+    else:
         broken = False
-        if new_dur <= 0:
-            # кирка зламалася
-            await db.execute(
-                "UPDATE progress_local SET current_pickaxe=NULL, pick_dur=0 WHERE chat_id=:c AND user_id=:u",
-                {"c": chat_id, "u": user_id}
-            )
-            broken = True
-        else:
-            await db.execute(
-                "UPDATE progress_local SET pick_dur=:d WHERE chat_id=:c AND user_id=:u",
-                {"d": new_dur, "c": chat_id, "u": user_id}
-            )
 
-        # очищаємо mining_end
-        await db.execute(
-            "UPDATE progress_local SET mining_end=NULL WHERE chat_id=:c AND user_id=:u",
-            {"c": chat_id, "u": user_id}
-        )
+    # ---- випадкова подія ----
+    extra_txt=""
+    ev = pick_chance_event()
+    if ev:
+        extra_txt = "\n" + await apply_chance_event(ev, cid, uid)
 
-        # надсилаємо результат
-        member = await bot.get_chat_member(chat_id, user_id)
-        tg_user = member.user
-        if tg_user.username:
-            mention = f"@{tg_user.username}"
-        else:
-            mention = f'<a href="tg://user?id={tg_user.id}">{tg_user.full_name}</a>'
+    member=await bot.get_chat_member(cid,uid)
+    mention = f"@{member.user.username}" if member.user.username \
+              else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
 
-        msg = await bot.send_message(
-            chat_id,
-            (
-                f"🏔️ {mention}, ти повернувся з шахти!\n"
-                f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
-                f"XP +{xp_gain} (Pass ×1.5)\n"
-                f"Tier {tier} бонус ×{bonus:.1f}, кирка +{int(pick_bonus*100)} %, streak {streak} дн."
-                + ("\n⚠️ Твоя кирка зламалася! Скористайся /repair" if broken else "")
-            ),
-            parse_mode="HTML"
-        )
-        register_msg_for_autodelete(chat_id, msg.message_id)
-    except Exception as e:
-        print(f"Error in mining_task: {e}")
+    txt=(f"🏔 {mention}, ти повернувся з шахти!\n"
+         f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
+         f"XP +{xp_gain}\n"
+         f"Tier×{bonus:.1f} | кирка+{int(pick_bonus*100)} % | streak {streak} дн."
+         + ("\n⚠️ Кирка зламалася! /repair" if broken else "")
+         + extra_txt)
+
+    msg=await bot.send_message(cid,txt,parse_mode="HTML")
+    register_msg_for_autodelete(cid,msg.message_id)
     
 # ────────── Smelt Task ──────────
-async def smelt_timer(bot: Bot, cid: int, uid: int, rec: dict, cnt: int):
-    duration = cnt * 5
-    await asyncio.sleep(duration)
-
-    await add_item(cid, uid, rec["out_key"], cnt)
-    await db.execute(
-        "UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
-        {"c": cid, "u": uid},
-    )
-
-    await bot.send_message(cid, f"🔥 Піч готова: {cnt}×{rec['out_name']}")
+async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,torch_mult:float):
+    await asyncio.sleep(get_smelt_duration(cnt,torch_mult))
+    await add_item(cid,uid,rec["out_key"],cnt)
+    await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
+                     {"c":cid,"u":uid})
+    await bot.send_message(cid,f"🔥 Піч готова: {cnt}×{rec['out_name']}")
 
 # ────────── /start ──────────
 @router.message(CommandStart())
@@ -204,12 +225,12 @@ async def profile_cmd(message: types.Message):
     text = (
         f"👤 <b>Профіль:</b> {message.from_user.full_name}\n"
         f"⭐ <b>Рівень:</b> {lvl} (XP {xp}/{next_xp})\n"
+        f"💎 <b>Cave Pass:</b> {pass_str}\n\n"
         f"🔋 <b>Енергія:</b> {energy}/100\n"
-        f"🍗 <b>Голод:</b> {hunger}/100\n"
-        f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})\n"
+        f"🍗 <b>Голод:</b> {hunger}/100\n\n"
         f"📦 <b>Cave Cases:</b> {cave_cases}\n"
-        f"💎 <b>Cave Pass:</b> {pass_str}\n"
-        f"💰 <b>Баланс:</b> {balance} монет"
+        f"💰 <b>Баланс:</b> {balance} монет\n\n"
+        f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})"
     )
 
     msg = await message.answer_photo(
@@ -294,13 +315,13 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
              WHERE chat_id=:c AND user_id=:u""",
         {
             "hc": HUNGER_COST,
-            "end": dt.datetime.utcnow() + dt.timedelta(seconds=MINE_DURATION),
+            "end": dt.datetime.utcnow() + dt.timedelta(seconds=get_mine_duration(tier)),
             "c": cid,
             "u": uid,
         },
     )
 
-    msg = await message.reply(f"⛏️ Іду в шахту на {MINE_DURATION} сек. Успіхів!")
+    msg = await message.reply(f"⛏️ Іду в шахту на {get_mine_duration(tier)} сек. Успіхів!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
@@ -402,6 +423,12 @@ async def smelt_cmd(message: types.Message):
     await add_item(cid, uid, ore_key, -used)
     # Таймер
     duration = cnt * 5  # 5 сек за інгот (dev)
+    torch_mult = 1.0
+    if any(r["item"]=="torch_bundle" for r in inv):
+        torch_mult = TORCH_SPEEDUP
+        await add_item(cid, uid, "torch_bundle", -1)
+
+    duration = get_smelt_duration(cnt, torch_mult)
     await db.execute(
         "UPDATE progress_local SET smelt_end=:e WHERE chat_id=:c AND user_id=:u",
         {"e": dt.datetime.utcnow() + dt.timedelta(seconds=duration), "c": cid, "u": uid},
@@ -466,7 +493,7 @@ async def stats_callback(callback: CallbackQuery):
             member = await callback.bot.get_chat_member(cid, uid)
             user = member.user
             if user.username:
-                mention = f"@{user.username}"
+                mention = f"{user.username}"
             else:
                 mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
             lines.append(f"{i}. {mention} — {coins} монет")
@@ -517,22 +544,27 @@ async def stats_callback(callback: CallbackQuery):
 async def repair_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)
-    dur = prog.get("pick_dur", 0)
-    dur_max = prog.get("pick_dur_max", 100)
-    if dur >= dur_max:
-        return await message.reply("🛠️ Твоя кирка в ідеальному стані!")
 
-    cost = (dur_max - dur) * 2  # 2 монети за 1 міцності
-    balance = await get_money(cid, uid)
-    if balance < cost:
-        return await message.reply(f"Недостатньо монет для ремонту ({cost} ₴ потрібно).")
+    pick_key = prog.get("current_pickaxe")
+    if not pick_key:
+        return await message.reply("У тебе зараз немає активної кирки.")
+
+    dur_map     = prog.get("pick_dur_map"    , {})
+    dur_max_map = prog.get("pick_dur_max_map", {})
+    dur     = dur_map.get(pick_key, 0)
+    dur_max = dur_max_map.get(pick_key, 100)
+
+    if dur >= dur_max:
+        return await message.reply("🛠️ Кирка в ідеальному стані!")
+
+    cost = (dur_max - dur) * 2   # 2 монети за 1 міцності
+    if (bal := await get_money(cid, uid)) < cost:
+        return await message.reply("Недостатньо монет для ремонту.")
 
     await add_money(cid, uid, -cost)
-    await db.execute(
-        "UPDATE progress_local SET pick_dur=:max WHERE chat_id=:c AND user_id=:u",
-        {"max": dur_max, "c": cid, "u": uid}
-    )
-    return await message.reply(f"🛠️ Кирку полагоджено до {dur_max}/{dur_max} за {cost} монет!")
+    await change_dur(cid, uid, pick_key, dur_max - dur)   # повертаємо до макс.
+
+    await message.reply(f"🛠️ {PICKAXES[pick_key]['name']} відремонтована до {dur_max}/{dur_max} за {cost} монет!")
 
 TELEGRAPH_LINK = "https://telegra.ph/Cave-Miner---Info-06-17" 
 
