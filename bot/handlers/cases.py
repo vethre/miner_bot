@@ -40,7 +40,7 @@ async def case_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)
     if prog["cave_cases"] < 1:
-        return await message.reply("У тебе немає Cave Case 😕")
+        return await message.reply("У тебя нет Cave Case 😕")
 
     # отнимаем кейс
     await db.execute(
@@ -86,7 +86,7 @@ async def case_cmd(message: types.Message):
         descr_parts.append(f"{data['xp']} XP")
 
     descr = " + ".join(descr_parts)
-    await message.reply(f"📦 Твій Cave Case відкритий! Випало: {descr}")
+    await message.reply(f"📦 Твой Cave Case открыт! Выпало: {descr}")
 
 
 async def give_case_to_user(chat_id: int, user_id: int, count: int) -> None:
@@ -108,15 +108,15 @@ async def give_case_cmd(message: types.Message):
 
     # Перевірка прав
     if message.from_user.id not in ADMINS:
-        return await message.reply("⚠️ У вас немає прав на цю команду")
+        return await message.reply("⚠️ У вас нет прав на эту команду")
 
     parts = message.text.split()
     if len(parts) != 3:
-        return await message.reply("Використання: /give_case <user_id або @username> <кількість>")
+        return await message.reply("Использование: /give_case 'user_id или @username' 'кол-во'")
 
     target, cnt_str = parts[1], parts[2]
     if not cnt_str.isdigit():
-        return await message.reply("Кількість має бути числом")
+        return await message.reply("Кол-во должно быть числом")
     count = int(cnt_str)
 
     # Розбір ідентифікатора користувача з mention або числа
@@ -126,10 +126,10 @@ async def give_case_cmd(message: types.Message):
             member = await message.bot.get_chat_member(cid, target)
             uid = member.user.id
         except Exception:
-            return await message.reply("Користувача не знайдено в чаті")
+            return await message.reply("Пользователь не найден в чате")
     else:
         if not target.isdigit():
-            return await message.reply("Невірний формат user_id або @username")
+            return await message.reply("Неверный формат user_id или @username")
         uid = int(target)
 
     # Виконуємо нарахування кейсів
@@ -138,6 +138,6 @@ async def give_case_cmd(message: types.Message):
     # Підтвердження
     mention = f'<a href="tg://user?id={uid}">{uid}</a>'
     return await message.reply(
-        f"✅ Видано {count} Cave Case(ів) користувачу {mention}",
+        f"✅ Выдано {count} Cave Case(ов) пользователю {mention}",
         parse_mode="HTML"
     )

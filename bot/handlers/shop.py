@@ -16,14 +16,15 @@ router = Router()
 # Список товарів у магазині
 SHOP_ITEMS = {
     "wood_handle":    {"price": 100,  "name": "Рукоять",         "emoji": "🪵"},
-    "wooden_pickaxe": {"price": 200,  "name": "Дерев’яна кирка", "emoji": "🔨"},
-    "iron_pickaxe":   {"price": 1000, "name": "Залізна кирка",   "emoji": "⛏️"},
-    "gold_pickaxe":   {"price": 2000, "name": "Золота кирка",    "emoji": "✨"},
+    "wooden_pickaxe": {"price": 200,  "name": "Деревяная кирка", "emoji": "🔨"},
+    "iron_pickaxe":   {"price": 1000, "name": "Железная кирка",   "emoji": "⛏️"},
+    "gold_pickaxe":   {"price": 2000, "name": "Золотая кирка",    "emoji": "✨"},
     "torch_bundle":   {"price": 150, "name": "Факел",    "emoji": "🕯️"},
-    "bread":          {"price": 50,   "name": "Хліб",            "emoji": "🍞", "hunger": 20},
-    "meat":           {"price": 120,  "name": "М’ясо",           "emoji": "🍖", "hunger": 50},
+    "bread":          {"price": 50,   "name": "Хлеб",            "emoji": "🍞", "hunger": 20},
+    "meat":           {"price": 120,  "name": "Мясо",           "emoji": "🍖", "hunger": 50},
     "borsch":         {"price": 300,  "name": "Борщ",            "emoji": "🥣", "hunger": 100},
-    "cave_cases":      {"price": 350, "name": "Cave Case",         "emoji": "📦"},
+    "energy_drink":   {"price": 170, "name": "Энергетик",        "emoji": "🥤", "energy": 40},
+    "cave_cases":     {"price": 350, "name": "Cave Case",        "emoji": "📦"},
 }
 
 @router.message(Command("shop"))
@@ -38,7 +39,7 @@ async def shop_cmd(message: types.Message):
 
     msg = await message.answer_photo(
         photo=SHOP_IMG_ID,
-        caption="🛒 <b>Магазин</b> — обери товар:",
+        caption="🛒 <b>Магазин</b> — выюери товар:",
         parse_mode="HTML",
         reply_to_message_id=message.message_id,
         reply_markup=builder.as_markup()
@@ -59,12 +60,12 @@ async def shop_buy_callback(callback: CallbackQuery):
 
     item = SHOP_ITEMS.get(item_id)
     if not item:
-        return await callback.message.reply("Товар не знайдено 😕")
+        return await callback.message.reply("Товар не найден 😕")
 
     balance = await get_money(cid, uid)
     price = item["price"]
     if balance < price:
-        return await callback.message.reply("Недостатньо монет 💸")
+        return await callback.message.reply("Недостаочно монет 💸")
 
     await add_money(cid, uid, -price)
     if item_id == "cave_cases":
@@ -73,7 +74,7 @@ async def shop_buy_callback(callback: CallbackQuery):
         await add_item(cid, uid, item_id, 1)
 
     msg = await callback.message.reply(
-        f"Ти придбав {item['emoji']}<b>{item['name']}</b> за {price} монет! 🎉",
+        f"Ты купил {item['emoji']}<b>{item['name']}</b> за {price} монет! 🎉",
         parse_mode="HTML"
     )
     register_msg_for_autodelete(callback.message.chat.id, msg.message_id)

@@ -14,12 +14,12 @@ ADMINS = {700929765, 988127866}  # заміни на свої ID
 @router.message(Command("db"))
 async def db_cmd(message: types.Message):
     if message.from_user.id not in ADMINS:
-        return await message.reply("⛔ Тільки для адмінів!")
+        return await message.reply("⛔ Только для админов!")
 
     cid, uid = await cid_uid(message)
     parts = message.text.split(maxsplit=1)
     if len(parts) < 2:
-        return await message.reply("⚠️ Введи SQL-запит після команди, наприклад:\n/db SELECT * FROM progress_local")
+        return await message.reply("⚠️ Введи SQL-запрос после команды, напр.:\n/db SELECT * FROM progress_local")
 
     sql = parts[1]
     try:
@@ -27,7 +27,7 @@ async def db_cmd(message: types.Message):
         if sql.strip().lower().startswith("select"):
             rows = await db.fetch_all(sql)
             if not rows:
-                return await message.reply("✅ Запит виконано, але нічого не знайдено.")
+                return await message.reply("✅ Запрос исполнен, но ничего не найдено.")
             # Форматуємо перший рядок як приклад
             first = rows[0]
             lines = [f"<code>{k}</code>: {v}" for k, v in first.items()]
@@ -35,9 +35,9 @@ async def db_cmd(message: types.Message):
         else:
             # Наприклад: UPDATE ... або INSERT ...
             await db.execute(sql)
-            return await message.reply("✅ Успішно виконано.")
+            return await message.reply("✅ Упешно исполнено.")
     except Exception as e:
-        return await message.reply(f"❌ Помилка:\n<code>{e}</code>", parse_mode="HTML")
+        return await message.reply(f"❌ Ошибка:\n<code>{e}</code>", parse_mode="HTML")
 
 # ───────────── Команда /id ─────────────
 @router.message(Command("id"))
@@ -58,7 +58,7 @@ async def debug_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)
     if not prog:
-        return await message.reply("❌ Не знайдено запису в progress_local")
+        return await message.reply("❌ Не найдена запись в progress_local")
 
     lines = [f"<b>{k}:</b> {v}" for k, v in prog.items()]
     await message.reply("\n".join(lines), parse_mode="HTML")
@@ -73,11 +73,11 @@ async def photo_id_handler(message: types.Message):
 @router.message(Command("forcepick"))
 async def forcepick_cmd(message: types.Message, command: CommandObject):
     if message.from_user.id not in ADMINS:
-        return await message.reply("⛔ Доступ заборонено")
+        return await message.reply("⛔ Доступ воспрещён")
 
     args = (command.args or "").split()
     if len(args) != 1:
-        return await message.reply("❗ Приклад: /forcepick crystal_pickaxe")
+        return await message.reply("❗ Пример: /forcepick crystal_pickaxe")
 
     cid, uid = await cid_uid(message)
     key = args[0].strip()
@@ -85,4 +85,4 @@ async def forcepick_cmd(message: types.Message, command: CommandObject):
         "UPDATE progress_local SET current_pickaxe=:p WHERE chat_id=:c AND user_id=:u",
         {"p": key, "c": cid, "u": uid}
     )
-    await message.reply(f"🔧 Кирка встановлена: <b>{key}</b>", parse_mode="HTML")
+    await message.reply(f"🔧 Кирка установлена: <b>{key}</b>", parse_mode="HTML")

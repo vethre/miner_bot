@@ -51,15 +51,15 @@ HUNGER_LIMIT = 20
 
 # ────────── Руди  + Tiers ──────────
 ORE_ITEMS = {
-    "stone":    {"name": "Камінь",   "emoji": "🪨", "drop_range": (3, 10), "price": 2},
-    "coal":     {"name": "Вугілля",  "emoji": "🧱", "drop_range": (3, 8),  "price": 6},
-    "iron":     {"name": "Залізна руда", "emoji": "⛏️", "drop_range": (2, 7),  "price": 12},
+    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (3, 10), "price": 2},
+    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (3, 8),  "price": 6},
+    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (2, 7),  "price": 12},
     "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (2, 6),  "price": 16},
     "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1, 5),  "price": 28},
-    "diamond":  {"name": "Діамант",  "emoji": "💎", "drop_range": (1, 2),  "price": 67},
-    "emerald":  {"name": "Смарагд",  "emoji": "💚", "drop_range": (1, 3),  "price": 47},
+    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (1, 2),  "price": 67},
+    "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1, 3),  "price": 47},
     "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 34},
-    "ruby":     {"name": "Рубін",    "emoji": "❤️", "drop_range": (1, 4),  "price": 55},
+    "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (1, 4),  "price": 55},
 }
 
 TIER_TABLE = [
@@ -91,10 +91,10 @@ ChanceEvent = tuple[str, str, str, int]
 #          (key , text , effect , weight)
 
 CHANCE_EVENTS: list[ChanceEvent] = [
-    ("found_coins",   "Ти знайшов гаманець 💰  +{n} монет",  "coins:+", 230),
-    ("pet_cat",       "Погладжено кота 😸     +{n} XP",      "xp:+",    120),
-    ("robbery",       "Тебе пограбували! −{n} монет",       "coins:-", 80),
-    ("miner_snack",   "Шахтарський снек 🥪   +{n} енергії",  "energy:+",20),
+    ("found_coins",   "Ты нашёл кошелёк 💰  +{n} монет",  "coins:+", 230),
+    ("pet_cat",       "Погладил кошку 😸     +{n} XP",      "xp:+",    120),
+    ("robbery",       "Тебя ограбили! −{n} монет",       "coins:-", 80),
+    ("miner_snack",   "Шахтёрский перекус 🥪   +{n} энергии",  "energy:+",20),
 ]
 
 def pick_chance_event() -> ChanceEvent|None:
@@ -161,11 +161,11 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         {"c": cid, "u": uid}
     )
 
-    txt=(f"🏔 {mention}, ти повернувся з шахти!\n"
+    txt=(f"🏔 {mention}, ты вернулся из шахты!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
          f"XP +{xp_gain}\n"
-         f"Tier×{bonus:.1f} | кирка+{int(pick_bonus*100)} % | streak {streak} дн."
-         + ("\n⚠️ Кирка зламалася! /repair" if broken else "")
+         f"Tier×{bonus:.1f} | кирка+{int(pick_bonus*100)} % | Streak {streak} дн."
+         + ("\n⚠️ Кирка сломалась! /repair" if broken else "")
          + extra_txt)
 
     msg=await bot.send_message(cid,txt,parse_mode="HTML")
@@ -177,13 +177,13 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,torch_mult:float)
     await add_item(cid,uid,rec["out_key"],cnt)
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
                      {"c":cid,"u":uid})
-    await bot.send_message(cid,f"🔥 Піч готова: {cnt}×{rec['out_name']}")
+    await bot.send_message(cid,f"🔥 Переплавка закончена: {cnt}×{rec['out_name']}")
 
 # ────────── /start ──────────
 @router.message(CommandStart())
 async def start_cmd(message: types.Message):
     await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
-    msg = await message.reply("Привіт, шахтарю! ⛏️ Реєстрація пройшла успішно. Використовуй /mine, щоб копати ресурси!")
+    msg = await message.reply("Привет, будущий шахтёр! ⛏️ Регистрация прошла успешно. Используй /mine, чтобы копать ресурсы!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /profile ──────────
@@ -216,22 +216,22 @@ async def profile_cmd(message: types.Message):
     if has_pass and expires:
         pass_str = expires.strftime("%d.%m.%Y")
     else:
-        pass_str = "неактивний"
+        pass_str = "Не активирован"
 
     balance = await get_money(cid, uid)
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="📦 Інвентар", callback_data=f"profile:inventory:{uid}")
+    builder.button(text="📦 Инвентарь", callback_data=f"profile:inventory:{uid}")
     builder.button(text="🛒 Магазин",    callback_data=f"profile:shop:{uid}")
     builder.button(text="⛏️ Шахта",      callback_data=f"profile:mine:{uid}")
     builder.button(text="💎 Cave Pass",      callback_data=f"profile:cavepass:{uid}")
     builder.adjust(1)
 
     text = (
-        f"👤 <b>Профіль:</b> {message.from_user.full_name}\n"
-        f"⭐ <b>Рівень:</b> {lvl} (XP {xp}/{next_xp})\n"
+        f"👤 <b>Профиль:</b> {message.from_user.full_name}\n"
+        f"⭐ <b>Уровень:</b> {lvl} (XP {xp}/{next_xp})\n"
         f"💎 <b>Cave Pass:</b> {pass_str}\n\n"
-        f"🔋 <b>Енергія:</b> {energy}/100\n"
+        f"🔋 <b>Энергия:</b> {energy}/100\n"
         f"🍗 <b>Голод:</b> {hunger}/100\n\n"
         f"📦 <b>Cave Cases:</b> {cave_cases}\n"
         f"💰 <b>Баланс:</b> {balance} монет\n\n"
@@ -259,7 +259,7 @@ async def profile_callback(callback: types.CallbackQuery):
     orig_uid = int(orig_uid)
     # тільки автор може натискати
     if callback.from_user.id != orig_uid:
-        return await callback.answer("Ця кнопка не для тебе", show_alert=True)
+        return await callback.answer("Эта кнопка не для тебя", show_alert=True)
     await callback.answer()
 
     # передаємо виконання команді
@@ -293,19 +293,19 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         uid = user_id
     user = await get_user(uid)
     if not user:
-        return await message.reply("Спершу /start")
+        return await message.reply("Сперва /start")
 
     energy, _ = await update_energy(cid, uid)
     hunger, _ = await update_hunger(cid, uid)
     if energy <= 15:
-        return await message.reply("😴 Недостатньо енергії. Зачекай.")
+        return await message.reply(f"😴 Недостаточно энергии {energy}/20 - минимум. Отдохни.")
     if hunger < HUNGER_LIMIT:
-        return await message.reply("🍽️ Ти занадто голодний, спершу /eat!")
+        return await message.reply(f"🍽️ Ты слишкон голоден {hunger}/20 - минимум, сперва /eat!")
 
     prog = await get_progress(cid, uid)
     if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
         left = int((prog["mining_end"] - dt.datetime.utcnow()).total_seconds())
-        return await message.reply(f"⛏️ Ти ще в шахті, залишилось {left} сек.")
+        return await message.reply(f"⛏️ Ты ещё в шахте, осталось {left} сек.")
 
     tier = get_tier(prog["level"])
     bonus_tier = BONUS_BY_TIER[tier]
@@ -326,7 +326,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         },
     )
 
-    msg = await message.reply(f"⛏️ Іду в шахту на {get_mine_duration(tier)} сек. Успіхів!")
+    msg = await message.reply(f"⛏️ Ты ушёл в шахту на {get_mine_duration(tier)} сек. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
@@ -339,7 +339,7 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
     inv = await get_inventory(cid, uid)
     balance = await get_money(cid, uid)
 
-    lines = [f"🧾 Баланс: {balance} монет", "<b>📦 Інвентар:</b>"]
+    lines = [f"🧾 Баланс: {balance} монет", "<b>📦 Инвентарь:</b>"]
     for row in inv:
         meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": ""})
         pre = f"{meta['emoji']} " if meta.get("emoji") else ""
@@ -358,14 +358,14 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
 # ────────── /sell (локальний) ──────────
 ALIASES = {k: k for k in ORE_ITEMS}
 ALIASES.update({
-    "камінь": "stone",
-    "вугілля": "coal",
-    "залізна руда": "iron",
-    "залізо": "iron",
+    "камень": "stone",
+    "уголь": "coal",
+    "железная руда": "iron",
+    "железо": "iron",
     "золото": "gold",
     "аметист": "amethyst",
-    "діамант": "diamond",
-    "смарагд": "emerald",
+    "алмаз": "diamond",
+    "изумруд": "emerald",
     "лазурит": "lapis",
     "рубин": "ruby",
 })
@@ -376,21 +376,21 @@ async def sell_cmd(message: types.Message):
     text = message.text or ""
     parts = text.split(maxsplit=1)
     if len(parts) < 2:
-        return await message.reply("Як продати: /sell 'ресурс' 'к-сть'")
+        return await message.reply("Как продать: /sell 'ресурс' 'кол-во'")
     try:
         item_part, qty_str = parts[1].rsplit(maxsplit=1)
     except ValueError:
-        return await message.reply("Як продати: /sell 'ресурс' 'к-сть'")
+        return await message.reply("Как продать: /sell 'ресурс' 'кол-во'")
     if not qty_str.isdigit():
-        return await message.reply("Кількість має бути числом!")
+        return await message.reply("Кол-во должно быть числом!")
     qty = int(qty_str)
     item_key = ALIASES.get(item_part.lower(), item_part.lower())
     if item_key not in ITEM_DEFS or "price" not in ITEM_DEFS[item_key]:
-        return await message.reply("Не торгується 😕")
+        return await message.reply("Не принимается 😕")
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     have = inv.get(item_key, 0)
     if have < qty:
-        return await message.reply(f"У тебе лише {have}×{item_part}")
+        return await message.reply(f"У тебя только {have}×{item_part}")
     await add_item(cid, uid, item_key, -qty)
     earned = ITEM_DEFS[item_key]["price"] * qty
     await add_money(cid, uid, earned)
@@ -405,25 +405,25 @@ async def smelt_cmd(message: types.Message):
     text = message.text or ""
     parts = text.split(maxsplit=1)
     if len(parts) < 2:
-        return await message.reply("Як переплавити: /smelt 'руда' 'кількість'")
+        return await message.reply("Как переплавить: /smelt 'руда' 'кол-во'")
     try:
         ore_part, qty_str = parts[1].rsplit(maxsplit=1)
     except ValueError:
-        return await message.reply("/smelt 'руда' 'кількість'")
+        return await message.reply("/smelt 'руда' 'кол-во'")
     if not qty_str.isdigit():
-        return await message.reply("Кількість має бути числом!")
+        return await message.reply("Кол-во должно быть числом!")
     qty = int(qty_str)
     ore_key = SMELT_INPUT_MAP.get(ore_part.lower())
     if not ore_key:
-        return await message.reply("Невідома руда")
+        return await message.reply("Неизвестная руда")
     rec = SMELT_RECIPES[ore_key]
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     have = inv.get(ore_key, 0)
     if have < qty:
-        return await message.reply(f"У тебе лише {have}")
+        return await message.reply(f"У тебя только {have}")
     cnt = qty // rec["in_qty"]
     if cnt < 1:
-        return await message.reply(f"Потрібно {rec['in_qty']}× для одного інгота")
+        return await message.reply(f"Нужно {rec['in_qty']}× для одного слитка")
     used = cnt * rec["in_qty"]
     await add_item(cid, uid, ore_key, -used)
     # Таймер
@@ -435,7 +435,7 @@ async def smelt_cmd(message: types.Message):
     # 2. перевірка ресурсів
     have = inv_map.get(ore_key, 0)
     if have < qty:
-        return await message.reply(f"У тебе лише {have}")
+        return await message.reply(f"У тебя только {have}")
     # …
 
     # 3. Torch Bundle
@@ -444,7 +444,7 @@ async def smelt_cmd(message: types.Message):
     if inv_map.get("torch_bundle", 0) > 0:
         torch_mult = TORCH_SPEEDUP
         await add_item(cid, uid, "torch_bundle", -1)
-        torch_msg = "🕯️ Використано Torch Bundle (×0.7)\n"
+        torch_msg = "🕯️ Использовано Torch Bundle (×0.7)\n"
 
     duration = get_smelt_duration(cnt, torch_mult)
 
@@ -459,7 +459,7 @@ async def smelt_cmd(message: types.Message):
         smelt_timer(message.bot, cid, uid, rec, cnt, torch_mult)
     )
 
-    msg = await message.reply(f"{torch_msg}⏲️ Піч працює {duration} сек…")
+    msg = await message.reply(f"{torch_msg}⏲️ Печка работает {duration} сек…")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /craft ──────────
@@ -468,19 +468,19 @@ async def craft_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     parts = message.text.split(maxsplit=1)
     if len(parts) < 2:
-        return await message.reply("/craft 'назва'")
+        return await message.reply("/craft 'название'")
     craft_name = parts[1].lower().strip()
     recipe = CRAFT_RECIPES.get(craft_name)
     if not recipe:
-        return await message.reply("Рецепт не знайдено")
+        return await message.reply("Рецепт не найден")
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     for k, need in recipe["in"].items():
         if inv.get(k, 0) < need:
-            return await message.reply("Не вистачає ресурсів")
+            return await message.reply("Не хватает ресурсов")
     for k, need in recipe["in"].items():
         await add_item(cid, uid, k, -need)
     await add_item(cid, uid, recipe["out_key"], 1)
-    msg = await message.reply(f"🎉 Скрафтлено: {recipe['out_name']}!")
+    msg = await message.reply(f"🎉 Создано: {recipe['out_name']}!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /stats ──────────
@@ -489,11 +489,11 @@ async def stats_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     builder = InlineKeyboardBuilder()
     builder.button(text="🏆 Топ за балансом", callback_data="stats:balance")
-    builder.button(text="🎖️ Топ за рівнем", callback_data="stats:level")
+    builder.button(text="🎖️ Топ за уровнем", callback_data="stats:level")
     builder.button(text="📊 Топ за ресурсами", callback_data="stats:resources")
     builder.adjust(1)
     msg = await message.reply(
-        "📊 <b>Статистика</b> — оберіть топ:",
+        "📊 <b>Статистика</b> — выюерите топ:",
         parse_mode="HTML",
         reply_markup=builder.as_markup()
     )
@@ -539,7 +539,7 @@ async def stats_callback(callback: CallbackQuery):
                 mention = f"@{user.username}"
             else:
                 mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
-            lines.append(f"{i}. {mention} — рівень {lvl} (XP {xp})")
+            lines.append(f"{i}. {mention} — уровень {lvl} (XP {xp})")
 
     elif typ == "resources":
         rows = await db.fetch_all(
@@ -556,12 +556,12 @@ async def stats_callback(callback: CallbackQuery):
                 mention = f"@{user.username}"
             else:
                 mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
-            lines.append(f"{i}. {mention} — {total} ресурсів")
+            lines.append(f"{i}. {mention} — {total} ресурсов")
 
     else:
         return
 
-    text = "\n".join(lines) if lines else "Немає даних для показу"
+    text = "\n".join(lines) if lines else "Нет данных"
     msg = await callback.message.edit_text(text, parse_mode="HTML")
     register_msg_for_autodelete(callback.message.chat.id, msg.message_id)
 
@@ -572,7 +572,7 @@ async def repair_cmd(message: types.Message):
 
     pick_key = prog.get("current_pickaxe")
     if not pick_key:
-        return await message.reply("У тебе зараз немає активної кирки.")
+        return await message.reply("У тебя пока нет активной кирки.")
 
     dur_map     = prog.get("pick_dur_map"    , {})
     dur_max_map = prog.get("pick_dur_max_map", {})
@@ -580,23 +580,23 @@ async def repair_cmd(message: types.Message):
     dur_max = dur_max_map.get(pick_key, 100)
 
     if dur >= dur_max:
-        return await message.reply("🛠️ Кирка в ідеальному стані!")
+        return await message.reply("🛠️ Кирка в идеальном состоянии!")
 
     cost = (dur_max - dur) * 2   # 2 монети за 1 міцності
     if (bal := await get_money(cid, uid)) < cost:
-        return await message.reply("Недостатньо монет для ремонту.")
+        return await message.reply("Недостаточно монет для ремонта.")
 
     await add_money(cid, uid, -cost)
     await change_dur(cid, uid, pick_key, dur_max - dur)   # повертаємо до макс.
 
-    await message.reply(f"🛠️ {PICKAXES[pick_key]['name']} відремонтована до {dur_max}/{dur_max} за {cost} монет!")
+    await message.reply(f"🛠️ {PICKAXES[pick_key]['name']} отремонтирована до {dur_max}/{dur_max} за {cost} монет!")
 
 TELEGRAPH_LINK = "https://telegra.ph/Cave-Miner---Info-06-17" 
 
 # /about
 @router.message(Command("about"))
 async def about_cmd(message: types.Message):
-    msg = await message.reply(f"🔍 Детальніше про бота — {link('читати на Telegraph', TELEGRAPH_LINK)}", parse_mode="HTML")
+    msg = await message.reply(f"🔍 Больше о боте — {link(TELEGRAPH_LINK)}", parse_mode="HTML")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # /report <bug text>
@@ -605,10 +605,10 @@ async def report_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     args = message.text.split(maxsplit=1)
     if len(args) < 2:
-        return await message.reply("❗ Використання: /report 'опис багу'")
+        return await message.reply("❗ Использование: /report 'описание'")
 
     bug_text = args[1]
-    report_line = f"🐞 Баг від {message.from_user.full_name} ({uid}):\n{bug_text}"
+    report_line = f"🐞 Сообщение от {message.from_user.full_name} ({uid}):\n{bug_text}"
 
     # відправка мені
     ADMIN_ID = 700929765 
@@ -617,7 +617,7 @@ async def report_cmd(message: types.Message):
     except:
         pass
 
-    msg = await message.reply("✅ Дякую, баг передано!")
+    msg = await message.reply("✅ Спасибо, сообщение передано!")
 
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
@@ -627,11 +627,11 @@ async def autodelete_cmd(message: types.Message):
     parts = message.text.strip().split()
     
     if len(parts) != 2 or not parts[1].isdigit():
-        return await message.reply("❗ Використання: /autodelete 60 (від 1 до 720 хв, або 0 щоб вимкнути)")
+        return await message.reply("❗ Использование: /autodelete 60 (от 1 до 720 мин, или 0 чтобы отключить)")
 
     minutes = int(parts[1])
     if not (0 <= minutes <= 720):
-        return await message.reply("❗ Введи значення від 0 до 720 хвилин")
+        return await message.reply("❗ Введи значение от 0 до 720 минут")
 
     await db.execute(
         "UPDATE progress_local SET autodelete_minutes=:m WHERE chat_id=:c AND user_id=:u",
@@ -639,9 +639,9 @@ async def autodelete_cmd(message: types.Message):
     )
     
     if minutes == 0:
-        msg = await message.reply("🧹 Автовидалення вимкнено. Повідомлення залишатимуться в чаті.")
+        msg = await message.reply("🧹 Автоудаление отключено. Сообщения будут оставаться в чате.")
     else:
-        msg = await message.reply(f"🧼 Автовидалення активовано: кожні {minutes} хвилин бот чиститиме свої повідомлення.")
+        msg = await message.reply(f"🧼 Автоудаление активировано: каждые {minutes} минут бот будет чистить свои сообщения.")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 @router.message(Command("pickaxes"))
