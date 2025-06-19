@@ -1,5 +1,6 @@
 # bot/db_local.py
 import datetime as dt
+import json, asyncpg
 from typing import Tuple, List, Dict, Any
 from bot.db import db               # глобальний async-connection
 
@@ -223,30 +224,31 @@ async def set_pick(cid:int, uid:int, pick_key:str, max_dur:int):
         {"p": pick_key, "max": max_dur, "c": cid, "u": uid}
     )
 
-async def change_dur(cid:int, uid:int, pick_key:str, delta:int) -> tuple[int,int]:
-    """
-    +delta або −delta. Повертає (dur, dur_max) ПІСЛЯ зміни.
-    Якщо dur <= 0 — кироку ламаємо (current_pickaxe=NULL).
-    """
-    row = await get_progress(cid, uid)
-    dur_map     = dict(row.get("pick_dur_map"    , {}))
-    dur_max_map = dict(row.get("pick_dur_max_map", {}))
+async def _jsonb_to_dict(value):
+    # asyncpg інколи повертає вже dict (якщо server >12), інколи str
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        return json.loads(value)          # ← наша «універсальна» точка
+    raise TypeError("Unexpected JSONB type")
 
-    dur     = dur_map.get(pick_key, dur_max_map.get(pick_key, 100)) + delta
-    dur_max = dur_max_map.get(pick_key, 100)
+async def change_dur(cid:int, uid:int, pick:str, delta:int):
+    row = await db.fetch_one(
+        "SELECT pick_dur_map, pick_dur_max_map "
+        "FROM progress_local WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
+    )
+    dur_map = await _jsonb_to_dict(row["pick_dur_map"])
+    max_map = await _jsonb_to_dict(row["pick_dur_max_map"])
 
-    dur_map[pick_key] = max(0, dur)
+    cur_max = max_map.get(pick, 100)
+    new_dur = max(0, min(cur_max, dur_map.get(pick, cur_max) + delta))
+    dur_map[pick] = new_dur
 
-    if dur <= 0:
-        await db.execute(
-            "UPDATE progress_local SET current_pickaxe=NULL,pick_dur_map=:d "
-            "WHERE chat_id=:c AND user_id=:u",
-            {"d": dur_map, "c": cid, "u": uid}
-        )
-    else:
-        await db.execute(
-            "UPDATE progress_local SET pick_dur_map=:d WHERE chat_id=:c AND user_id=:u",
-            {"d": dur_map, "c": cid, "u": uid}
-        )
-
-    return dur, dur_max
+    await db.execute(
+        "UPDATE progress_local SET pick_dur_map=:map WHERE chat_id=:c AND user_id=:u",
+        {"map": json.dumps(dur_map), "c": cid, "u": uid}
+    )
+    return new_dur, cur_max
