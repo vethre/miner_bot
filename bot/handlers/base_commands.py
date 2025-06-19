@@ -140,11 +140,10 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     streak=await update_streak(cid,uid)
 
     # ---- прочність конкретної кирки (JSON-мапа) ----
+    broken = False
     if cur := prog.get("current_pickaxe"):
         dur, dur_max = await change_dur(cid, uid, cur, -1)
         broken = dur == 0
-    else:
-        broken = False
 
     # ---- випадкова подія ----
     extra_txt=""
@@ -155,6 +154,12 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     member=await bot.get_chat_member(cid,uid)
     mention = f"@{member.user.username}" if member.user.username \
               else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
+    
+    await db.execute(
+        "UPDATE progress_local SET mining_end=NULL "
+        "WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
+    )
 
     txt=(f"🏔 {mention}, ти повернувся з шахти!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
