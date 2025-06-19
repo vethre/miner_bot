@@ -441,7 +441,7 @@ async def smelt_cmd(message: types.Message):
     if inv.get("torch_bundle", 0) > 0:
         torch_mult = TORCH_SPEEDUP        # 0 .7  →  30 % швидше
         await add_item(cid, uid, "torch_bundle", -1)
-        torch_msg = "🕯️ Torch Bundle застосован — плавка швидше!\n"
+        torch_msg = "🕯️ Факел использован — плавка ускорена на 30%!\n"
 
     # ───── 5. Тривалість та таймер ─────
     duration = get_smelt_duration(cnt, torch_mult)   # сек
