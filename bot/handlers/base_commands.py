@@ -619,6 +619,13 @@ async def autodelete_cmd(message: types.Message):
     )
     
     if minutes == 0:
-        await message.reply("🧹 Автовидалення вимкнено. Повідомлення залишатимуться в чаті.")
+        msg = await message.reply("🧹 Автовидалення вимкнено. Повідомлення залишатимуться в чаті.")
     else:
-        await message.reply(f"🧼 Автовидалення активовано: кожні {minutes} хвилин бот чиститиме свої повідомлення.")
+        msg = await message.reply(f"🧼 Автовидалення активовано: кожні {minutes} хвилин бот чиститиме свої повідомлення.")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
+
+@router.message(Command("pickaxes"))
+async def list_pickaxes(message: types.Message):
+    lines = [f"{v['emoji']} <b>{v['name']}</b> — /use {k}" for k,v in PICKAXES.items()]
+    msg = await message.reply("\n".join(lines), parse_mode="HTML")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)

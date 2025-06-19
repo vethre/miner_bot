@@ -1,72 +1,94 @@
-# bot/handlers/use.py   (оновлений)
+# bot/handlers/use.py
 from aiogram import Router, types
 from aiogram.filters import Command
+from difflib import get_close_matches
+
 from bot.db_local import cid_uid, get_inventory, add_item, db
 
-PICKAXES = {              # ← як і було
-    "wooden_pickaxe":  {"bonus": .10, "name": "дерев’яна кирка", "emoji": "🔨",  "dur": 75},
-    "iron_pickaxe":    {"bonus": .15, "name": "залізна кирка",   "emoji": "⛏️",  "dur": 90},
-    "gold_pickaxe":    {"bonus": .30, "name": "золота кирка",    "emoji": "✨",  "dur": 60},
-    "roundstone_pickaxe": {"bonus": .05, "name": "круглякова кирка","emoji": "🪨","dur": 50},
-    "crystal_pickaxe": {"bonus":2.50, "name":"кристальна кирка", "emoji":"💎",   "dur": 95},
-    "amethyst_pickaxe":{"bonus":.70, "name":"аметистова кирка",  "emoji":"🔮",   "dur":100},
+PICKAXES = {
+    "wooden_pickaxe":  {"bonus": .10, "name": "дерев’яна кирка",  "emoji": "🔨", "dur": 75},
+    "iron_pickaxe":    {"bonus": .15, "name": "залізна кирка",    "emoji": "⛏️", "dur": 90},
+    "gold_pickaxe":    {"bonus": .30, "name": "золота кирка",     "emoji": "✨", "dur": 60},
+    "roundstone_pickaxe": {"bonus": .05, "name": "круглякова кирка","emoji":"🪨","dur": 50},
+    "crystal_pickaxe": {"bonus": 1.5, "name": "кристальна кирка", "emoji": "💎", "dur": 95},
+    "amethyst_pickaxe":{"bonus": .70, "name": "аметистова кирка", "emoji": "🔮", "dur":100},
 }
 
-ALIAS = {                    # кирки українською
-    "дерев'яна кирка":"wooden_pickaxe","дерев’яна кирка":"wooden_pickaxe",
-    "залізна кирка":"iron_pickaxe",    "золота кирка":"gold_pickaxe",
+# --- alias-и (і укр, і «коротко» без _pickaxe) ---------------
+ALIAS = {
+    # full UKR
+    "дерев’яна кирка": "wooden_pickaxe",
+    "залізна кирка":   "iron_pickaxe",
+    "золота кирка":    "gold_pickaxe",
     "круглякова кирка":"roundstone_pickaxe",
     "кристальна кирка":"crystal_pickaxe",
     "аметистова кирка":"amethyst_pickaxe",
+    # shorthand ENG
+    "wooden": "wooden_pickaxe",
+    "iron":   "iron_pickaxe",
+    "gold":   "gold_pickaxe",
+    "round":  "roundstone_pickaxe",
+    "crystal":"crystal_pickaxe",
+    "amethyst":"amethyst_pickaxe",
 }
 
 router = Router()
+
+def resolve_key(raw: str) -> str | None:
+    """Повертає id кирки або None."""
+    raw = raw.lower().replace("'", "’").strip()
+    if raw in ALIAS:
+        return ALIAS[raw]
+    if not raw.endswith("_pickaxe"):
+        raw += "_pickaxe"
+    if raw in PICKAXES:
+        return raw
+    # fuzzy-match (допомагає при помилках в 1-2 літерах)
+    closest = get_close_matches(raw, PICKAXES.keys(), n=1, cutoff=0.8)
+    return closest[0] if closest else None
 
 
 @router.message(Command("use"))
 async def use_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
 
-    # ---------- 1) парсимо аргумент ----------
     try:
         _, arg = message.text.split(maxsplit=1)
     except ValueError:
-        return await message.reply("Як обрати кирку: /use <назва або ключ>")
+        return await message.reply("Як обрати кирку: <code>/use назва</code>")
 
-    arg = arg.lower().replace("'", "’").strip()
-    key = ALIAS.get(arg, arg)          # alias або одразу id
-    if key not in PICKAXES:
-        return await message.reply(f"Немає кирки «{arg}» 😕")
+    key = resolve_key(arg)
+    if not key:
+        return await message.reply(f"Не знаю такої кирки «{arg}» 😕")
 
-    # ---------- 2) перевіряємо, чи є така кирка у гравця ----------
+    # ---------- перевіряємо інвентар ----------
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     if inv.get(key, 0) < 1:
         return await message.reply(f"У тебе немає {PICKAXES[key]['name']} 🙁")
 
-    # ---------- 3) читаємо поточну екіп-кирку й її durability ----------
+    # ---------- дістаємо прогрес ----------
     prog = await db.fetch_one(
         "SELECT current_pickaxe, pick_dur_map, pick_dur_max_map "
         "FROM progress_local WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
     )
-    cur = prog["current_pickaxe"]
-    dur_map     = prog["pick_dur_map"]     or {}
-    dur_max_map = prog["pick_dur_max_map"] or {}
+    cur          = prog["current_pickaxe"]
+    dur_map      = dict(prog["pick_dur_map"] or {})
+    dur_max_map  = dict(prog["pick_dur_max_map"] or {})
 
-    # ---------- 4) повертаємо (якщо треба) попередню кирку у інвентар ----------
-    if cur:                       # міг бути None
-        add_item_task = add_item(cid, uid, cur, +1)      # не чекаємо – лишимо нижче
+    # ---------- повертаємо попередню кирку ----------
+    if cur:
+        await add_item(cid, uid, cur, +1)
 
-    # ---------- 5) списуємо нову з інвентаря ----------
+    # ---------- списуємо нову ----------
     await add_item(cid, uid, key, -1)
 
-    # ---------- 6) фіксуємо durability для нової (якщо ще не було) ----------
+    # ---------- durability -------------
     if key not in dur_max_map:
         dur_max_map[key] = PICKAXES[key]["dur"]
     if key not in dur_map:
-        dur_map[key] = dur_max_map[key]          # “повна” при першому використанні
+        dur_map[key] = dur_max_map[key]
 
-    # ---------- 7) оновлюємо progress_local ----------
     await db.execute(
         """
         UPDATE progress_local
@@ -78,11 +100,9 @@ async def use_cmd(message: types.Message):
         {"p": key, "dm": dur_map, "dmm": dur_max_map, "c": cid, "u": uid}
     )
 
-    if cur:
-        await add_item_task      # (тепер реально чекаємо, щоб зберегти order)
-
+    pct = int(PICKAXES[key]['bonus'] * 100)
     await message.reply(
-        f"{PICKAXES[key]['emoji']} Взяв <b>{PICKAXES[key]['name']}</b> "
-        f"(бонус +{int(PICKAXES[key]['bonus']*100)} %)",
+        f"{PICKAXES[key]['emoji']} Тепер у руці <b>{PICKAXES[key]['name']}</b> "
+        f"(бонус +{pct}% до дропу)",
         parse_mode="HTML"
     )
