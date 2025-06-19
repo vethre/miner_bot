@@ -37,8 +37,8 @@ async def main():
         start=True            # одразу активувати
     )
 
-    async def _on_startup(BOT):
-        asyncio.create_task(auto_cleanup_task(BOT, db))
+    async def _on_startup(bot: Bot):
+        asyncio.create_task(auto_cleanup_task(bot, db), name="auto-delete")
 
     dp.startup.register(_on_startup)
 

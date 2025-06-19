@@ -1,49 +1,53 @@
 # bot/utils/autodelete.py
-import asyncio
-import datetime as dt
+import asyncio, logging, datetime as dt
 from typing import Dict, List
 from aiogram import Bot
 
-#--- Пам'ять для повідомлень, які треба стерти
-MESSAGE_CACHE: List[Dict] = []        # [{chat_id, message_id, created}, …]
+log = logging.getLogger(__name__)
+
+MESSAGE_CACHE: List[Dict] = []
 
 def register_msg_for_autodelete(chat_id: int, message_id: int) -> None:
-    """Кладемо повідомлення у кеш для майбутнього видалення."""
     MESSAGE_CACHE.append({
-        "chat_id":   chat_id,
+        "chat_id": chat_id,
         "message_id": message_id,
-        "created":   dt.datetime.utcnow(),
+        "created": dt.datetime.utcnow(),
     })
 
-#--- Читаємо налаштування з progress_local.autodelete_minutes
+
 async def _load_settings(db) -> Dict[int, int]:
     rows = await db.fetch_all(
-        "SELECT chat_id, autodelete_minutes FROM progress_local "
-        "WHERE autodelete_minutes IS NOT NULL AND autodelete_minutes > 0"
+        "SELECT chat_id, autodelete_minutes "
+        "FROM progress_local WHERE autodelete_minutes > 0"
     )
     return {r["chat_id"]: r["autodelete_minutes"] for r in rows}
 
-#--- Фоновий цикл
+
 async def auto_cleanup_task(bot: Bot, db):
+    log.info("🧹 auto-delete loop started")
     while True:
-        settings = await _load_settings(db)
-        now = dt.datetime.utcnow()
-        to_remove = []
+        try:
+            settings = await _load_settings(db)
+            now = dt.datetime.utcnow()
 
-        for rec in MESSAGE_CACHE:
-            interval = settings.get(rec["chat_id"])
-            if not interval:
-                continue                      # у цьому чаті авто-чистка вимкнена
-            age_min = (now - rec["created"]).total_seconds() / 60
-            if age_min >= interval:
-                to_remove.append(rec)
+            # — фільтруємо кандидати —
+            victims = [
+                rec for rec in list(MESSAGE_CACHE)
+                if (age := (now - rec["created"]).total_seconds()/60) >= settings.get(rec["chat_id"], 1e9)
+            ]
 
-        for rec in to_remove:
-            try:
-                await bot.delete_message(rec["chat_id"], rec["message_id"])
-            except Exception:
-                pass
-            finally:
-                MESSAGE_CACHE.remove(rec)
+            # — видаляємо —
+            for rec in victims:
+                try:
+                    await bot.delete_message(rec["chat_id"], rec["message_id"])
+                    log.debug(f"deleted {rec['message_id']} in {rec['chat_id']}")
+                except Exception as e:
+                    log.warning(f"cant delete {rec}: {e}")
+                finally:
+                    MESSAGE_CACHE.remove(rec)
 
-        await asyncio.sleep(60)      # перевіряємо щохвилини
+        except Exception as e:
+            # НЕ даємо таску померти «тихо»
+            log.exception(f"auto_cleanup_task crashed: {e}")
+
+        await asyncio.sleep(60)   # loop
