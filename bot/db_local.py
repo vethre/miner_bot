@@ -240,15 +240,15 @@ async def change_dur(cid:int, uid:int, key:str, delta:int):
         "WHERE chat_id=:c AND user_id=:u",
         {"c":cid, "u":uid}
     )
-    dur_map     = dict(row["pick_dur_map"]     or {})
-    dur_max_map = dict(row["pick_dur_max_map"] or {})
+    dur_map     = json.loads(row["pick_dur_map"] or "{}")
+    max_map = json.loads(row["pick_dur_max_map"] or "{}")
 
-    dur     = dur_map.get(key, dur_max_map.get(key, 100)) + delta
-    dur     = max(0, dur)
-    dur_map[key] = dur
+    cur = dur_map.get(key, max_map.get(key, 100))
+    cur = max(0, cur + delta)
+    dur_map[key] = cur
 
     await db.execute(
         "UPDATE progress_local SET pick_dur_map=:m WHERE chat_id=:c AND user_id=:u",
-        {"m": dur_map, "c":cid, "u":uid}
+        {"m": json.dump(dur_map), "c":cid, "u":uid}
     )
-    return dur, dur_max_map.get(key, 100)
+    return cur, max_map.get(key, 100)

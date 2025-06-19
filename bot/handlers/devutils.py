@@ -64,10 +64,12 @@ async def debug_cmd(message: types.Message):
     await message.reply("\n".join(lines), parse_mode="HTML")
 
 # ───────────── Команда /photoid ─────────────
-@router.message(F.photo)
-async def photo_id_handler(message: types.Message):
-    photo = message.photo[-1]
-    await message.reply(f"🖼️ File ID: <code>{photo.file_id}</code>", parse_mode="HTML")
+@router.message(Command("fileid"))
+async def fileid_cmd(m: types.Message):
+    if m.reply_to_message and m.reply_to_message.photo:
+        await m.reply(str(m.reply_to_message.photo[-1].file_id))
+    else:
+        await m.reply("Ответь на фото.")
 
 # ───────────── Команда /forcepick ─────────────
 @router.message(Command("forcepick"))

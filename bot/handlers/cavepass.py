@@ -40,7 +40,7 @@ async def cavepass_cmd(message: types.Message):
             "<b>Cave Pass</b> — 30 дней премиальных бонусов:\n"
             f" • Эксклюзивная {EX_EMOJI} <b>{EX_NAME}</b>\n"
             " • ×1.5 XP при добывании\n"
-            " • +5 пассивного XP ежедневно\n\n"
+            " • +20 пассивного XP ежедневно\n\n"
             f"<i>Цена: {PASS_PRICE_UAH} ₴ (оплата снаружи)</i>\n"
             "<i>После оплаты сообщите мне через /report</i>"
         )
@@ -79,7 +79,7 @@ async def activate_pass_cmd(message: types.Message):
 
     cid = message.chat.id if message.chat.type in ("group","supergroup") else 0
     now = dt.datetime.utcnow()
-    exp = dt.datetime(2025, 8, 31, 23, 59, 59)
+    exp = dt.datetime(2025, 7, 28, 23, 59, 59)
 
     # списувати внутрішню валюту не будемо, тільки активуємо
     await db.execute(
