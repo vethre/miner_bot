@@ -84,10 +84,10 @@ async def use_cmd(message: types.Message):
     await db.execute(
         """
         UPDATE progress_local
-        SET current_pickaxe   = :p,
-            pick_dur_map      = :dm::jsonb,     -- явний cast
-            pick_dur_max_map  = :dmm::jsonb
-        WHERE chat_id = :c AND user_id = :u
+           SET current_pickaxe   = :p,
+               pick_dur_map      = (:dm)::jsonb,
+               pick_dur_max_map  = (:dmm)::jsonb
+         WHERE chat_id = :c AND user_id = :u
         """,
         {"p": key, "dm": dm_json, "dmm": dmm_json, "c": cid, "u": uid}
     )
