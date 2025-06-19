@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS case_rewards (
 ALTER TABLE progress_local
   ADD COLUMN IF NOT EXISTS streak INT DEFAULT 0;
 
-ALTER TABLE progress_local ADD COLUMN autodelete_minutes INTEGER DEFAULT 0;
+ALTER TABLE progress_local ADD COLUMN IF NOT EXISTS autodelete_minutes INTEGER DEFAULT 0;
 
 ALTER TABLE progress_local
   ADD COLUMN IF NOT EXISTS pick_dur_map     JSONB DEFAULT '{}'::jsonb,
