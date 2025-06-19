@@ -80,8 +80,8 @@ async def use_cmd(message: types.Message):
             """
             UPDATE progress_local
                SET current_pickaxe   = :p,
-                   pick_dur_map      = :dm::jsonb,
-                   pick_dur_max_map  = :dmm::jsonb
+                   pick_dur_map      = (:dm)::jsonb,
+                   pick_dur_max_map  = (:dmm)::jsonb
              WHERE chat_id = :c AND user_id = :u
             """,
             {
