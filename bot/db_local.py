@@ -234,21 +234,21 @@ async def _jsonb_to_dict(value):
         return json.loads(value)          # ← наша «універсальна» точка
     raise TypeError("Unexpected JSONB type")
 
-async def change_dur(cid:int, uid:int, key:str, delta:int):
+async def change_dur(cid:int, uid:int, pick:str, delta:int):
     row = await db.fetch_one(
-        "SELECT pick_dur_map, pick_dur_max_map FROM progress_local "
-        "WHERE chat_id=:c AND user_id=:u",
-        {"c":cid, "u":uid}
+        "SELECT pick_dur_map, pick_dur_max_map "
+        "FROM progress_local WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
     )
-    dur_map     = dict(row["pick_dur_map"]     or {})
-    dur_max_map = dict(row["pick_dur_max_map"] or {})
+    dur_map = await _jsonb_to_dict(row["pick_dur_map"])
+    max_map = await _jsonb_to_dict(row["pick_dur_max_map"])
 
-    dur     = dur_map.get(key, dur_max_map.get(key, 100)) + delta
-    dur     = max(0, dur)
-    dur_map[key] = dur
+    cur_max = max_map.get(pick, 100)
+    new_dur = max(0, min(cur_max, dur_map.get(pick, cur_max) + delta))
+    dur_map[pick] = new_dur
 
     await db.execute(
-        "UPDATE progress_local SET pick_dur_map=:m WHERE chat_id=:c AND user_id=:u",
-        {"m": dur_map, "c":cid, "u":uid}
+        "UPDATE progress_local SET pick_dur_map=:map WHERE chat_id=:c AND user_id=:u",
+        {"map": json.dumps(dur_map), "c": cid, "u": uid}
     )
-    return dur, dur_max_map.get(key, 100)
+    return new_dur, cur_max
