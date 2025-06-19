@@ -197,22 +197,24 @@ async def profile_cmd(message: types.Message):
     energy, _ = await update_energy(cid, uid)
     hunger, _ = await update_hunger(cid, uid)
 
-    prog = await get_progress(cid, uid)
-    lvl = prog.get("level", 1)
-    xp = prog.get("xp", 0)
+    prog    = await get_progress(cid, uid)
+    lvl     = prog.get("level", 1)
+    xp      = prog.get("xp", 0)
     next_xp = lvl * 100
 
     # Кирка та її міцність
-    current = prog.get("current_pickaxe") or "wooden_pickaxe"
+    current         = prog.get("current_pickaxe") or "wooden_pickaxe"
+    dur_map         = prog.get("pick_dur_map"    , {}) or {}
+    dur_max_map     = prog.get("pick_dur_max_map", {}) or {}
     pick = PICKAXES.get(current, {"name":"–"})
-    pick_name = pick["name"]
-    dur = prog.get("pick_dur", 0)
-    dur_max = prog.get("pick_dur_max", 100)
-    cave_cases = prog.get("cave_cases", 0)
+    pick_name       = pick["name"]
+    dur             = dur_map.get(current,      PICKAXES[current]["dur"])
+    dur_max         = dur_max_map.get(current,  PICKAXES[current]["dur"])
 
     # Pass
-    has_pass = prog.get("cave_pass", False)
-    expires  = prog.get("pass_expires")
+    has_pass    = prog.get("cave_pass", False)
+    expires     = prog.get("pass_expires")
+    cave_cases  = prog.get("cave_cases", 0)
     if has_pass and expires:
         pass_str = expires.strftime("%d.%m.%Y")
     else:
