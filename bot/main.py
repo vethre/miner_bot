@@ -40,7 +40,7 @@ async def main():
     logger.info("🚀 Стартую polling...")
     await dp.start_polling(BOT)
 
-    dp.startup.register(lambda *_: asyncio.create_task(auto_cleanup_task(BOT, db)))
+    asyncio.create_task(auto_cleanup_task(BOT, db))
 
     # По завершенню (якщо кине SIGTERM чи Exception)
     await db.disconnect()

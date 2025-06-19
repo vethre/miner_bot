@@ -54,6 +54,18 @@ ALTER TABLE progress_local
   ADD COLUMN IF NOT EXISTS streak INT DEFAULT 0;
 
 ALTER TABLE progress_local ADD COLUMN autodelete_minutes INTEGER DEFAULT 0;
+
+ALTER TABLE progress_local
+  ADD COLUMN IF NOT EXISTS pick_dur_map     JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS pick_dur_max_map JSONB DEFAULT '{}'::jsonb;
+
+UPDATE progress_local
+SET   pick_dur_map = jsonb_build_object(current_pickaxe, pick_dur)
+  ||  COALESCE(pick_dur_map,'{}'::jsonb),
+      pick_dur_max_map = jsonb_build_object(current_pickaxe, pick_dur_max)
+  ||  COALESCE(pick_dur_max_map,'{}'::jsonb)
+WHERE pick_dur_map = '{}'::jsonb;
+
 """
 AUTO_DELETE = {}
 # ────────── INIT ──────────
@@ -145,6 +157,14 @@ async def update_energy(cid: int, uid: int):
         )
     return energy, now
 
+async def add_energy(cid:int, uid:int, delta:int):
+    await _ensure_progress(cid, uid)
+    await db.execute(
+        "UPDATE progress_local SET energy = LEAST(:max, GREATEST(0, energy + :d)) "
+        "WHERE chat_id=:c AND user_id=:u",
+        {"max": ENERGY_MAX, "d": delta, "c": cid, "u": uid}
+    )
+
 async def update_hunger(cid: int, uid: int):
     await _ensure_progress(cid, uid)
     now = dt.datetime.utcnow()
@@ -185,3 +205,48 @@ async def update_streak(cid: int, uid: int) -> int:
         {"s": streak, "d": today, "c": cid, "u": uid}
     )
     return streak
+
+# ─── PICK DUR HELPERS ────────────────────────────────────────────────
+async def set_pick(cid:int, uid:int, pick_key:str, max_dur:int):
+    """Активувати кирку й виставити її особисту лічильну міцність."""
+    await _ensure_progress(cid, uid)
+
+    # оновлюємо мапи
+    await db.execute(
+        """
+        UPDATE progress_local
+           SET current_pickaxe = :p,
+               pick_dur_map     = jsonb_set(pick_dur_map,     ARRAY[:p], to_jsonb(:max-0)),
+               pick_dur_max_map = jsonb_set(pick_dur_max_map, ARRAY[:p], to_jsonb(:max-0))
+         WHERE chat_id=:c AND user_id=:u
+        """,
+        {"p": pick_key, "max": max_dur, "c": cid, "u": uid}
+    )
+
+async def change_dur(cid:int, uid:int, pick_key:str, delta:int) -> tuple[int,int]:
+    """
+    +delta або −delta. Повертає (dur, dur_max) ПІСЛЯ зміни.
+    Якщо dur <= 0 — кироку ламаємо (current_pickaxe=NULL).
+    """
+    row = await get_progress(cid, uid)
+    dur_map     = dict(row.get("pick_dur_map"    , {}))
+    dur_max_map = dict(row.get("pick_dur_max_map", {}))
+
+    dur     = dur_map.get(pick_key, dur_max_map.get(pick_key, 100)) + delta
+    dur_max = dur_max_map.get(pick_key, 100)
+
+    dur_map[pick_key] = max(0, dur)
+
+    if dur <= 0:
+        await db.execute(
+            "UPDATE progress_local SET current_pickaxe=NULL,pick_dur_map=:d "
+            "WHERE chat_id=:c AND user_id=:u",
+            {"d": dur_map, "c": cid, "u": uid}
+        )
+    else:
+        await db.execute(
+            "UPDATE progress_local SET pick_dur_map=:d WHERE chat_id=:c AND user_id=:u",
+            {"d": dur_map, "c": cid, "u": uid}
+        )
+
+    return dur, dur_max
