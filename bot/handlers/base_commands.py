@@ -439,8 +439,7 @@ async def smelt_cmd(message: types.Message):
     # …
 
     # 3. Torch Bundle
-    torch_mult = 1.0
-    torch_msg  = ""
+    torch_mult = 0.7
     if inv_map.get("torch_bundle", 0) > 0:
         torch_mult = TORCH_SPEEDUP
         await add_item(cid, uid, "torch_bundle", -1)

@@ -35,7 +35,7 @@ async def db_cmd(message: types.Message):
         else:
             # Наприклад: UPDATE ... або INSERT ...
             await db.execute(sql)
-            return await message.reply("✅ Упешно исполнено.")
+            return await message.reply("✅ Успешно исполнено.")
     except Exception as e:
         return await message.reply(f"❌ Ошибка:\n<code>{e}</code>", parse_mode="HTML")
 

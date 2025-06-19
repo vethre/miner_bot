@@ -65,7 +65,7 @@ async def shop_buy_callback(callback: CallbackQuery):
     balance = await get_money(cid, uid)
     price = item["price"]
     if balance < price:
-        return await callback.message.reply("Недостаочно монет 💸")
+        return await callback.message.reply("Недостаточно монет 💸")
 
     await add_money(cid, uid, -price)
     if item_id == "cave_cases":
