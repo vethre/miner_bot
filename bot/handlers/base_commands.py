@@ -39,11 +39,11 @@ from bot.utils.autodelete import register_msg_for_autodelete
 router = Router()
 
 # ────────── Константи ──────────
-BASE_MINE_SEC   = 45          # Tier-1
-MINE_SEC_STEP   = -5          # −5 с за кожен Tier вище
-MINE_SEC_MIN    = 20
+BASE_MINE_SEC   = 1200          # Tier-1
+MINE_SEC_STEP   = -30          # −5 с за кожен Tier вище
+MINE_SEC_MIN    = 60
 
-BASE_SMELT_SEC  = 30          # за 1 інгот
+BASE_SMELT_SEC  = 600          # за 1 інгот
 TORCH_SPEEDUP   = 0.7         # Torch Bundle
 
 HUNGER_COST = 10
@@ -52,14 +52,14 @@ HUNGER_LIMIT = 20
 # ────────── Руди  + Tiers ──────────
 ORE_ITEMS = {
     "stone":    {"name": "Камінь",   "emoji": "🪨", "drop_range": (3, 10), "price": 2},
-    "coal":     {"name": "Вугілля",  "emoji": "🧱", "drop_range": (3, 8),  "price": 5},
-    "iron":     {"name": "Залізна руда", "emoji": "⛏️", "drop_range": (2, 7),  "price": 10},
-    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (2, 6),  "price": 20},
-    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1, 5),  "price": 40},
-    "diamond":  {"name": "Діамант",  "emoji": "💎", "drop_range": (1, 2),  "price": 60},
-    "emerald":  {"name": "Смарагд",  "emoji": "💚", "drop_range": (1, 3),  "price": 55},
-    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 35},
-    "ruby":     {"name": "Рубін",    "emoji": "❤️", "drop_range": (1, 4),  "price": 50},
+    "coal":     {"name": "Вугілля",  "emoji": "🧱", "drop_range": (3, 8),  "price": 6},
+    "iron":     {"name": "Залізна руда", "emoji": "⛏️", "drop_range": (2, 7),  "price": 12},
+    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (2, 6),  "price": 16},
+    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1, 5),  "price": 28},
+    "diamond":  {"name": "Діамант",  "emoji": "💎", "drop_range": (1, 2),  "price": 67},
+    "emerald":  {"name": "Смарагд",  "emoji": "💚", "drop_range": (1, 3),  "price": 47},
+    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 34},
+    "ruby":     {"name": "Рубін",    "emoji": "❤️", "drop_range": (1, 4),  "price": 55},
 }
 
 TIER_TABLE = [
@@ -91,14 +91,14 @@ ChanceEvent = tuple[str, str, str, int]
 #          (key , text , effect , weight)
 
 CHANCE_EVENTS: list[ChanceEvent] = [
-    ("found_coins",   "Ти знайшов гаманець 💰  +{n} монет",  "coins:+", 35),
-    ("pet_cat",       "Погладжено кота 😸     +{n} XP",      "xp:+",    30),
-    ("robbery",       "Тебе пограбували! −{n} монет",       "coins:-", 20),
-    ("miner_snack",   "Шахтарський снек 🥪   +{n} енергії",  "energy:+",15),
+    ("found_coins",   "Ти знайшов гаманець 💰  +{n} монет",  "coins:+", 230),
+    ("pet_cat",       "Погладжено кота 😸     +{n} XP",      "xp:+",    120),
+    ("robbery",       "Тебе пограбували! −{n} монет",       "coins:-", 80),
+    ("miner_snack",   "Шахтарський снек 🥪   +{n} енергії",  "energy:+",20),
 ]
 
 def pick_chance_event() -> ChanceEvent|None:
-    if random.random() > 0.25:          # лише 25 % шанс, що подія взагалі трапиться
+    if random.random() > 0.30:          # лише 30 % шанс, що подія взагалі трапиться
         return None
     pool: list[ChanceEvent] = []
     for ev in CHANCE_EVENTS:
@@ -401,6 +401,7 @@ async def sell_cmd(message: types.Message):
 @router.message(Command("smelt"))
 async def smelt_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
+    inv_map = {r["item"]: r["qty"] for r in inv}
 
     text = message.text or ""
     parts = text.split(maxsplit=1)
@@ -429,17 +430,23 @@ async def smelt_cmd(message: types.Message):
     # Таймер
     duration = cnt * 5  # 5 сек за інгот (dev)
     torch_mult = 1.0
-    if any(r["item"]=="torch_bundle" for r in inv):
+    torch_msg  = ""
+    if inv_map.get("torch_bundle", 0) > 0:
         torch_mult = TORCH_SPEEDUP
         await add_item(cid, uid, "torch_bundle", -1)
+        torch_msg = "🕯️ Використано Torch Bundle (переплавка ×0.7)\n"
 
     duration = get_smelt_duration(cnt, torch_mult)
+
     await db.execute(
         "UPDATE progress_local SET smelt_end=:e WHERE chat_id=:c AND user_id=:u",
         {"e": dt.datetime.utcnow() + dt.timedelta(seconds=duration), "c": cid, "u": uid},
     )
-    asyncio.create_task(smelt_timer(message.bot, cid, uid, rec, cnt))
-    msg = await message.reply(f"⏲️ Піч працює {duration} сек…")
+
+    # ② — передаємо torch_mult!
+    asyncio.create_task(smelt_timer(message.bot, cid, uid, rec, cnt, torch_mult))
+
+    msg = await message.reply(f"{torch_msg}⏲️ Піч працює {duration} сек…")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /craft ──────────
