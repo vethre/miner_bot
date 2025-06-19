@@ -4,10 +4,21 @@ from bot.db import get_inventory, add_item, db
 
 router = Router()
 
-SMELT_INPUT_MAP = {
-    "железная руда": "iron",
-    "камень":        "stone",
-    "золото":        "gold",
+SMELT_INPUT_MAP: dict[str, str] = {
+    "железная руда":  "iron",
+    "железо":         "iron",
+    "iron":           "iron",
+
+    "каменная руда":  "stone",
+    "камень":         "stone",
+    "stone":          "stone",
+
+    "золото":         "gold",
+    "gold":           "gold",
+
+    "аметист":        "amethyst",
+    "аметистовая руда":"amethyst",
+    "amethyst":       "amethyst",
 }
 
 SMELT_RECIPES = {
@@ -34,7 +45,7 @@ CRAFT_RECIPES = {
         "out_name": "✨ Золотая кирка"
     },
     "аметистовая кирка": {
-        "in": {"gold_ingot": 3, "wood_handle": 2},
+        "in": {"amethyst_ingot": 3, "wood_handle": 2},
         "out_key": "amethyst_pickaxe",
         "out_name": "✨ Аметистовая кирка",
     },

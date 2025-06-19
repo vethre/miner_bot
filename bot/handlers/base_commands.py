@@ -402,63 +402,62 @@ async def sell_cmd(message: types.Message):
 async def smelt_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
 
-    text = message.text or ""
-    parts = text.split(maxsplit=1)
-    if len(parts) < 2:
-        return await message.reply("Как переплавить: /smelt 'руда' 'кол-во'")
+    # ───── 1. Парсимо аргументи ─────
     try:
-        ore_part, qty_str = parts[1].rsplit(maxsplit=1)
+        _, args = message.text.split(maxsplit=1)
+        ore_part, qty_str = args.rsplit(maxsplit=1)
     except ValueError:
-        return await message.reply("/smelt 'руда' 'кол-во'")
+        return await message.reply("Как переплавить: /smelt 'руда' 'кол-во'")
+
     if not qty_str.isdigit():
         return await message.reply("Кол-во должно быть числом!")
     qty = int(qty_str)
-    ore_key = SMELT_INPUT_MAP.get(ore_part.lower())
+
+    ore_key = SMELT_INPUT_MAP.get(ore_part.lower().strip())
     if not ore_key:
-        return await message.reply("Неизвестная руда")
-    rec = SMELT_RECIPES[ore_key]
+        return await message.reply("Не знаю такой руды 🙁")
+
+    recipe = SMELT_RECIPES[ore_key]
+    need_for_one = recipe["in_qty"]
+
+    # ───── 2. Чи вистачає ресурсів? ─────
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
-    have = inv.get(ore_key, 0)
-    if have < qty:
-        return await message.reply(f"У тебя только {have}")
-    cnt = qty // rec["in_qty"]
+    have_ore = inv.get(ore_key, 0)
+    if have_ore < qty:
+        return await message.reply(f"У тебя только {have_ore}")
+
+    # Скільки слитків реально можна зробити
+    cnt = qty // need_for_one
     if cnt < 1:
-        return await message.reply(f"Нужно {rec['in_qty']}× для одного слитка")
-    used = cnt * rec["in_qty"]
+        return await message.reply(f"Нужно минимум {need_for_one}× для одного слитка")
+
+    # ───── 3. Списуємо руду ─────
+    used = cnt * need_for_one
     await add_item(cid, uid, ore_key, -used)
-    # Таймер
-    duration = cnt * 5  # 5 сек за інгот (dev)
 
-    inv_list = await get_inventory(cid, uid)
-    inv_map  = {r["item"]: r["qty"] for r in inv_list}
-
-    # 2. перевірка ресурсів
-    have = inv_map.get(ore_key, 0)
-    if have < qty:
-        return await message.reply(f"У тебя только {have}")
-    # …
-
-    # 3. Torch Bundle
-    torch_mult = 0.7
-    if inv_map.get("torch_bundle", 0) > 0:
-        torch_mult = TORCH_SPEEDUP
+    # ───── 4. Torch Bundle (опційно) ─────
+    torch_mult = 1.0
+    torch_msg = ""
+    if inv.get("torch_bundle", 0) > 0:
+        torch_mult = TORCH_SPEEDUP        # 0 .7  →  30 % швидше
         await add_item(cid, uid, "torch_bundle", -1)
-        torch_msg = "🕯️ Использовано Torch Bundle (×0.7)\n"
+        torch_msg = "🕯️ Torch Bundle застосован — плавка швидше!\n"
 
-    duration = get_smelt_duration(cnt, torch_mult)
-
+    # ───── 5. Тривалість та таймер ─────
+    duration = get_smelt_duration(cnt, torch_mult)   # сек
     await db.execute(
-        "UPDATE progress_local SET smelt_end=:e WHERE chat_id=:c AND user_id=:u",
+        "UPDATE progress_local SET smelt_end = :e "
+        "WHERE chat_id = :c AND user_id = :u",
         {"e": dt.datetime.utcnow() + dt.timedelta(seconds=duration),
          "c": cid, "u": uid}
     )
+    asyncio.create_task(smelt_timer(message.bot, cid, uid, recipe, cnt, torch_mult))
 
-    # ← ОБОВʼЯЗКОВО передаємо torch_mult
-    asyncio.create_task(
-        smelt_timer(message.bot, cid, uid, rec, cnt, torch_mult)
+    # ───── 6. Відповідь та autodelete ─────
+    msg = await message.reply(
+        f"{torch_msg}⏲️ Печь работает {duration} сек… "
+        f"({cnt}× {recipe['out_name']})"
     )
-
-    msg = await message.reply(f"{torch_msg}⏲️ Печка работает {duration} сек…")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /craft ──────────
