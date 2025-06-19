@@ -2,7 +2,7 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 from bot.db_local import cid_uid, get_inventory, add_item, db
-import json
+import json, asyncpg
 
 router = Router()
 
@@ -24,11 +24,20 @@ ALIAS = {
 }
 
 def _json2dict(raw):
-    if not raw:
+    if raw is None:
         return {}
     if isinstance(raw, dict):
         return raw
-    return json.loads(raw) 
+    if isinstance(raw, asyncpg.Record):
+        return dict(raw)
+    try:
+        return json.loads(raw)
+    except Exception:
+        # fallback:   '{"key":1}' → dict(record)  /  'text' → {}
+        try:
+            return dict(raw)
+        except Exception:
+            return {}
 
 @router.message(Command("use"))
 async def use_cmd(message: types.Message):

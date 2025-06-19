@@ -35,6 +35,7 @@ from bot.handlers.use import PICKAXES
 from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID
 from bot.utils.autodelete import register_msg_for_autodelete
+from bot.handlers.use import _json2dict
 
 router = Router()
 
@@ -204,8 +205,8 @@ async def profile_cmd(message: types.Message):
 
     # Кирка та її міцність
     current         = prog.get("current_pickaxe") or "wooden_pickaxe"
-    dur_map         = prog.get("pick_dur_map"    , {}) or {}
-    dur_max_map     = prog.get("pick_dur_max_map", {}) or {}
+    dur_map         = _json2dict(prog.get("pick_dur_map"))
+    dur_max_map     = _json2dict(prog.get("pick_dur_max_map"))
     pick = PICKAXES.get(current, {"name":"–"})
     pick_name       = pick["name"]
     dur             = dur_map.get(current,      PICKAXES[current]["dur"])
