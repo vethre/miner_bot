@@ -24,78 +24,78 @@ ALIAS = {
 }
 
 def _json2dict(raw):
-    if raw is None:
+    if not raw:
         return {}
     if isinstance(raw, dict):
         return raw
-    # raw is str or asyncpg.Record -> пробуємо декодувати
-    try:
-        return json.loads(raw)
-    except Exception:
-        return dict(raw)
+    return json.loads(raw) 
 
 @router.message(Command("use"))
 async def use_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
 
-    # 1️⃣ розбір аргументу
+    # ---------- 1. аргумент ----------
     try:
         _, arg = message.text.split(maxsplit=1)
     except ValueError:
-        return await message.reply("Как выбрать кирку: /use 'название или ключ'")
-
+        return await message.reply("Как выбрать кирку: /use <название>")
     arg = arg.lower().replace("'", "’").strip()
     key = ALIAS.get(arg, arg)
     if key not in PICKAXES:
         return await message.reply(f"Нет кирки «{arg}» 😕")
 
-    # 2️⃣ перевіряємо інвентар
-    inv = {row["item"]: row["qty"] for row in await get_inventory(cid, uid)}
+    # ---------- 2. інвентар ----------
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     if inv.get(key, 0) < 1:
-        return await message.reply(f"У тебя нет {PICKAXES[key]['name']} 🙁")
+        return await message.reply(f"У тебя нет {PICKAXES[key]['name']}")
 
-    # 3️⃣ читаємо поточний прогрес
+    # ---------- 3. читаємо прогрес ----------
     prog = await db.fetch_one(
-        "SELECT current_pickaxe, pick_dur_map, pick_dur_max_map "
-        "FROM progress_local WHERE chat_id=:c AND user_id=:u",
+        """SELECT current_pickaxe, pick_dur_map, pick_dur_max_map
+             FROM progress_local
+            WHERE chat_id=:c AND user_id=:u""",
         {"c": cid, "u": uid}
     )
     cur          = prog["current_pickaxe"]
     dur_map      = _json2dict(prog["pick_dur_map"])
     dur_max_map  = _json2dict(prog["pick_dur_max_map"])
 
-    # 4️⃣ повертаємо попередню кирку до інвентарю (якщо була)
-    if cur:
-        await add_item(cid, uid, cur, +1)
-
-    # 5️⃣ списуємо нову з інвентаря
-    await add_item(cid, uid, key, -1)
-
-    # 6️⃣ реєструємо durability у мапах
+    # ---------- 4. оновлюємо durability-мапи ----------
     if key not in dur_max_map:
         dur_max_map[key] = PICKAXES[key]["dur"]
     if key not in dur_map:
         dur_map[key] = dur_max_map[key]
 
-    # 7️⃣ оновлюємо progress_local
-    dm_json  = json.dumps(dur_map)      # -> str
-    dmm_json = json.dumps(dur_max_map)  # -> str
+    # ---------- 5. транзакція ----------
+    async with db.transaction():
+        # 5-a: списуємо нову кирку
+        await add_item(cid, uid, key, -1)
 
-    await db.execute(
-        """
-        UPDATE progress_local
-           SET current_pickaxe   = :p,
-               pick_dur_map      = (:dm)::jsonb,
-               pick_dur_max_map  = (:dmm)::jsonb
-         WHERE chat_id = :c AND user_id = :u
-        """,
-        {"p": key, "dm": dm_json, "dmm": dmm_json, "c": cid, "u": uid}
-    )
+        # 5-b: повертаємо попередню (якщо була)
+        if cur:
+            await add_item(cid, uid, cur, +1)
 
-    # 8️⃣ повідомлення
-    bonus_pct = int(PICKAXES[key]["bonus"] * 100)
+        # 5-c: зберігаємо прогрес
+        await db.execute(
+            """
+            UPDATE progress_local
+               SET current_pickaxe   = :p,
+                   pick_dur_map      = :dm::jsonb,
+                   pick_dur_max_map  = :dmm::jsonb
+             WHERE chat_id = :c AND user_id = :u
+            """,
+            {
+                "p":   key,
+                "dm":  json.dumps(dur_map),
+                "dmm": json.dumps(dur_max_map),
+                "c":   cid,
+                "u":   uid,
+            }
+        )
+
+    # ---------- 6. відповідь ----------
     await message.reply(
         f"{PICKAXES[key]['emoji']} Взял <b>{PICKAXES[key]['name']}</b> "
-        f"(бонус +{bonus_pct} %)",
+        f"(бонус +{int(PICKAXES[key]['bonus']*100)} %)",
         parse_mode="HTML"
     )
