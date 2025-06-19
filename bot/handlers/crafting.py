@@ -22,7 +22,7 @@ SMELT_INPUT_MAP: dict[str, str] = {
 }
 
 SMELT_RECIPES = {
-    "iron":  {"in_qty": 3,  "out_key": "iron_ingot",  "out_name": "Железный злиток"},
+    "iron":  {"in_qty": 3,  "out_key": "iron_ingot",  "out_name": "Железный cлиток"},
     "stone": {"in_qty": 10, "out_key": "roundstone",   "out_name": "Булыжник"},
     "gold":  {"in_qty": 2,  "out_key": "gold_ingot",   "out_name": "Золотой слиток"},
     "amethyst":  {"in_qty": 2,  "out_key": "amethyst_ingot",  "out_name": "Аметистовый слиток"},

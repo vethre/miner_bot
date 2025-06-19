@@ -12,6 +12,7 @@ from aiogram import Router, Bot, types, F
 from aiogram.filters import Command, CommandStart
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import CallbackQuery
+from aiogram.enums import ChatMemberStatus
 
 from bot.db import db, create_user, get_user
 from bot.db_local import (
@@ -33,7 +34,7 @@ from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
 from bot.handlers.use import PICKAXES
 from bot.handlers.shop import shop_cmd
-from bot.assets import INV_IMG_ID, PROFILE_IMG_ID
+from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.handlers.use import _json2dict
 
@@ -178,13 +179,18 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,torch_mult:float)
     await add_item(cid,uid,rec["out_key"],cnt)
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
                      {"c":cid,"u":uid})
-    await bot.send_message(cid,f"🔥 Переплавка закончена: {cnt}×{rec['out_name']}")
+    member = await bot.get_chat_member(cid, uid)
+    nick = member.user.full_name
+    await bot.send_message(cid,f"🔥 {nick}! Переплавка закончена: {cnt}×{rec['out_name']}")
 
 # ────────── /start ──────────
 @router.message(CommandStart())
 async def start_cmd(message: types.Message):
     await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
-    msg = await message.reply("Привет, будущий шахтёр! ⛏️ Регистрация прошла успешно. Используй /mine, чтобы копать ресурсы!")
+    msg = await message.answer_photo(
+        START_IMG_ID,
+        caption="Привет, будущий шахтёр! ⛏️ Регистрация прошла успешно. Используй /mine, чтобы копать ресурсы!",
+    )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /profile ──────────
@@ -205,6 +211,8 @@ async def profile_cmd(message: types.Message):
 
     # Кирка та її міцність
     current         = prog.get("current_pickaxe") or "wooden_pickaxe"
+    if current == "wood_pickaxe":
+        current = "wooden_pickaxe"
     dur_map         = _json2dict(prog.get("pick_dur_map"))
     dur_max_map     = _json2dict(prog.get("pick_dur_max_map"))
     pick = PICKAXES.get(current, {"name":"–"})
@@ -328,8 +336,8 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
             "u": uid,
         },
     )
-
-    msg = await message.reply(f"⛏️ Ты ушёл в шахту на {get_mine_duration(tier)} сек. Удачи!")
+    minutes = get_mine_duration(tier) // 60 or 1
+    msg = await message.reply(f"⛏️ Ты ушёл в шахту на {minutes} мин. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
@@ -347,6 +355,8 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": ""})
         pre = f"{meta['emoji']} " if meta.get("emoji") else ""
         lines.append(f"{pre}{meta['name']}: {row['qty']}")
+        inv.sort(key=lambda r: (r["item"].startswith(("wooden","stone","iron","gold"))*-1,
+                        ITEM_DEFS[r["item"]]["name"]))
 
     msg = await message.answer_photo(
         photo=INV_IMG_ID,
@@ -493,8 +503,9 @@ async def stats_cmd(message: types.Message):
     builder.button(text="🎖️ Топ за уровнем", callback_data="stats:level")
     builder.button(text="📊 Топ за ресурсами", callback_data="stats:resources")
     builder.adjust(1)
-    msg = await message.reply(
-        "📊 <b>Статистика</b> — выюерите топ:",
+    msg = await message.answer_photo(
+        STATS_IMG_ID,
+        caption="📊 <b>Статистика</b> — выюерите топ:",
         parse_mode="HTML",
         reply_markup=builder.as_markup()
     )
@@ -557,13 +568,18 @@ async def stats_callback(callback: CallbackQuery):
                 mention = f"@{user.username}"
             else:
                 mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
+
             lines.append(f"{i}. {mention} — {total} ресурсов")
 
     else:
         return
 
     text = "\n".join(lines) if lines else "Нет данных"
-    msg = await callback.message.edit_text(text, parse_mode="HTML")
+    msg = await callback.message.answer_photo(
+        STATS_IMG_ID,
+        caption=text,
+        parse_mode="HTML"
+    )
     register_msg_for_autodelete(callback.message.chat.id, msg.message_id)
 
 @router.message(Command("repair"))
@@ -597,7 +613,11 @@ TELEGRAPH_LINK = "https://telegra.ph/Cave-Miner---Info-06-17"
 # /about
 @router.message(Command("about"))
 async def about_cmd(message: types.Message):
-    msg = await message.reply(f"🔍 Больше о боте — {link(TELEGRAPH_LINK)}", parse_mode="HTML")
+    msg = await message.answer_photo(
+        ABOUT_IMG_ID,
+        caption=f"🔍 Больше о боте — {link("СТАТЬЯ", TELEGRAPH_LINK)}", 
+        parse_mode="HTML"
+    )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # /report <bug text>
@@ -623,30 +643,30 @@ async def report_cmd(message: types.Message):
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 @router.message(Command("autodelete"))
-async def autodelete_cmd(message: types.Message):
+async def autodelete_cmd(message: types.Message, bot: Bot):
     cid, uid = await cid_uid(message)
     parts = message.text.strip().split()
-    
-    if len(parts) != 2 or not parts[1].isdigit():
-        return await message.reply("❗ Использование: /autodelete 60 (от 1 до 720 мин, или 0 чтобы отключить)")
 
-    minutes = int(parts[1])
-    if not (0 <= minutes <= 720):
-        return await message.reply("❗ Введи значение от 0 до 720 минут")
-
-    await db.execute(
-        "UPDATE progress_local SET autodelete_minutes=:m WHERE chat_id=:c AND user_id=:u",
-        {"m": minutes, "c": cid, "u": uid}
-    )
+    member = await bot.get_chat_member(cid, uid)
+    if isinstance(member, (ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR)):
     
-    if minutes == 0:
-        msg = await message.reply("🧹 Автоудаление отключено. Сообщения будут оставаться в чате.")
+        if len(parts) != 2 or not parts[1].isdigit():
+            return await message.reply("❗ Использование: /autodelete 60 (от 1 до 720 мин, или 0 чтобы отключить)")
+
+        minutes = int(parts[1])
+        if not (0 <= minutes <= 720):
+            return await message.reply("❗ Введи значение от 0 до 720 минут")
+
+        await db.execute(
+            "UPDATE progress_local SET autodelete_minutes=:m WHERE chat_id=:c AND user_id=:u",
+            {"m": minutes, "c": cid, "u": uid}
+        )
+        
+        if minutes == 0:
+            msg = await message.reply("🧹 Автоудаление отключено. Сообщения будут оставаться в чате.")
+        else:
+            msg = await message.reply(f"🧼 Автоудаление активировано: каждые {minutes} минут бот будет чистить свои сообщения.")
+        register_msg_for_autodelete(message.chat.id, msg.message_id)
     else:
-        msg = await message.reply(f"🧼 Автоудаление активировано: каждые {minutes} минут бот будет чистить свои сообщения.")
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
+        return await message.reply("Только админы могут менять авто-чистку.")
 
-@router.message(Command("pickaxes"))
-async def list_pickaxes(message: types.Message):
-    lines = [f"{v['emoji']} <b>{v['name']}</b> — /use {k}" for k,v in PICKAXES.items()]
-    msg = await message.reply("\n".join(lines), parse_mode="HTML")
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
