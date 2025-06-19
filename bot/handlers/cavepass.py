@@ -38,7 +38,7 @@ async def cavepass_cmd(message: types.Message):
         builder.adjust(1)
         text = (
             "<b>Cave Pass</b> — 30 дней премиальных бонусов:\n"
-            f" • Эксклюзивная кирка {EX_EMOJI} <b>{EX_NAME}</b>\n"
+            f" • Эксклюзивная {EX_EMOJI} <b>{EX_NAME}</b>\n"
             " • ×1.5 XP при добывании\n"
             " • +5 пассивного XP ежедневно\n\n"
             f"<i>Цена: {PASS_PRICE_UAH} ₴ (оплата снаружи)</i>\n"

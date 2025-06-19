@@ -78,15 +78,18 @@ async def use_cmd(message: types.Message):
         dur_map[key] = dur_max_map[key]
 
     # 7️⃣ оновлюємо progress_local
+    dm_json  = json.dumps(dur_map)      # -> str
+    dmm_json = json.dumps(dur_max_map)  # -> str
+
     await db.execute(
         """
         UPDATE progress_local
-           SET current_pickaxe   = :p,
-               pick_dur_map      = :dm,
-               pick_dur_max_map  = :dmm
-         WHERE chat_id = :c AND user_id = :u
+        SET current_pickaxe   = :p,
+            pick_dur_map      = :dm::jsonb,     -- явний cast
+            pick_dur_max_map  = :dmm::jsonb
+        WHERE chat_id = :c AND user_id = :u
         """,
-        {"p": key, "dm": dur_map, "dmm": dur_max_map, "c": cid, "u": uid}
+        {"p": key, "dm": dm_json, "dmm": dmm_json, "c": cid, "u": uid}
     )
 
     # 8️⃣ повідомлення
