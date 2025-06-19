@@ -1,4 +1,5 @@
 # bot/handlers/use.py
+import json
 from aiogram import Router, types
 from aiogram.filters import Command
 from difflib import get_close_matches
@@ -13,6 +14,22 @@ PICKAXES = {
     "crystal_pickaxe": {"bonus": 1.5, "name": "кристальна кирка", "emoji": "💎", "dur": 95},
     "amethyst_pickaxe":{"bonus": .70, "name": "аметистова кирка", "emoji": "🔮", "dur":100},
 }
+
+raw_dur_map  = prog["pick_dur_map"]      or {}
+raw_dur_max  = prog["pick_dur_max_map"]  or {}
+
+def to_dict(raw):
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw)       # ← перетворити JSON-рядок на dict
+        except json.JSONDecodeError:
+            return {}
+    return dict(raw)                     # fallback для інших типів
+
+dur_map     = to_dict(raw_dur_map)
+dur_max_map = to_dict(raw_dur_max)
 
 # --- alias-и (і укр, і «коротко» без _pickaxe) ---------------
 ALIAS = {
