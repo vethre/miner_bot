@@ -401,7 +401,6 @@ async def sell_cmd(message: types.Message):
 @router.message(Command("smelt"))
 async def smelt_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
-    inv_map = {r["item"]: r["qty"] for r in inv}
 
     text = message.text or ""
     parts = text.split(maxsplit=1)
@@ -429,22 +428,36 @@ async def smelt_cmd(message: types.Message):
     await add_item(cid, uid, ore_key, -used)
     # Таймер
     duration = cnt * 5  # 5 сек за інгот (dev)
+
+    inv_list = await get_inventory(cid, uid)
+    inv_map  = {r["item"]: r["qty"] for r in inv_list}
+
+    # 2. перевірка ресурсів
+    have = inv_map.get(ore_key, 0)
+    if have < qty:
+        return await message.reply(f"У тебе лише {have}")
+    # …
+
+    # 3. Torch Bundle
     torch_mult = 1.0
     torch_msg  = ""
     if inv_map.get("torch_bundle", 0) > 0:
         torch_mult = TORCH_SPEEDUP
         await add_item(cid, uid, "torch_bundle", -1)
-        torch_msg = "🕯️ Використано Torch Bundle (переплавка ×0.7)\n"
+        torch_msg = "🕯️ Використано Torch Bundle (×0.7)\n"
 
     duration = get_smelt_duration(cnt, torch_mult)
 
     await db.execute(
         "UPDATE progress_local SET smelt_end=:e WHERE chat_id=:c AND user_id=:u",
-        {"e": dt.datetime.utcnow() + dt.timedelta(seconds=duration), "c": cid, "u": uid},
+        {"e": dt.datetime.utcnow() + dt.timedelta(seconds=duration),
+         "c": cid, "u": uid}
     )
 
-    # ② — передаємо torch_mult!
-    asyncio.create_task(smelt_timer(message.bot, cid, uid, rec, cnt, torch_mult))
+    # ← ОБОВʼЯЗКОВО передаємо torch_mult
+    asyncio.create_task(
+        smelt_timer(message.bot, cid, uid, rec, cnt, torch_mult)
+    )
 
     msg = await message.reply(f"{torch_msg}⏲️ Піч працює {duration} сек…")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
