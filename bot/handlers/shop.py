@@ -58,8 +58,11 @@ async def _send_shop_page(chat_id: int, *, page: int,
     nav.button(text=f"{page+1}/{len(PAGES)}", callback_data="noop")
     if page < len(PAGES)-1:
         nav.button(text="Вперёд »", callback_data=f"shop:{page+1}")
-    nav.adjust(len(nav.buttons))
-    kb.row(*nav.buttons)
+
+    # Fix: Convert nav.buttons to a list before calling len()
+    nav_buttons_list = list(nav.buttons)
+    nav.adjust(len(nav_buttons_list))
+    kb.row(*nav_buttons_list) # Use the list of buttons here too
 
     if edit:
         await bot_message.edit_reply_markup(reply_markup=kb.as_markup())
