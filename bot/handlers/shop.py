@@ -24,7 +24,7 @@ SHOP_ITEMS = {
     "meat":           {"price": 120,  "name": "Мясо",           "emoji": "🍖", "hunger": 50},
     "borsch":         {"price": 300,  "name": "Борщ",            "emoji": "🥣", "hunger": 100},
     "energy_drink":   {"price": 170, "name": "Энергетик",        "emoji": "🥤", "energy": 40},
-    "cave_cases":     {"price": 350, "name": "Cave Case",        "emoji": "📦"},
+    "cave_cases":     {"price": 300, "name": "Cave Case",        "emoji": "📦"},
 }
 
 @router.message(Command("shop"))

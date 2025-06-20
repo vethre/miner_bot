@@ -7,11 +7,11 @@ import json, asyncpg
 router = Router()
 
 PICKAXES = {
-    "wooden_pickaxe":   {"bonus": .10, "name": "деревяная кирка",   "emoji": "🔨", "dur": 75},
+    "wooden_pickaxe":   {"bonus": .05, "name": "деревяная кирка",   "emoji": "🔨", "dur": 65},
     "iron_pickaxe":     {"bonus": .15, "name": "железная кирка",     "emoji": "⛏️", "dur": 90},
     "gold_pickaxe":     {"bonus": .30, "name": "золотая кирка",      "emoji": "✨", "dur": 60},
-    "roundstone_pickaxe":{"bonus": .05, "name": "булыжниковая кирка", "emoji": "🪨", "dur": 50},
-    "crystal_pickaxe":  {"bonus":1.50, "name": "хрустальная кирка",  "emoji": "💎", "dur": 95},
+    "roundstone_pickaxe":{"bonus": .10, "name": "булыжниковая кирка", "emoji": "🪨", "dur": 80},
+    "crystal_pickaxe":  {"bonus":1.50, "name": "хрустальная кирка",  "emoji": "💎", "dur": 75},
     "amethyst_pickaxe": {"bonus": .70, "name": "аметистовая кирка",  "emoji": "🔮", "dur":100},
 }
 
