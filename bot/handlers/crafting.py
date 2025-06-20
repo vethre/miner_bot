@@ -4,32 +4,49 @@ from bot.db import get_inventory, add_item, db
 
 router = Router()
 
-SMELT_INPUT_MAP = {
-    "залізна руда": "iron",
-    "камінь":        "stone",
-    "золото":        "gold",
+SMELT_INPUT_MAP: dict[str, str] = {
+    "железная руда":  "iron",
+    "железо":         "iron",
+    "iron":           "iron",
+
+    "каменная руда":  "stone",
+    "камень":         "stone",
+    "stone":          "stone",
+
+    "золото":         "gold",
+    "gold":           "gold",
+
+    "аметист":        "amethyst",
+    "аметистовая руда":"amethyst",
+    "amethyst":       "amethyst",
 }
 
 SMELT_RECIPES = {
-    "iron":  {"in_qty": 3,  "out_key": "iron_ingot",  "out_name": "Залізний злиток"},
-    "stone": {"in_qty": 10, "out_key": "roundstone",   "out_name": "Кругляк"},
-    "gold":  {"in_qty": 2,  "out_key": "gold_ingot",   "out_name": "Золотий злиток"},
+    "iron":  {"in_qty": 3,  "out_key": "iron_ingot",  "out_name": "Железный cлиток"},
+    "stone": {"in_qty": 10, "out_key": "roundstone",   "out_name": "Булыжник"},
+    "gold":  {"in_qty": 2,  "out_key": "gold_ingot",   "out_name": "Золотой слиток"},
+    "amethyst":  {"in_qty": 2,  "out_key": "amethyst_ingot",  "out_name": "Аметистовый слиток"},
 }
 
 CRAFT_RECIPES = {
-    "круглякова кирка": {
+    "булыжниковая кирка": {
         "in": {"roundstone": 12, "wood_handle": 1},
         "out_key": "roundstone_pickaxe",
-        "out_name": "🔨 Круглякова кирка"
+        "out_name": "🔨 Булыжниковая кирка"
     },
-    "залізна кирка": {
+    "железная кирка": {
         "in": {"iron_ingot": 10, "wood_handle": 1},
         "out_key": "iron_pickaxe",
-        "out_name": "⛏️ Залізна кирка"
+        "out_name": "⛏️ Железная кирка"
     },
-    "золота кирка": {
+    "золотая кирка": {
         "in": {"gold_ingot": 7, "wood_handle": 1},
         "out_key": "gold_pickaxe",
-        "out_name": "✨ Золота кирка"
+        "out_name": "✨ Золотая кирка"
+    },
+    "аметистовая кирка": {
+        "in": {"amethyst_ingot": 3, "wood_handle": 2},
+        "out_key": "amethyst_pickaxe",
+        "out_name": "✨ Аметистовая кирка",
     },
 }

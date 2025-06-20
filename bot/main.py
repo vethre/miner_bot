@@ -9,7 +9,9 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.utils.config import BOT_TOKEN, DB_DSN
 from bot.db import init_db, db
+from bot.db_local import init_local
 from bot.handlers import register_handlers
+from bot.utils.autodelete import auto_cleanup_task
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,8 +25,9 @@ async def main():
     BOT = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
 
-    # Підключаємо БД (Supabase)
+    # Підключаємо БД ()
     await init_db()
+    await init_local()
 
     register_handlers(dp)
 
@@ -33,6 +36,17 @@ async def main():
         func=daily_reward,
         start=True            # одразу активувати
     )
+
+    aiocron.crontab(
+        '0 */1 * * *',
+        func=hourly_pass_xp,
+        start=True
+    )
+
+    async def _on_startup(bot: Bot):
+        asyncio.create_task(auto_cleanup_task(bot, db), name="auto-delete")
+
+    dp.startup.register(_on_startup)
 
     logger.info("🚀 Стартую polling...")
     await dp.start_polling(BOT)
@@ -86,7 +100,7 @@ async def daily_reward():
             msgs.append(f"{mention}  →  +{money}💰 +{xp} XP")
 
     if msgs:
-        text = "🎁 <b>Щоденний бонус&nbsp;{}</b>\n".format(today.strftime('%d.%m.%Y')) + "\n".join(msgs)
+        text = "🎁 <b>Щоденний бонус {}</b>\n".format(today.strftime('%d.%m.%Y')) + "\n".join(msgs)
         groups = await db.fetch_all("SELECT chat_id FROM groups")
         for g in groups:
             try:
@@ -94,6 +108,19 @@ async def daily_reward():
             except Exception:
                 pass 
     logger.info("🎁 Daily reward batch complete")
+
+async def hourly_pass_xp():
+    now = datetime.datetime.utcnow()
+    # даємо +10 XP всім з активним pass_expires > now
+    await db.execute(
+        """
+        UPDATE progress_local
+           SET xp = xp + 10
+         WHERE cave_pass = TRUE
+           AND pass_expires > :now
+        """,
+        {"now": now}
+    )
 
 # одразу під @aiocron.crontab …
     logger.debug(f"[CRON-DEBUG] BOT is {BOT!r}")
