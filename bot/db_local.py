@@ -90,6 +90,9 @@ async def cid_uid(msg) -> Tuple[int, int]:
     return cid, msg.from_user.id
 
 async def _ensure_progress(cid: int, uid: int):
+    dm  = json.dumps({"wooden_pickaxe": DEFAULT_DUR})
+    dmm = dm 
+
     await db.execute(
         """
         INSERT INTO progress_local(
@@ -100,21 +103,23 @@ async def _ensure_progress(cid: int, uid: int):
         VALUES (
             :c, :u,
             'wooden_pickaxe',
-            jsonb_build_object('wooden_pickaxe', :d),
-            jsonb_build_object('wooden_pickaxe', :d)
+            (:dm)::jsonb,
+            (:dmm)::jsonb
         )
         ON CONFLICT DO NOTHING
         """,
-        {"c": cid, "u": uid, "d": DEFAULT_DUR}
+        {"c": cid, "u": uid, "dm": dm, "dmm": dmm}
     )
+
+    # ② страховка від старого 'wood_pickaxe'
     await db.execute(
-            """
-            UPDATE progress_local
-            SET current_pickaxe   = 'wooden_pickaxe'
-            WHERE chat_id=:c AND user_id=:u
-            AND current_pickaxe IN ('none','wood_pickaxe')
-            """,
-            {"c": cid, "u": uid}
+        """
+        UPDATE progress_local
+           SET current_pickaxe = 'wooden_pickaxe'
+         WHERE chat_id=:c AND user_id=:u
+           AND current_pickaxe IN ('wood_pickaxe','none')
+        """,
+        {"c": cid, "u": uid}
     )
 
 # ────────── ІНВЕНТАР ──────────
