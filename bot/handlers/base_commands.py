@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import List, Dict
 from aiogram.utils.markdown import link
 import random
@@ -173,6 +174,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
          + extra_txt)
 
     msg=await bot.send_message(cid,txt,parse_mode="HTML")
+    logging.info("Mining result sent: chat=%s uid=%s", cid, uid)
     register_msg_for_autodelete(cid,msg.message_id)
     
 # ────────── Smelt Task ──────────

@@ -3,8 +3,7 @@
 from aiogram import F, Bot, Router, types
 from aiogram.filters import Command
 from aiogram.utils.markdown import hcode
-from bot.db import get_inventory
-from bot.db_local import db, cid_uid, get_money, get_progress
+from bot.db_local import db, cid_uid, get_money, get_progress, get_inventory
 from aiogram.filters.command import CommandObject
 import logging
 
