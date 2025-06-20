@@ -38,7 +38,7 @@ async def main():
     )
 
     aiocron.crontab(
-        '*/1 * * * *',
+        '0 */1 * * *',
         func=hourly_pass_xp,
         start=True
     )

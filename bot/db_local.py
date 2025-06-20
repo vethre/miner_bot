@@ -77,7 +77,7 @@ async def init_local():
             await db.execute(stmt + ";")
 
 # ────────── КОНСТАНТИ ──────────
-ENERGY_MAX, ENERGY_REGEN, ENERGY_INTERVAL_S = 100, 15, 30 * 60
+ENERGY_MAX, ENERGY_REGEN, ENERGY_INTERVAL_S = 100, 15, 20 * 60
 HUNGER_MAX, HUNGER_DECAY, HUNGER_INTERVAL_S   = 100, 10, 60 * 60
 
 # ────────── HELPER ──────────
@@ -224,7 +224,7 @@ async def set_pick(cid:int, uid:int, pick_key:str, max_dur:int):
         {"p": pick_key, "max": max_dur, "c": cid, "u": uid}
     )
 
-async def _jsonb_to_dict(value):
+def _jsonb_to_dict(value):
     # asyncpg інколи повертає вже dict (якщо server >12), інколи str
     if value is None:
         return {}
@@ -240,8 +240,8 @@ async def change_dur(cid:int, uid:int, key:str, delta:int):
         "WHERE chat_id=:c AND user_id=:u",
         {"c":cid, "u":uid}
     )
-    dur_map     = await _jsonb_to_dict(row["pick_dur_map"])
-    dur_max_map = await _jsonb_to_dict(row["pick_dur_max_map"])
+    dur_map     = _jsonb_to_dict(row["pick_dur_map"])
+    dur_max_map = _jsonb_to_dict(row["pick_dur_max_map"])
 
     if key not in dur_max_map:
         from bot.handlers.use import PICKAXES
@@ -249,7 +249,7 @@ async def change_dur(cid:int, uid:int, key:str, delta:int):
     if key not in dur_map:
         dur_map[key] = dur_max_map[key]
 
-    dur_map[key] = max(0, dur_map[key] + 100)
+    dur_map[key] = max(0, dur_map[key] + delta)
     await db.execute("""
         UPDATE progress_local
             SET pick_dur_map = (:dm)::jsonb
