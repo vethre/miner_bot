@@ -56,7 +56,7 @@ async def cavepass_cmd(message: types.Message):
         PASS_IMG_ID,
         caption=text,
         parse_mode="HTML",
-        reply_markup=builder.as_markup
+        reply_markup=builder.as_markup()
     )
 
 # тільки для адмінів
