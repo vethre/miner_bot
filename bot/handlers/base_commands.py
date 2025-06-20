@@ -510,7 +510,7 @@ async def stats_cmd(message: types.Message):
     builder.adjust(1)
     msg = await message.answer_photo(
         STATS_IMG_ID,
-        caption="📊 <b>Статистика</b> — выюерите топ:",
+        caption="📊 <b>Статистика</b> — выберите топ:",
         parse_mode="HTML",
         reply_markup=builder.as_markup()
     )
