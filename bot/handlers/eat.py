@@ -63,7 +63,7 @@ async def eat_cmd(message: types.Message):
              "c": cid, "u": uid}
         )
         msg = await message.reply(
-            f"{item['name']} съеден 🍽️\nГолод: {new_hunger}/100"
+            f"Вы съели: {item['name']} 🍽️\nГолод: {new_hunger}/100"
         )
         register_msg_for_autodelete(message.chat.id, msg.message_id)
 
