@@ -72,7 +72,7 @@ async def _send_shop_page(chat_id: int, *,
     if edit and bot_message:
         await bot_message.edit_reply_markup(reply_markup=kb.as_markup())
     else:
-        sent = await Bot.send_photo(
+        sent = await bot_message.answer_photo(
             chat_id,
             SHOP_IMG_ID,
             caption="🛒 <b>Магазин</b> — выбери товар:",
