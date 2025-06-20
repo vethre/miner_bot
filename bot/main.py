@@ -37,6 +37,12 @@ async def main():
         start=True            # одразу активувати
     )
 
+    aiocron.crontab(
+        '*/1 * * * *',
+        func=hourly_pass_xp,
+        start=True
+    )
+
     async def _on_startup(bot: Bot):
         asyncio.create_task(auto_cleanup_task(bot, db), name="auto-delete")
 
@@ -103,7 +109,6 @@ async def daily_reward():
                 pass 
     logger.info("🎁 Daily reward batch complete")
 
-@aiocron.crontab('0 * * * *')  # кожну годину на початку
 async def hourly_pass_xp():
     now = datetime.datetime.utcnow()
     # даємо +10 XP всім з активним pass_expires > now

@@ -42,7 +42,7 @@ router = Router()
 
 # ────────── Константи ──────────
 BASE_MINE_SEC   = 1200          # Tier-1
-MINE_SEC_STEP   = -30          # −5 с за кожен Tier вище
+MINE_SEC_STEP   = -20          # −5 с за кожен Tier вище
 MINE_SEC_MIN    = 60
 
 BASE_SMELT_SEC  = 600          # за 1 інгот
@@ -53,11 +53,11 @@ HUNGER_LIMIT = 20
 
 # ────────── Руди  + Tiers ──────────
 ORE_ITEMS = {
-    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (3, 10), "price": 2},
-    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (3, 8),  "price": 6},
-    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (2, 7),  "price": 12},
-    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (2, 6),  "price": 16},
-    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (1, 5),  "price": 28},
+    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (10, 16), "price": 2},
+    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (8, 14),  "price": 6},
+    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (5, 9),  "price": 12},
+    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (4, 9),  "price": 16},
+    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (3, 7),  "price": 28},
     "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (1, 2),  "price": 67},
     "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1, 3),  "price": 47},
     "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 34},
@@ -66,11 +66,11 @@ ORE_ITEMS = {
 
 TIER_TABLE = [
     {"level_min": 1,  "ores": ["stone", "coal"]},
-    {"level_min": 5,  "ores": ["stone", "coal", "iron"]},
-    {"level_min": 10, "ores": ["stone", "coal", "iron", "gold"]},
-    {"level_min": 15, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis"]},
-    {"level_min": 20, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby"]},
-    {"level_min": 25, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby", "diamond"]},
+    {"level_min": 4,  "ores": ["stone", "coal", "iron"]},
+    {"level_min": 8, "ores": ["stone", "coal", "iron", "gold"]},
+    {"level_min": 13, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis"]},
+    {"level_min": 18, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby"]},
+    {"level_min": 23, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby", "diamond"]},
 ]
 BONUS_BY_TIER = {i + 1: 1.0 + i * 0.2 for i in range(len(TIER_TABLE))}
 
@@ -97,6 +97,8 @@ CHANCE_EVENTS: list[ChanceEvent] = [
     ("pet_cat",       "Погладил кошку 😸     +{n} XP",      "xp:+",    120),
     ("robbery",       "Тебя ограбили! −{n} монет",       "coins:-", 80),
     ("miner_snack",   "Шахтёрский перекус 🥪   +{n} энергии",  "energy:+",20),
+    ("emergency_exit",   "Выход из шахты засыпало!   -{n} энергии",  "energy:-",15),
+    ("emergency_exit_2",   "Выход из шахты засыпало! Но ты смог выбраться вовремя,   +{n} XP",  "xp:+",40),
 ]
 
 def pick_chance_event() -> ChanceEvent|None:
@@ -207,7 +209,7 @@ async def profile_cmd(message: types.Message):
     prog    = await get_progress(cid, uid)
     lvl     = prog.get("level", 1)
     xp      = prog.get("xp", 0)
-    next_xp = lvl * 100
+    next_xp = lvl * 80
 
     # Кирка та її міцність
     current         = prog.get("current_pickaxe") or "wooden_pickaxe"
@@ -355,8 +357,6 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": ""})
         pre = f"{meta['emoji']} " if meta.get("emoji") else ""
         lines.append(f"{pre}{meta['name']}: {row['qty']}")
-        inv.sort(key=lambda r: (r["item"].startswith(("wooden","stone","iron","gold"))*-1,
-                        ITEM_DEFS[r["item"]]["name"]))
 
     msg = await message.answer_photo(
         photo=INV_IMG_ID,
@@ -647,26 +647,27 @@ async def autodelete_cmd(message: types.Message, bot: Bot):
     cid, uid = await cid_uid(message)
     parts = message.text.strip().split()
 
-    member = await bot.get_chat_member(cid, uid)
-    if isinstance(member, (ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR)):
+    if message.chat.type in ("group", "supergroup"):
+        member = await bot.get_chat_member(cid, uid)
+        if member.status not in (
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.CREATOR
+        ):
+            return await message.reply("❗ Настройка автоудаления доступна только администратору или создателю группы.")
     
-        if len(parts) != 2 or not parts[1].isdigit():
-            return await message.reply("❗ Использование: /autodelete 60 (от 1 до 720 мин, или 0 чтобы отключить)")
-
-        minutes = int(parts[1])
-        if not (0 <= minutes <= 720):
-            return await message.reply("❗ Введи значение от 0 до 720 минут")
-
-        await db.execute(
-            "UPDATE progress_local SET autodelete_minutes=:m WHERE chat_id=:c AND user_id=:u",
-            {"m": minutes, "c": cid, "u": uid}
-        )
-        
-        if minutes == 0:
-            msg = await message.reply("🧹 Автоудаление отключено. Сообщения будут оставаться в чате.")
-        else:
-            msg = await message.reply(f"🧼 Автоудаление активировано: каждые {minutes} минут бот будет чистить свои сообщения.")
-        register_msg_for_autodelete(message.chat.id, msg.message_id)
+    if len(parts) != 2 or not parts[1].isdigit():
+        return await message.reply("❗ Использование: /autodelete 60 (от 1 до 720 мин, или 0 чтобы отключить)")
+    minutes = int(parts[1])
+    if not (0 <= minutes <= 720):
+        return await message.reply("❗ Введи значение от 0 до 720 минут")
+    await db.execute(
+        "UPDATE progress_local SET autodelete_minutes=:m WHERE chat_id=:c AND user_id=:u",
+        {"m": minutes, "c": cid, "u": uid}
+    )
+    
+    if minutes == 0:
+        msg = await message.reply("🧹 Автоудаление отключено. Сообщения будут оставаться в чате.")
     else:
-        return await message.reply("Только админы могут менять авто-чистку.")
+        msg = await message.reply(f"🧼 Автоудаление активировано: каждые {minutes} минут бот будет чистить свои сообщения.")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
 

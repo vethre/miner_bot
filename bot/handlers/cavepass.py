@@ -40,7 +40,7 @@ async def cavepass_cmd(message: types.Message):
             "<b>Cave Pass</b> — 30 дней премиальных бонусов:\n"
             f" • Эксклюзивная {EX_EMOJI} <b>{EX_NAME}</b>\n"
             " • ×1.5 XP при добывании\n"
-            " • +20 пассивного XP ежедневно\n\n"
+            " • +10 пассивного XP каждый час!\n\n"
             f"<i>Цена: {PASS_PRICE_UAH} ₴ (оплата снаружи)</i>\n"
             "<i>После оплаты сообщите мне через /report</i>"
         )

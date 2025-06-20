@@ -240,15 +240,21 @@ async def change_dur(cid:int, uid:int, key:str, delta:int):
         "WHERE chat_id=:c AND user_id=:u",
         {"c":cid, "u":uid}
     )
-    dur_map     = json.loads(row["pick_dur_map"] or "{}")
-    max_map = json.loads(row["pick_dur_max_map"] or "{}")
+    dur_map     = _jsonb_to_dict(row["pick_dur_map"])
+    dur_max_map = _jsonb_to_dict(row["pick_dur_max_map"])
 
-    cur = dur_map.get(key, max_map.get(key, 100))
-    cur = max(0, cur + delta)
-    dur_map[key] = cur
+    if key not in dur_max_map:
+        from bot.handlers.use import PICKAXES
+        dur_max_map[key] = PICKAXES[key]["dur"]
+    if key not in dur_map:
+        dur_map[key] = dur_max_map[key]
 
-    await db.execute(
-        "UPDATE progress_local SET pick_dur_map=:m WHERE chat_id=:c AND user_id=:u",
-        {"m": json.dump(dur_map), "c":cid, "u":uid}
-    )
-    return cur, max_map.get(key, 100)
+    dur_map[key] = max(0, dur_map[key] + 100)
+    await db.execute("""
+        UPDATE progress_local
+            SET pick_dur_map = (:dm)::jsonb
+        WHERE chat_id=:c AND user_id=:u
+    """, {"dm": json.dumps(dur_map), "c": cid, "u": uid})
+
+    return dur_map[key], dur_max_map[key]
+
