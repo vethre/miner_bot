@@ -340,7 +340,8 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
             "u": uid,
         },
     )
-    minutes = get_mine_duration(tier) // 60 or 1
+    sec      = get_mine_duration(tier)
+    minutes  = max(1, round(sec / 60))
     msg = await message.reply(f"⛏️ Ты ушёл в шахту на {minutes} мин. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
@@ -468,9 +469,11 @@ async def smelt_cmd(message: types.Message):
     )
     asyncio.create_task(smelt_timer(message.bot, cid, uid, recipe, cnt, torch_mult))
 
+    sec      = duration
+    minutes  = max(1, round(sec / 60))
     # ───── 6. Відповідь та autodelete ─────
     msg = await message.reply(
-        f"{torch_msg}⏲️ Печь работает {duration} сек… "
+        f"{torch_msg}⏲️ Печь работает {minutes} мин\n"
         f"({cnt}× {recipe['out_name']})"
     )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
