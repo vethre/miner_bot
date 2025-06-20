@@ -37,43 +37,45 @@ def max_page() -> int:
 
 
 # ------------------------------------------------------------------ helpers
-async def _send_shop_page(chat_id: int,
-                          page: int,
-                          bot_message: types.Message | CallbackQuery,
-                          edit: bool = False) -> None:
-    """Створити / оновити повідомлення магазину з потрібною сторінкою."""
-    page = max(0, min(page, max_page()))
+async def _send_shop_page(chat_id: int, *, page: int,
+                          bot_message: types.Message | None = None,
+                          edit: bool = False):
+    """Формуємо й відправляємо сторінку магазину."""
     start = page * PER_PAGE
-    slice_keys = list(SHOP_ITEMS.keys())[start:start + PER_PAGE]
+    chunk = list(SHOP_ITEMS.items())[start:start + PER_PAGE]
 
     kb = InlineKeyboardBuilder()
-    for key in slice_keys:
-        itm = SHOP_ITEMS[key]
-        txt = f"{itm['emoji']} {itm['name']} — {itm['price']}₴"
-        kb.button(text=txt, callback_data=f"buy:{key}")
-    # ---- навігація ----
+    for item_id, props in chunk:
+        kb.button(
+            text=f"{props['emoji']} {props['name']} — {props['price']} монет",
+            callback_data=f"buy:{item_id}"
+        )
+    kb.adjust(1)                           # кожна позиція в окремому рядку
+
+    # ─── навігація ─────────────────────────────────────────────────────────
     nav = InlineKeyboardBuilder()
-    nav.button(text="◀️",  callback_data=f"shop:pg:{page-1}") if page > 0 else None
-    nav.button(text=f"{page+1}/{max_page()+1}", text=True, callback_data="noop")
-    nav.button(text="▶️",  callback_data=f"shop:pg:{page+1}") if page < max_page() else None
-    kb.adjust(1)
+    if page > 0:
+        nav.button(text="⬅️", callback_data=f"shop:page:{page-1}")
+    # Лічильник сторінок (неактивна кнопка)
+    nav.button(text=f"{page+1}/{max_page()+1}", callback_data="noop")
+    if page < max_page():
+        nav.button(text="➡️", callback_data=f"shop:page:{page+1}")
+    nav.adjust(len(nav.buttons))           # у ряд один за одним
+
+    # прикріпляємо нав-кнопки до основного builder
     kb.row(*nav.buttons)
 
-    if edit:
-        await bot_message.edit_media(
-            media=types.InputMediaPhoto(media=SHOP_IMG_ID,
-                                        caption="🛒 <b>Магазин</b>\nВыбери товар:",
-                                        parse_mode="HTML"),
-            reply_markup=kb.as_markup()
-        )
-    else:
-        msg = await bot_message.answer_photo(
+    if edit and bot_message:               # редагуємо старе
+        await bot_message.edit_reply_markup(reply_markup=kb.as_markup())
+    else:                                  # або шлемо нове
+        sent = await bot.send_photo(
+            chat_id,
             SHOP_IMG_ID,
-            caption="🛒 <b>Магазин</b>\nВыбери товар:",
+            caption="🛒 <b>Магазин</b> — выбери товар:",
             parse_mode="HTML",
             reply_markup=kb.as_markup()
         )
-        register_msg_for_autodelete(chat_id, msg.message_id)
+        register_msg_for_autodelete(chat_id, sent.message_id)
 
 # ------------------------------------------------------------------ handlers
 @router.message(Command("shop"))
