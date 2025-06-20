@@ -16,8 +16,8 @@ PICKAXES = {
 }
 
 ALIAS = {
-    "деревяная кирка":"wooden_pickaxe","дерев’яна кирка":"wooden_pickaxe",
-    "железная кирка":"iron_pickaxe",    "золота кирка":"gold_pickaxe",
+    "деревяная кирка":"wooden_pickaxe","деревяная кирка":"wooden_pickaxe",
+    "железная кирка":"iron_pickaxe",    "золотая кирка":"gold_pickaxe",
     "булыжниковая кирка":"roundstone_pickaxe",
     "хрустальная кирка":"crystal_pickaxe",
     "аметистовая кирка":"amethyst_pickaxe",

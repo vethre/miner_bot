@@ -167,10 +167,10 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         {"c": cid, "u": uid}
     )
 
-    txt=(f"🏔 {mention}, ты вернулся из шахты!\n"
-         f"<b>{amount}×{ore['emoji']} {ore['name']}</b>\n"
-         f"XP +{xp_gain}\n"
-         f"Tier×{bonus:.1f} | кирка+{int(pick_bonus*100)} % | Streak {streak} дн."
+    txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
+         f"<b>{amount}×{ore['emoji']} {ore['name']}</b>в мешке\n"
+         f"XP +<b>{xp_gain}</b> | Streak {streak} дн. | Tier ×{bonus:.1f}\n"
+         f"Бонус кирки +<b>{int(pick_bonus*100)} %</b>"
          + ("\n⚠️ Кирка сломалась! /repair" if broken else "")
          + extra_txt)
 
@@ -342,7 +342,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     )
     sec      = get_mine_duration(tier)
     minutes  = max(1, round(sec / 60))
-    msg = await message.reply(f"⛏️ Ты ушёл в шахту на {minutes} мин. Удачи!")
+    msg = await message.reply(f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин.\nЭнергия −12 / Голод −10. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
@@ -473,8 +473,8 @@ async def smelt_cmd(message: types.Message):
     minutes  = max(1, round(sec / 60))
     # ───── 6. Відповідь та autodelete ─────
     msg = await message.reply(
-        f"{torch_msg}⏲️ Печь работает {minutes} мин\n"
-        f"({cnt}× {recipe['out_name']})"
+        f"{torch_msg}🔥 Забрасываем {cnt} руды в печь.\n"
+        f"(⏲️ Через <b>{minutes}</b> минут получим {recipe['out_name']}×{cnt}.)"
     )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
