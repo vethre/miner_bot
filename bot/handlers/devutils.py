@@ -1,11 +1,15 @@
 # bot/handlers/devutils.py
 
-from aiogram import F, Router, types
+from aiogram import F, Bot, Router, types
 from aiogram.filters import Command
 from aiogram.utils.markdown import hcode
-from bot.db_local import db, cid_uid, get_progress
+from bot.db import get_inventory
+from bot.db_local import db, cid_uid, get_money, get_progress
 from aiogram.filters.command import CommandObject
 import logging
+
+from bot.handlers.items import ITEM_DEFS
+from bot.utils.autodelete import register_msg_for_autodelete
 
 router = Router()
 ADMINS = {700929765, 988127866}  # заміни на свої ID
@@ -70,6 +74,56 @@ async def fileid_cmd(m: types.Message):
         await m.reply(str(m.reply_to_message.photo[-1].file_id))
     else:
         await m.reply("Ответь на фото.")
+
+@router.message(Command("devinfo"))
+async def devinfo_cmd(message: types.Message, bot: Bot):
+    # ── 1. доступ тільки для DEV_IDS ───────────────────────────────
+    if message.from_user.id not in ADMINS:
+        return
+
+    # ── 2. парсимо аргументи ───────────────────────────────────────
+    #    /devinfo <uid | @username> [chat_id]
+    try:
+        _, arg1, *rest = message.text.strip().split()
+    except ValueError:
+        return await message.reply("Usage: /devinfo <uid|@username> [chat_id]")
+
+    cid = int(rest[0]) if rest else (
+        message.chat.id if message.chat.type in ("group", "supergroup") else 0
+    )
+
+    # ── 3. визначаємо uid ──────────────────────────────────────────
+    if arg1.lstrip("-").isdigit():
+        uid = int(arg1)
+    else:                               # @username
+        if cid == 0:
+            return await message.reply("У приваті треба передати chat_id.")
+        try:
+            member = await bot.get_chat_member(cid, arg1)
+        except Exception as e:
+            return await message.reply(f"Не знайшов {arg1} у чаті {cid}\n{e}")
+        uid = member.user.id
+
+    # ── 4. тягнемо дані з БД ───────────────────────────────────────
+    prog     = await get_progress(cid, uid)
+    balance  = await get_money(cid, uid)
+    inv_rows = await get_inventory(cid, uid)
+
+    inv_lines = [
+        f"{ITEM_DEFS.get(r['item'], {'name': r['item']})['name']}: {r['qty']}"
+        for r in inv_rows
+    ] or ["— пусто —"]
+
+    text = (
+        f"<b>User-ID:</b> <code>{uid}</code>\n"
+        f"<b>Chat-ID:</b> <code>{cid}</code>\n"
+        f"<b>Balance:</b> {balance} монет\n"
+        f"<b>Progress row:</b> <code>{prog}</code>\n\n"
+        "<b>📦 Інвентар:</b>\n" + "\n".join(inv_lines)
+    )
+
+    msg = await message.reply(text, parse_mode="HTML")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ───────────── Команда /forcepick ─────────────
 @router.message(Command("forcepick"))

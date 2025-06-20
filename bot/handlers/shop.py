@@ -39,7 +39,7 @@ async def shop_cmd(message: types.Message):
 
     msg = await message.answer_photo(
         photo=SHOP_IMG_ID,
-        caption="🛒 <b>Магазин</b> — выюери товар:",
+        caption="🛒 <b>Магазин</b> — выбери товар:",
         parse_mode="HTML",
         reply_to_message_id=message.message_id,
         reply_markup=builder.as_markup()

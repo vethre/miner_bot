@@ -240,8 +240,8 @@ async def change_dur(cid:int, uid:int, key:str, delta:int):
         "WHERE chat_id=:c AND user_id=:u",
         {"c":cid, "u":uid}
     )
-    dur_map     = _jsonb_to_dict(row["pick_dur_map"])
-    dur_max_map = _jsonb_to_dict(row["pick_dur_max_map"])
+    dur_map     = await _jsonb_to_dict(row["pick_dur_map"])
+    dur_max_map = await _jsonb_to_dict(row["pick_dur_max_map"])
 
     if key not in dur_max_map:
         from bot.handlers.use import PICKAXES
