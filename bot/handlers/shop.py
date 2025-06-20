@@ -1,23 +1,3 @@
-<<<<<<< HEAD
-from aiogram import Router, F, types
-from aiogram.filters import Command
-from aiogram.types import CallbackQuery
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-
-from bot.db_local import cid_uid, get_money, add_money, add_item
-from bot.handlers.items import ITEM_DEFS
-
-router = Router()
-
-# Список товарів у магазині
-SHOP_ITEMS = {
-    "wood_handle":    {"price": 100,  "name": "Рукоять",         "emoji": "🪵"},
-    "wooden_pickaxe": {"price": 200,  "name": "Дерев’яна кирка", "emoji": "🔨"},
-    "iron_pickaxe":   {"price": 1000, "name": "Залізна кирка",   "emoji": "⛏️"},
-    "gold_pickaxe":   {"price": 2000, "name": "Золота кирка",    "emoji": "✨"},
-    "bread":          {"price": 50,   "name": "Хліб",            "emoji": "🍞", "hunger": 30},
-    "meat":           {"price": 120,  "name": "М’ясо",           "emoji": "🍖", "hunger": 60},
-=======
 # bot/handlers/shop.py
 from aiogram import Router, types, F, Bot
 from aiogram.filters import Command
@@ -45,7 +25,6 @@ SHOP_ITEMS: dict[str, dict] = {
     "borsch":         {"price": 300,  "name": "Борщ",             "emoji": "🥣"},
     "energy_drink":   {"price": 170,  "name": "Энергетик",        "emoji": "🥤"},
     "cave_cases":     {"price": 300,  "name": "Cave Case",        "emoji": "📦"},
->>>>>>> core-2.0
 }
 
 ITEMS_PER_PAGE = 6 # This variable is not currently used to chunk PAGES.
@@ -110,23 +89,6 @@ async def _send_shop_page(chat_id: int, *, page: int,
 
 # Handler for initial /shop command
 @router.message(Command("shop"))
-<<<<<<< HEAD
-async def shop_cmd(message: types.Message, owner_id: int | None = None):
-    cid, uid = await cid_uid(message)
-    orig_uid = owner_id or message.from_user.id
-
-    builder = InlineKeyboardBuilder()
-    for item_id, props in SHOP_ITEMS.items():
-        text = f"{props['emoji']} {props['name']} — {props['price']} монет"
-        builder.button(text=text, callback_data=f"buy:{item_id}:{orig_uid}")
-    builder.adjust(1)
-
-    await message.reply(
-        "🛒 <b>Магазин</b> — обери товар:",
-        parse_mode="HTML",
-        reply_markup=builder.as_markup()
-    )
-=======
 async def shop_cmd(message: types.Message):
     await _send_shop_page(message.chat.id, page=0, bot_message=message, edit=False)
 
@@ -145,38 +107,10 @@ async def shop_pagination(callback: CallbackQuery):
 async def noop_cb(callback: CallbackQuery):
     """Callback for the non-functional page number button."""
     await callback.answer()
->>>>>>> core-2.0
 
 # Handler for "buy" buttons
 @router.callback_query(F.data.startswith("buy:"))
 async def shop_buy_callback(callback: CallbackQuery):
-<<<<<<< HEAD
-    await callback.answer()
-    data = callback.data.split(":", 2)
-    if len(data) != 3:
-        return
-    _, item_id, orig_uid = data
-    orig_uid = int(orig_uid)
-    """if callback.from_user.id != orig_uid:
-        return await callback.answer("Ця кнопка не для тебе", show_alert=True)"""
-
-    cid = callback.message.chat.id
-    balance = await get_money(cid, orig_uid)
-    item = SHOP_ITEMS.get(item_id)
-    if not item:
-        return await callback.message.reply("Товар не знайдено 😕")
-    price = item["price"]
-    if balance < price:
-        return await callback.message.reply("Недостатньо монет 💸")
-
-    await add_money(cid, orig_uid, -price)
-    await add_item(cid, orig_uid, item_id, 1)
-
-    await callback.message.reply(
-        f"Ти придбав {item['emoji']}<b>{item['name']}</b> за {price} монет! 🎉",
-        parse_mode="HTML"
-    )
-=======
     await callback.answer() # Acknowledge the callback query
     cid, uid = callback.message.chat.id, callback.from_user.id
     _, item_id = callback.data.split(":", 1) # Split to get the item ID
@@ -198,4 +132,3 @@ async def shop_buy_callback(callback: CallbackQuery):
         f"Покупка: {item['emoji']}<b>{item['name']}</b> за {item['price']} монет ✔️",
         parse_mode="HTML")
     register_msg_for_autodelete(callback.message.chat.id, msg.message_id)
->>>>>>> core-2.0
