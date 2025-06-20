@@ -66,6 +66,21 @@ ITEM_DEFS.update({
     "energy_drink": {"name": "Энергетик", "emoji": "🥤"},
     # інші як є …
 })
+# bot/handlers/items.py  (где собирается ITEM_DEFS)
+
+# Добавьте эмодзи тем, кому их не хватало
+ITEM_DEFS["roundstone"]       = {"name": "Булыжник",        "emoji": "🪨"}
+ITEM_DEFS["iron_ingot"]       = {"name": "Железный слиток", "emoji": "⛏️"}
+ITEM_DEFS["gold_ingot"]       = {"name": "Золотой слиток",  "emoji": "🪙"}
+ITEM_DEFS["amethyst_ingot"]   = {"name": "Аметистовый слиток", "emoji": "💜"}
+
+# кирки-готовые
+ITEM_DEFS["iron_pickaxe"]["emoji"]    = "⛏️"
+ITEM_DEFS["gold_pickaxe"]["emoji"]    = "✨"
+ITEM_DEFS["amethyst_pickaxe"]["emoji"]= "🔮"
+ITEM_DEFS["crystal_pickaxe"]["emoji"] = "💎"
+ITEM_DEFS["roundstone_pickaxe"]["emoji"] = "🪨"
+
 
 EXTRA_ORES = {
     "amethyst": {"name": "Аметистовая руда",  "emoji": "💜", "drop_range": (1,2), "price": 40},

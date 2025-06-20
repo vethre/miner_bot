@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS progress_local (
     xp       INT  DEFAULT 0,
 
     current_pickaxe TEXT DEFAULT 'wooden_pickaxe',
-    pick_dur        INT  DEFAULT 100,
-    pick_dur_max    INT  DEFAULT 100,
+    pick_dur        INT  DEFAULT 65,
+    pick_dur_max    INT  DEFAULT 65,
 
     cave_pass    BOOL DEFAULT FALSE,
     pass_expires TIMESTAMP,
@@ -79,6 +79,7 @@ async def init_local():
 # ────────── КОНСТАНТИ ──────────
 ENERGY_MAX, ENERGY_REGEN, ENERGY_INTERVAL_S = 100, 15, 20 * 60
 HUNGER_MAX, HUNGER_DECAY, HUNGER_INTERVAL_S   = 100, 10, 60 * 60
+DEFAULT_DUR = 65 
 
 # ────────── HELPER ──────────
 async def cid_uid(msg) -> Tuple[int, int]:
@@ -87,8 +88,21 @@ async def cid_uid(msg) -> Tuple[int, int]:
 
 async def _ensure_progress(cid: int, uid: int):
     await db.execute(
-        "INSERT INTO progress_local(chat_id,user_id) VALUES(:c,:u) ON CONFLICT DO NOTHING",
-        {"c": cid, "u": uid}
+        """
+        INSERT INTO progress_local(
+            chat_id, user_id,
+            current_pickaxe,
+            pick_dur_map, pick_dur_max_map
+        )
+        VALUES (
+            :c, :u,
+            'wooden_pickaxe',
+            jsonb_build_object('wooden_pickaxe', :d),
+            jsonb_build_object('wooden_pickaxe', :d)
+        )
+        ON CONFLICT DO NOTHING
+        """,
+        {"c": cid, "u": uid, "d": DEFAULT_DUR}
     )
 
 # ────────── ІНВЕНТАР ──────────
