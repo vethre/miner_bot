@@ -173,9 +173,8 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
          + ("\n⚠️ Кирка сломалась! /repair" if broken else "")
          + extra_txt)
 
-    msg=await bot.send_message(cid,txt,parse_mode="HTML")
+    await bot.send_message(cid,txt,parse_mode="HTML")
     logging.info("Mining result sent: chat=%s uid=%s", cid, uid)
-    register_msg_for_autodelete(cid,msg.message_id)
     
 # ────────── Smelt Task ──────────
 async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,torch_mult:float):
