@@ -104,6 +104,15 @@ async def _ensure_progress(cid: int, uid: int):
         """,
         {"c": cid, "u": uid, "d": DEFAULT_DUR}
     )
+    await db.execute(
+            """
+            UPDATE progress_local
+            SET current_pickaxe   = 'wooden_pickaxe'
+            WHERE chat_id=:c AND user_id=:u
+            AND current_pickaxe IN ('none','wood_pickaxe')
+            """,
+            {"c": cid, "u": uid}
+    )
 
 # ────────── ІНВЕНТАР ──────────
 async def add_item(cid: int, uid: int, item: str, delta: int):
