@@ -86,7 +86,7 @@ async def devinfo_cmd(message: types.Message, bot: Bot):
     try:
         _, arg1, *rest = message.text.strip().split()
     except ValueError:
-        return await message.reply("Usage: /devinfo <uid|@username> [chat_id]")
+        return await message.reply("Usage: /devinfo 'uid|@username' [chat_id]")
 
     cid = int(rest[0]) if rest else (
         message.chat.id if message.chat.type in ("group", "supergroup") else 0
