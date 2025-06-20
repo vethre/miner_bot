@@ -1,8 +1,11 @@
 # bot/db_local.py
 import datetime as dt
+from zoneinfo import ZoneInfo
 import json, asyncpg
 from typing import Tuple, List, Dict, Any
 from bot.db import db               # глобальний async-connection
+
+UTC = ZoneInfo("UTC")
 
 # ────────── DDL ──────────
 DDL = """
@@ -164,7 +167,7 @@ async def get_progress(cid: int, uid: int) -> Dict[str, Any]:
 # ────────── ENERGY / HUNGER ──────────
 async def update_energy(cid: int, uid: int):
     await _ensure_progress(cid, uid)
-    now = dt.datetime.utcnow()
+    now = dt.datetime.now(tz=UTC)
     row = await db.fetch_one(
         "SELECT energy,last_energy_update FROM progress_local "
         "WHERE chat_id=:c AND user_id=:u", {"c": cid, "u": uid}
@@ -191,7 +194,7 @@ async def add_energy(cid:int, uid:int, delta:int):
 
 async def update_hunger(cid: int, uid: int):
     await _ensure_progress(cid, uid)
-    now = dt.datetime.utcnow()
+    now = dt.datetime.now(tz=UTC)
     row = await db.fetch_one(
         "SELECT hunger,last_hunger_update FROM progress_local "
         "WHERE chat_id=:c AND user_id=:u", {"c": cid, "u": uid}
