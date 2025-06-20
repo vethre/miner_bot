@@ -1,10 +1,9 @@
 # bot/handlers/shop.py
-from aiogram import Router, types, F
+from aiogram import Router, types, F, Bot
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-import bot
 from bot.db_local import cid_uid, get_money, add_money, add_item
 from bot.handlers.cases import give_case_to_user
 from bot.handlers.items import ITEM_DEFS
@@ -69,7 +68,7 @@ async def _send_shop_page(chat_id: int, *,
     if edit and bot_message:
         await bot_message.edit_reply_markup(reply_markup=kb.as_markup())
     else:
-        sent = await bot.send_photo(
+        sent = await Bot.send_photo(
             chat_id,
             SHOP_IMG_ID,
             caption="🛒 <b>Магазин</b> — выбери товар:",
