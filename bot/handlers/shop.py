@@ -38,32 +38,36 @@ def max_page() -> int:
     return len(PAGES) - 1
 
 
-# ------------------------------------------------------------------ helpers
 async def _send_shop_page(chat_id: int, *,
                           page: int,
                           bot_message: types.Message | None = None,
                           edit: bool = False):
-    """Надіслати (або відредагувати) сторінку магазину."""
     ids = PAGES[page]
 
     kb = InlineKeyboardBuilder()
     for item_id in ids:
-        props = SHOP_ITEMS[item_id]
+        p = SHOP_ITEMS[item_id]
         kb.button(
-            text=f"{props['emoji']} {props['name']} — {props['price']} монет",
+            text=f"{p['emoji']} {p['name']} — {p['price']} монет",
             callback_data=f"buy:{item_id}"
         )
     kb.adjust(1)
 
-    # ── навігація ──────────────────────────────────────────────────────────
-    nav = InlineKeyboardBuilder()
+    # ─── навігація  ---------------------------------------------------------
+    nav_btns: list[types.InlineKeyboardButton] = []
     if page > 0:
-        nav.button(text="⬅️", callback_data=f"shop:page:{page-1}")
-    nav.button(text=f"{page+1}/{max_page()+1}", callback_data="noop")
+        nav_btns.append(
+            types.InlineKeyboardButton(text="⬅️", callback_data=f"shop:page:{page-1}")
+        )
+    nav_btns.append(
+        types.InlineKeyboardButton(text=f"{page+1}/{max_page()+1}", callback_data="noop")
+    )
     if page < max_page():
-        nav.button(text="➡️", callback_data=f"shop:page:{page+1}")
-    nav.adjust(len(nav.buttons))
-    kb.row(*nav.buttons)
+        nav_btns.append(
+            types.InlineKeyboardButton(text="➡️", callback_data=f"shop:page:{page+1}")
+        )
+    kb.row(*nav_btns)
+    # -----------------------------------------------------------------------
 
     if edit and bot_message:
         await bot_message.edit_reply_markup(reply_markup=kb.as_markup())
