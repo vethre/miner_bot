@@ -78,7 +78,6 @@ ITEM_DEFS["amethyst_ingot"]   = {"name": "Аметистовый слиток", 
 ITEM_DEFS["iron_pickaxe"]["emoji"]    = "⛏️"
 ITEM_DEFS["gold_pickaxe"]["emoji"]    = "✨"
 ITEM_DEFS["amethyst_pickaxe"]["emoji"]= "🔮"
-ITEM_DEFS["crystal_pickaxe"]["emoji"] = "💎"
 ITEM_DEFS["roundstone_pickaxe"]["emoji"] = "🪨"
 
 
