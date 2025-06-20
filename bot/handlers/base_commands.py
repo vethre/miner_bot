@@ -29,6 +29,7 @@ from bot.db_local import (
     update_streak,
     add_energy,
     change_dur,
+    _jsonb_to_dict,
 )
 from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.items import ITEM_DEFS
@@ -595,22 +596,28 @@ async def repair_cmd(message: types.Message):
     if not pick_key:
         return await message.reply("У тебя пока нет активной кирки.")
 
-    dur_map     = prog.get("pick_dur_map"    , {})
-    dur_max_map = prog.get("pick_dur_max_map", {})
+    # ▸ тут приводимо JSONB → dict
+    dur_map     = _jsonb_to_dict(prog.get("pick_dur_map"))
+    dur_max_map = _jsonb_to_dict(prog.get("pick_dur_max_map"))
+
     dur     = dur_map.get(pick_key, 0)
-    dur_max = dur_max_map.get(pick_key, 100)
+    dur_max = dur_max_map.get(pick_key, PICKAXES[pick_key]["dur"])
 
     if dur >= dur_max:
         return await message.reply("🛠️ Кирка в идеальном состоянии!")
 
-    cost = (dur_max - dur) * 2   # 2 монети за 1 міцності
-    if (bal := await get_money(cid, uid)) < cost:
+    cost = (dur_max - dur) * 2
+    if (await get_money(cid, uid)) < cost:
         return await message.reply("Недостаточно монет для ремонта.")
 
     await add_money(cid, uid, -cost)
-    await change_dur(cid, uid, pick_key, dur_max - dur)   # повертаємо до макс.
+    # Δ = скільки бракує до max
+    await change_dur(cid, uid, pick_key, dur_max - dur)
 
-    await message.reply(f"🛠️ {PICKAXES[pick_key]['name']} отремонтирована до {dur_max}/{dur_max} за {cost} монет!")
+    await message.reply(
+        f"🛠️ {PICKAXES[pick_key]['name']} отремонтирована до "
+        f"{dur_max}/{dur_max} за {cost} монет!"
+    )
 
 TELEGRAPH_LINK = "https://telegra.ph/Cave-Miner---Info-06-17" 
 
