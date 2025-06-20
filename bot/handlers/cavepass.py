@@ -7,6 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.db_local import cid_uid, get_progress, add_money, add_item, db, get_money
 from bot.handlers.items import ITEM_DEFS
+from bot.assets import PASS_IMG_ID
 
 router = Router()
 
@@ -51,8 +52,12 @@ async def cavepass_cmd(message: types.Message):
             f"Эксклюзивная кирка: {EX_EMOJI} <b>{EX_NAME}</b>\n"
             f"Термин действия остался: <b>{days} дн.</b>"
         )
-
-    await message.reply(text, parse_mode="HTML", reply_markup=builder.as_markup())
+    await message.answer_photo(
+        PASS_IMG_ID,
+        caption=text,
+        parse_mode="HTML",
+        reply_markup=builder.as_markup
+    )
 
 # тільки для адмінів
 ADMINS = {700929765, 988127866}
