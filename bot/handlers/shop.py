@@ -129,6 +129,6 @@ async def shop_buy_callback(callback: CallbackQuery):
         await add_item(cid, uid, item_id, 1) # Add other items to inventory
 
     msg = await callback.message.reply(
-        f"Покупка: {item['emoji']}<b>{item['name']}</b> за {item['price']}₴ ✔️",
+        f"Покупка: {item['emoji']}<b>{item['name']}</b> за {item['price']} монет ✔️",
         parse_mode="HTML")
     register_msg_for_autodelete(callback.message.chat.id, msg.message_id)
