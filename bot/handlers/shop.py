@@ -4,6 +4,7 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+import bot
 from bot.db_local import cid_uid, get_money, add_money, add_item
 from bot.handlers.cases import give_case_to_user
 from bot.handlers.items import ITEM_DEFS
@@ -26,48 +27,48 @@ SHOP_ITEMS: dict[str, dict] = {
     "cave_cases":     {"price": 300,  "name": "Cave Case",        "emoji": "📦"},
 }
 
-PER_PAGE = 6
-PAGES = list(                 # список списків id-товарів посторінково
-    [k for k, _ in chunk]
-    for chunk in (zip(*[iter(SHOP_ITEMS.items())]*PER_PAGE),)
-)
-# альтернативний підрахунок:
+ITEMS_PER_PAGE = 6
+
+# ⬇️ Список ключів-товарів, поділений на сторінки  ---------------------------
+ITEM_IDS = list(SHOP_ITEMS.keys())
+PAGES = [ITEM_IDS[i:i + ITEMS_PER_PAGE]                # <- ТУТ вже тільки ключі
+         for i in range(0, len(ITEM_IDS), ITEMS_PER_PAGE)]
+# ---------------------------------------------------------------------------
+
 def max_page() -> int:
-    return (len(SHOP_ITEMS) - 1) // PER_PAGE
+    return len(PAGES) - 1
 
 
 # ------------------------------------------------------------------ helpers
-async def _send_shop_page(chat_id: int, *, page: int,
+async def _send_shop_page(chat_id: int, *,
+                          page: int,
                           bot_message: types.Message | None = None,
                           edit: bool = False):
-    """Формуємо й відправляємо сторінку магазину."""
-    start = page * PER_PAGE
-    chunk = list(SHOP_ITEMS.items())[start:start + PER_PAGE]
+    """Надіслати (або відредагувати) сторінку магазину."""
+    ids = PAGES[page]
 
     kb = InlineKeyboardBuilder()
-    for item_id, props in chunk:
+    for item_id in ids:
+        props = SHOP_ITEMS[item_id]
         kb.button(
             text=f"{props['emoji']} {props['name']} — {props['price']} монет",
             callback_data=f"buy:{item_id}"
         )
-    kb.adjust(1)                           # кожна позиція в окремому рядку
+    kb.adjust(1)
 
-    # ─── навігація ─────────────────────────────────────────────────────────
+    # ── навігація ──────────────────────────────────────────────────────────
     nav = InlineKeyboardBuilder()
     if page > 0:
         nav.button(text="⬅️", callback_data=f"shop:page:{page-1}")
-    # Лічильник сторінок (неактивна кнопка)
     nav.button(text=f"{page+1}/{max_page()+1}", callback_data="noop")
     if page < max_page():
         nav.button(text="➡️", callback_data=f"shop:page:{page+1}")
-    nav.adjust(len(nav.buttons))           # у ряд один за одним
-
-    # прикріпляємо нав-кнопки до основного builder
+    nav.adjust(len(nav.buttons))
     kb.row(*nav.buttons)
 
-    if edit and bot_message:               # редагуємо старе
+    if edit and bot_message:
         await bot_message.edit_reply_markup(reply_markup=kb.as_markup())
-    else:                                  # або шлемо нове
+    else:
         sent = await bot.send_photo(
             chat_id,
             SHOP_IMG_ID,
@@ -76,6 +77,15 @@ async def _send_shop_page(chat_id: int, *, page: int,
             reply_markup=kb.as_markup()
         )
         register_msg_for_autodelete(chat_id, sent.message_id)
+
+@router.callback_query(F.data.startswith("shop:page:"))
+async def shop_page_cb(cb: types.CallbackQuery):
+    await cb.answer()
+    _, _, p = cb.data.split(":")
+    await _send_shop_page(cb.message.chat.id,
+                          page=int(p),
+                          bot_message=cb.message,
+                          edit=True)
 
 # ------------------------------------------------------------------ handlers
 @router.message(Command("shop"))
