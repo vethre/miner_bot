@@ -320,7 +320,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
 
     prog = await get_progress(cid, uid)
 
-    raw_map = prog.get("pick-dur_map") or "{}"
+    raw_map = prog.get("pick_dur_map") or "{}"
     try:
         dur_map = json.loads(raw_map) if isinstance(raw_map, str) else raw_map
     except ValueError:
