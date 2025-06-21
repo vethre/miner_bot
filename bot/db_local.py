@@ -70,6 +70,20 @@ SET   pick_dur_map = jsonb_build_object(current_pickaxe, pick_dur)
   ||  COALESCE(pick_dur_max_map,'{}'::jsonb)
 WHERE pick_dur_map = '{}'::jsonb;
 
+CREATE TABLE IF NOT EXISTS pass_track (
+    level       INT         PRIMARY KEY,
+    reward_type TEXT        NOT NULL,
+    reward_data JSONB       NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pass_claims (
+    chat_id BIGINT,
+    user_id BIGINT,
+    level   INT,
+    claimed_at TIMESTAMP DEFAULT now(),
+    PRIMARY KEY (chat_id, user_id)
+);
+
 """
 AUTO_DELETE = {}
 # ────────── INIT ──────────
