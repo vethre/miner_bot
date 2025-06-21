@@ -9,7 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.utils.config import BOT_TOKEN, DB_DSN
 from bot.db import init_db, db
-from bot.db_local import init_local
+from bot.db_local import add_xp, init_local
 from bot.handlers import register_handlers
 from bot.utils.autodelete import auto_cleanup_task
 
@@ -56,58 +56,79 @@ async def main():
     logger.info("📴 Polling завершено")
 
 async def daily_reward():
-    logger.debug("[CRON-DEBUG] tick")
-
     if BOT is None:
         return
 
-    now   = datetime.datetime.utcnow()
-    today = now.date()
+    today = datetime.date.today()
 
-    msgs = []        # сюди складемо строки для групи
+    # берём ВСЕ группы, которые бот «знает»
+    groups = await db.fetch_all("SELECT chat_id FROM groups")
 
-    async with db.transaction():
-        users = await db.fetch_all("SELECT user_id, level, username, last_daily FROM users")
-        for u in users:
-            if u["last_daily"].date() == today:
-                continue
+    for g in groups:
+        chat_id = g["chat_id"]
 
-            # — сума бонусу —
-            lvl = u["level"]
-            if lvl < 5:   money, xp = 60, 40
-            elif lvl <10: money, xp = 70, 50
-            elif lvl <15: money, xp =130, 60
-            else:         money, xp =300, 70
+        # одна выборка — все юзеры ЭТОГО чата, кому ещё не выдавали бонус
+        rows = await db.fetch_all("""
+            SELECT pl.user_id,
+                   pl.level,
+                   COALESCE(b.coins,0)   AS coins,
+                   u.username
+            FROM   progress_local pl
+                   LEFT JOIN balance_local b
+                          ON b.chat_id = pl.chat_id AND b.user_id = pl.user_id
+                   LEFT JOIN users u       -- только ради username
+                          ON u.user_id = pl.user_id
+            WHERE  pl.chat_id   = :chat
+              AND  (pl.last_daily IS NULL
+                    OR pl.last_daily < :today)
+        """, {"chat": chat_id, "today": today})
 
-            await db.execute(
-                """
-                UPDATE users
-                   SET balance = balance + :m,
-                       xp      = xp + :xp,
-                       last_daily = :now
-                 WHERE user_id = :uid
-                """,
-                {"m": money, "xp": xp, "now": now, "uid": u["user_id"]}
+        if not rows:
+            continue
+
+        messages = []
+        async with db.transaction():
+            for r in rows:
+                lvl = r["level"]
+                # — простенькая шкала —
+                if   lvl < 5:   money, xp =  60, 40
+                elif lvl < 10:  money, xp =  70, 50
+                elif lvl < 15:  money, xp = 130, 60
+                else:           money, xp = 300, 70
+
+                # баланс
+                await db.execute("""
+                    INSERT INTO balance_local(chat_id,user_id,coins)
+                         VALUES(:c,:u,:m)
+                    ON CONFLICT (chat_id,user_id) DO
+                         UPDATE SET coins = balance_local.coins + :m
+                """, {"c": chat_id, "u": r["user_id"], "m": money})
+
+                # XP
+                await add_xp(chat_id, r["user_id"], xp)
+
+                # отметка «бонус получен»
+                await db.execute("""
+                    UPDATE progress_local
+                       SET last_daily = :today
+                     WHERE chat_id=:c AND user_id=:u
+                """, {"today": today, "c": chat_id, "u": r["user_id"]})
+
+                # красивый mention
+                nick = r["username"]
+                mention = f"@{nick}" if nick else f'<a href="tg://user?id={r["user_id"]}">шахтёр</a>'
+                messages.append(f"{mention} →  +{money}💰  +{xp} XP")
+
+        # рассылаем готовый список только в эту группу
+        try:
+            text = (
+                f"🎁 <b>Ежедневный бонус {today.strftime('%d.%m.%Y')}</b>\n"
+                + "\n".join(messages)
             )
+            await BOT.send_message(chat_id, text, parse_mode="HTML")
+        except Exception:
+            pass  # группа могла запретить боту писать
 
-            # — формуємо красивий mention —
-            nick = u["username"]
-            if nick:
-                mention = f"@{nick}"
-            else:
-                mention = f'<a href="tg://user?id={u["user_id"]}">{u["full_name"]}</a>'
-
-            msgs.append(f"{mention}  →  +{money}💰 +{xp} XP")
-
-    if msgs:
-        text = "🎁 <b>Щоденний бонус {}</b>\n".format(today.strftime('%d.%m.%Y')) + "\n".join(msgs)
-        groups = await db.fetch_all("SELECT chat_id FROM groups")
-        for g in groups:
-            try:
-                await BOT.send_message(g["chat_id"], text, parse_mode="HTML")
-            except Exception:
-                pass 
-    logger.info("🎁 Daily reward batch complete")
 
 async def hourly_pass_xp():
     now = datetime.datetime.utcnow()
