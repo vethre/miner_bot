@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import List, Dict
 from aiogram.utils.markdown import link
@@ -318,8 +319,15 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         return await message.reply(f"🍽️ Ты слишкон голоден {hunger} (20 - минимум), сперва /eat!")
 
     prog = await get_progress(cid, uid)
-    if prog.get("current_pickaxe") and prog.get("pick_dur_map", {}).get(
-        prog["current_pickaxe"],1) == 0:
+
+    raw_map = prog.get("pick-dur_map") or "{}"
+    try:
+        dur_map = json.loads(raw_map) if isinstance(raw_map, str) else raw_map
+    except ValueError:
+        dur_map = {}
+
+    cur_pick = prog.get("current_pickaxe")
+    if cur_pick and dur_map.get(cur_pick, 0) == 0:
             return await message.reply("⚠️ Кирка сломана! /repair")
     if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
         delta = prog["mining_end"] - dt.datetime.utcnow()
