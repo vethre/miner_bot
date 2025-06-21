@@ -44,7 +44,7 @@ router = Router()
 
 # ────────── Константи ──────────
 BASE_MINE_SEC   = 1200          # Tier-1
-MINE_SEC_STEP   = -20          # −5 с за кожен Tier вище
+MINE_SEC_STEP   = -20          # -20 с за кожен Tier вище
 MINE_SEC_MIN    = 60
 
 BASE_SMELT_SEC  = 600          # за 1 інгот
@@ -342,7 +342,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     )
     sec      = get_mine_duration(tier)
     minutes  = max(1, round(sec / 60))
-    msg = await message.reply(f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин.\nЭнергия −12 / Голод −10. Удачи!")
+    msg = await message.reply(f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин.\n🗲 Энергия −12 / Голод −10. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
