@@ -102,7 +102,7 @@ async def give_case_to_user(chat_id: int, user_id: int, count: int) -> None:
         {"cnt": count, "c": chat_id, "u": user_id},
     )
 
-@router.message(Command("give_case"))
+@router.message(Command("dgive_case"))
 async def give_case_cmd(message: types.Message):
     cid, _ = await cid_uid(message)
 

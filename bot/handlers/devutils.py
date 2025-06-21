@@ -3,7 +3,7 @@
 from aiogram import F, Bot, Router, types
 from aiogram.filters import Command
 from aiogram.utils.markdown import hcode
-from bot.db_local import db, cid_uid, get_money, get_progress, get_inventory
+from bot.db_local import add_money, add_item, db, cid_uid, get_money, get_progress, get_inventory
 from aiogram.filters.command import CommandObject
 import logging
 
@@ -55,7 +55,22 @@ async def id_cmd(message: types.Message):
     )
     await message.reply(text, parse_mode="HTML")
 
-@router.message(Command("announce"))
+@router.message(Command("devdrop"))
+async def devdrop(message: types.Message):
+    if message.from_user.id not in ADMINS:  # безпека
+        return
+    await add_item(0, message.from_user.id, "diamond", 999)
+    await add_money(0, message.from_user.id, 1_000_000)
+    await message.reply("💎 devdrop ok")
+
+@router.message(Command("devskipday"))
+async def dev_skip(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return
+    await db.execute("UPDATE progress_local SET last_daily = last_daily - INTERVAL '1 day'")
+    await message.reply("⏩ -1 day")
+
+@router.message(Command("dannounce"))
 async def announce_cmd(message: types.Message, bot: Bot):
     # ─── доступ тільки для адмінів ─────────────────────────────
     if message.from_user.id not in ADMINS:
