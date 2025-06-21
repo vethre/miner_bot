@@ -185,7 +185,7 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,torch_mult:float)
                      {"c":cid,"u":uid})
     member = await bot.get_chat_member(cid, uid)
     nick = member.user.full_name
-    await bot.send_message(cid,f"🔥 {nick}! Переплавка закончена: {cnt}×{rec['out_name']}")
+    await bot.send_message(cid,f"🔥 {nick}! Переплавка закончена: {cnt}×{rec['out_name']}", parse_mode="HTML")
 
 # ────────── /start ──────────
 @router.message(CommandStart())
@@ -318,6 +318,9 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         return await message.reply(f"🍽️ Ты слишкон голоден {hunger} (20 - минимум), сперва /eat!")
 
     prog = await get_progress(cid, uid)
+    if prog.get("current_pickaxe") and prog.get("pick_dur_map", {}).get(
+        prog["current_pickaxe"],1) == 0:
+            return await message.reply("⚠️ Кирка сломана! /repair")
     if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
         delta = prog["mining_end"] - dt.datetime.utcnow()
         left = max(1, round(delta.total_seconds() / 60))
@@ -357,7 +360,10 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
     balance = await get_money(cid, uid)
 
     lines = [f"🧾 Баланс: {balance} монет", "<b>📦 Инвентарь:</b>"]
+    current_pick = (await get_progress(cid, uid)).get("current_pickaxe")
     for row in inv:
+        if row["item"] == current_pick:
+            continue
         meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": ""})
         pre = f"{meta['emoji']} " if meta.get("emoji") else ""
         lines.append(f"{pre}{meta['name']}: {row['qty']}")
@@ -625,9 +631,10 @@ TELEGRAPH_LINK = "https://telegra.ph/Cave-Miner---Info-06-17"
 # /about
 @router.message(Command("about"))
 async def about_cmd(message: types.Message):
+    text = link("<b>🔍 О БОТЕ ⬩ РУКОВОДСТВО ⬩ КОМАНДЫ</b>", TELEGRAPH_LINK)
     msg = await message.answer_photo(
         ABOUT_IMG_ID,
-        caption=f"🔍 Больше о боте — {link("СТАТЬЯ", TELEGRAPH_LINK)}", 
+        caption=text, 
         parse_mode="HTML"
     )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
