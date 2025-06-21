@@ -157,27 +157,32 @@ async def get_money(cid: int, uid: int) -> int:
 # ────────── XP / LEVEL ──────────
 async def add_xp(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)
+
     row = await db.fetch_one(
-        "SELECT level, xp FROM progress_local WHERE chat_id=:c AND user_id=:u",
+        "SELECT level, xp FROM progress_local "
+        "WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
     )
     lvl, xp = row["level"], row["xp"] + delta
+    threshold = lvl * 80
 
-    increased = False
-    while xp >= lvl * 80:
-        xp -= lvl * 80
+    leveled = False
+    while xp >= threshold:
+        xp -= threshold
         lvl += 1
-        increased = True
-    
+        threshold = lvl * 80
+        leveled = True
+
+    sql  = "UPDATE progress_local SET xp=:xp"
+    if leveled:
+        sql += ", level=:lvl"
+
+    sql += " WHERE chat_id=:c AND user_id=:u"   # ← обовʼязковий пробіл
+
     await db.execute(
-        """
-        UPDATE progress_level
-           SET level = :lvl,
-               xp   = :xp,
-        WHERE chat_id = :c AND user_id = :u
-    """, {"lvl": lvl, "xp": xp, "c": cid, "u": uid}
+        sql,
+        {"xp": xp, "lvl": lvl, "c": cid, "u": uid}
     )
-    return increased, lvl
 
 async def get_progress(cid: int, uid: int) -> Dict[str, Any]:
     row = await db.fetch_one(
