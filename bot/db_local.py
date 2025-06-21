@@ -173,16 +173,27 @@ async def add_xp(cid: int, uid: int, delta: int):
         threshold = lvl * 80
         leveled = True
 
-    sql  = "UPDATE progress_local SET xp=:xp"
     if leveled:
-        sql += ", level=:lvl"
-
-    sql += " WHERE chat_id=:c AND user_id=:u"   # ← обовʼязковий пробіл
-
-    await db.execute(
-        sql,
-        {"xp": xp, "lvl": lvl, "c": cid, "u": uid}
-    )
+        # оновлюємо XP і рівень
+        await db.execute(
+            """
+            UPDATE progress_local
+               SET xp = :xp,
+                   level = :lvl
+             WHERE chat_id = :c AND user_id = :u
+            """,
+            {"xp": xp, "lvl": lvl, "c": cid, "u": uid}
+        )
+    else:
+        # тільки XP
+        await db.execute(
+            """
+            UPDATE progress_local
+               SET xp = :xp
+             WHERE chat_id = :c AND user_id = :u
+            """,
+            {"xp": xp, "c": cid, "u": uid}
+        )
 
 async def get_progress(cid: int, uid: int) -> Dict[str, Any]:
     row = await db.fetch_one(
