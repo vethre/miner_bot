@@ -59,8 +59,8 @@ async def id_cmd(message: types.Message):
 async def devdrop(message: types.Message):
     if message.from_user.id not in ADMINS:  # безпека
         return
-    await add_item(0, message.from_user.id, "diamond", 999)
-    await add_money(0, message.from_user.id, 1_000_000)
+    await add_item(message.chat.id, message.from_user.id, "diamond", 999)
+    await add_money(message.chat.id, message.from_user.id, 1_000_000)
     await message.reply("💎 devdrop ok")
 
 @router.message(Command("devskipday"))
