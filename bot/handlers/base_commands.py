@@ -168,7 +168,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     )
 
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
-         f"<b>{amount}×{ore['emoji']} {ore['name']}</b>в мешке\n"
+         f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
          f"XP +<b>{xp_gain}</b> | Streak {streak} дн. | Tier ×{bonus:.1f}\n"
          f"Бонус кирки +<b>{int(pick_bonus*100)} %</b>"
          + ("\n⚠️ Кирка сломалась! /repair" if broken else "")
