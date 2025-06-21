@@ -231,7 +231,7 @@ async def update_streak(cid: int, uid: int) -> int:
         )) + 1
     else:
         streak = 1
-    # зберігаємо
+
     await db.execute(
         "UPDATE progress_local SET streak=:s, last_mine_day=:d WHERE chat_id=:c AND user_id=:u",
         {"s": streak, "d": today, "c": cid, "u": uid}
@@ -256,13 +256,12 @@ async def set_pick(cid:int, uid:int, pick_key:str, max_dur:int):
     )
 
 def _jsonb_to_dict(value):
-    # asyncpg інколи повертає вже dict (якщо server >12), інколи str
     if value is None:
         return {}
     if isinstance(value, dict):
         return value
     if isinstance(value, str):
-        return json.loads(value)          # ← наша «універсальна» точка
+        return json.loads(value)          # ← «універсальна» точка
     raise TypeError("Unexpected JSONB type")
 
 async def change_dur(cid:int, uid:int, key:str, delta:int):
