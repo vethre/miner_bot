@@ -13,8 +13,8 @@ from bot.utils.autodelete import register_msg_for_autodelete
 router = Router()
 ADMINS = {700929765, 988127866}  # заміни на свої ID
 
-# ───────────── Команда /db ─────────────
-@router.message(Command("db"))
+# ───────────── Команда /ddb ─────────────
+@router.message(Command("ddb"))
 async def db_cmd(message: types.Message):
     if message.from_user.id not in ADMINS:
         return await message.reply("⛔ Только для админов!")
@@ -42,8 +42,8 @@ async def db_cmd(message: types.Message):
     except Exception as e:
         return await message.reply(f"❌ Ошибка:\n<code>{e}</code>", parse_mode="HTML")
 
-# ───────────── Команда /id ─────────────
-@router.message(Command("id"))
+# ───────────── Команда /did ─────────────
+@router.message(Command("did"))
 async def id_cmd(message: types.Message):
     user = message.from_user
     chat = message.chat
@@ -55,8 +55,8 @@ async def id_cmd(message: types.Message):
     )
     await message.reply(text, parse_mode="HTML")
 
-# ───────────── Команда /debug ─────────────
-@router.message(Command("debug"))
+# ───────────── Команда /ddebug ─────────────
+@router.message(Command("ddebug"))
 async def debug_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)
@@ -67,14 +67,14 @@ async def debug_cmd(message: types.Message):
     await message.reply("\n".join(lines), parse_mode="HTML")
 
 # ───────────── Команда /photoid ─────────────
-@router.message(Command("fileid"))
+@router.message(Command("dfileid"))
 async def fileid_cmd(m: types.Message):
     if m.reply_to_message and m.reply_to_message.photo:
         await m.reply(str(m.reply_to_message.photo[-1].file_id))
     else:
         await m.reply("Ответь на фото.")
 
-@router.message(Command("devinfo"))
+@router.message(Command("ddevinfo"))
 async def devinfo_cmd(message: types.Message, bot: Bot):
     # ── 1. доступ тільки для DEV_IDS ───────────────────────────────
     if message.from_user.id not in ADMINS:
@@ -124,8 +124,8 @@ async def devinfo_cmd(message: types.Message, bot: Bot):
     msg = await message.reply(text, parse_mode="HTML")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
-# ───────────── Команда /forcepick ─────────────
-@router.message(Command("forcepick"))
+# ───────────── Команда /dforcepick ─────────────
+@router.message(Command("dforcepick"))
 async def forcepick_cmd(message: types.Message, command: CommandObject):
     if message.from_user.id not in ADMINS:
         return await message.reply("⛔ Доступ воспрещён")

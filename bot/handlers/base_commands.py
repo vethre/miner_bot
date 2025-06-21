@@ -187,8 +187,8 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,torch_mult:float)
     nick = member.user.full_name
     await bot.send_message(cid,f"🔥 {nick}! Переплавка закончена: {cnt}×{rec['out_name']}")
 
-# ────────── /start ──────────
-@router.message(CommandStart())
+# ────────── /dstart ──────────
+@router.message(Command("dstart"))
 async def start_cmd(message: types.Message):
     await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
     msg = await message.answer_photo(
@@ -197,8 +197,8 @@ async def start_cmd(message: types.Message):
     )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
-# ────────── /profile ──────────
-@router.message(Command("profile"))
+# ────────── /dprofile ──────────
+@router.message(Command("dprofile"))
 async def profile_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     # ensure user exists
@@ -236,10 +236,10 @@ async def profile_cmd(message: types.Message):
     balance = await get_money(cid, uid)
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="📦 Инвентарь", callback_data=f"profile:inventory:{uid}")
-    builder.button(text="🛒 Магазин",    callback_data=f"profile:shop:{uid}")
-    builder.button(text="⛏️ Шахта",      callback_data=f"profile:mine:{uid}")
-    builder.button(text="💎 Cave Pass",      callback_data=f"profile:cavepass:{uid}")
+    builder.button(text="📦 Инвентарь", callback_data=f"dprofile:dinventory:{uid}")
+    builder.button(text="🛒 Магазин",    callback_data=f"dprofile:dshop:{uid}")
+    builder.button(text="⛏️ Шахта",      callback_data=f"dprofile:dmine:{uid}")
+    builder.button(text="💎 Cave Pass",      callback_data=f"dprofile:dcavepass:{uid}")
     builder.adjust(1)
 
     text = (
@@ -264,7 +264,7 @@ async def profile_cmd(message: types.Message):
     # await message.reply(text, parse_mode="HTML", reply_markup=builder.as_markup())
 
 # Profile Callback
-@router.callback_query(F.data.startswith("profile:"))
+@router.callback_query(F.data.startswith("dprofile:"))
 async def profile_callback(callback: types.CallbackQuery):
     data = callback.data.split(":")
     # format: ['profile', action, original_uid]
@@ -278,37 +278,37 @@ async def profile_callback(callback: types.CallbackQuery):
     await callback.answer()
 
     # передаємо виконання команді
-    if action == "inventory":
+    if action == "dinventory":
         await inventory_cmd(callback.message, user_id=orig_uid)
-    elif action == "shop":
+    elif action == "dshop":
         await shop_cmd(callback.message)
-    elif action == "mine":
+    elif action == "dmine":
         await mine_cmd(callback.message, user_id=orig_uid)
-    elif action == "cavepass":
+    elif action == "dcavepass":
         await cavepass_cmd(callback.message)
 
 # ────────── /mine ──────────(F.data.startswith("profile:"))
 async def profile_callback(cb: types.CallbackQuery):
     await cb.answer()
     act = cb.data.split(":", 1)[1]
-    if act == "inventory":
+    if act == "dinventory":
         await inventory_cmd(cb.message, cb.from_user.id)
-    elif act == "shop":
+    elif act == "dshop":
         await shop_cmd(cb.message, cb.from_user.id)
-    elif act == "mine":
+    elif act == "dmine":
         await mine_cmd(cb.message, cb.from_user.id)
-    elif act == "cavepass":
+    elif act == "dcavepass":
         await cavepass_cmd(cb.message)
 
-# ────────── /mine ──────────
-@router.message(Command("mine"))
+# ────────── /dmine ──────────
+@router.message(Command("dmine"))
 async def mine_cmd(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
     if user_id:
         uid = user_id
     user = await get_user(uid)
     if not user:
-        return await message.reply("Сперва /start")
+        return await message.reply("Сперва /dstart")
 
     energy, _ = await update_energy(cid, uid)
     hunger, _ = await update_hunger(cid, uid)
@@ -347,7 +347,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
 # ────────── /inventory ──────────
-@router.message(Command("inventory"))
+@router.message(Command("dinventory"))
 async def inventory_cmd(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
     if user_id:
@@ -386,7 +386,7 @@ ALIASES.update({
     "рубин": "ruby",
 })
 
-@router.message(Command("sell"))
+@router.message(Command("dsell"))
 async def sell_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     text = message.text or ""
@@ -414,7 +414,7 @@ async def sell_cmd(message: types.Message):
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /smelt (async) ──────────
-@router.message(Command("smelt"))
+@router.message(Command("dsmelt"))
 async def smelt_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
 
@@ -479,7 +479,7 @@ async def smelt_cmd(message: types.Message):
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /craft ──────────
-@router.message(Command("craft"))
+@router.message(Command("dcraft"))
 async def craft_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     parts = message.text.split(maxsplit=1)
@@ -500,13 +500,13 @@ async def craft_cmd(message: types.Message):
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /stats ──────────
-@router.message(Command("stats"))
+@router.message(Command("dstats"))
 async def stats_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     builder = InlineKeyboardBuilder()
-    builder.button(text="🏆 Топ за балансом", callback_data="stats:balance")
-    builder.button(text="🎖️ Топ за уровнем", callback_data="stats:level")
-    builder.button(text="📊 Топ за ресурсами", callback_data="stats:resources")
+    builder.button(text="🏆 Топ за балансом", callback_data="dstats:dbalance")
+    builder.button(text="🎖️ Топ за уровнем", callback_data="dstats:dlevel")
+    builder.button(text="📊 Топ за ресурсами", callback_data="dstats:dresources")
     builder.adjust(1)
     msg = await message.answer_photo(
         STATS_IMG_ID,
@@ -516,14 +516,14 @@ async def stats_cmd(message: types.Message):
     )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
-@router.callback_query(F.data.startswith("stats:"))
+@router.callback_query(F.data.startswith("dstats:"))
 async def stats_callback(callback: CallbackQuery):
     await callback.answer()
     cid, _ = await cid_uid(callback.message)
     typ = callback.data.split(":", 1)[1]
     lines: list[str] = []
 
-    if typ == "balance":
+    if typ == "dbalance":
         rows = await db.fetch_all(
             "SELECT user_id, coins FROM balance_local "
             "WHERE chat_id=:c ORDER BY coins DESC LIMIT 10",
@@ -540,7 +540,7 @@ async def stats_callback(callback: CallbackQuery):
                 mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
             lines.append(f"{i}. {mention} — {coins} монет")
 
-    elif typ == "level":
+    elif typ == "dlevel":
         rows = await db.fetch_all(
             "SELECT user_id, level, xp FROM progress_local "
             "WHERE chat_id=:c ORDER BY level DESC, xp DESC LIMIT 10",
@@ -558,7 +558,7 @@ async def stats_callback(callback: CallbackQuery):
                 mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
             lines.append(f"{i}. {mention} — уровень {lvl} (XP {xp})")
 
-    elif typ == "resources":
+    elif typ == "dresources":
         rows = await db.fetch_all(
             "SELECT user_id, SUM(qty) AS total FROM inventory_local "
             "WHERE chat_id=:c GROUP BY user_id ORDER BY total DESC LIMIT 10",
@@ -587,7 +587,7 @@ async def stats_callback(callback: CallbackQuery):
     )
     register_msg_for_autodelete(callback.message.chat.id, msg.message_id)
 
-@router.message(Command("repair"))
+@router.message(Command("drepair"))
 async def repair_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)
@@ -622,7 +622,7 @@ async def repair_cmd(message: types.Message):
 TELEGRAPH_LINK = "https://telegra.ph/Cave-Miner---Info-06-17" 
 
 # /about
-@router.message(Command("about"))
+@router.message(Command("dabout"))
 async def about_cmd(message: types.Message):
     msg = await message.answer_photo(
         ABOUT_IMG_ID,
@@ -632,7 +632,7 @@ async def about_cmd(message: types.Message):
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # /report <bug text>
-@router.message(Command("report"))
+@router.message(Command("dreport"))
 async def report_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     args = message.text.split(maxsplit=1)
@@ -653,7 +653,7 @@ async def report_cmd(message: types.Message):
 
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
-@router.message(Command("autodelete"))
+@router.message(Command("dautodelete"))
 async def autodelete_cmd(message: types.Message, bot: Bot):
     cid, uid = await cid_uid(message)
     parts = message.text.strip().split()

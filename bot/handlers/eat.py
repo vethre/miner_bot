@@ -28,7 +28,7 @@ ALIAS = {
     "энергетик": "energy_drink",
 }
 
-@router.message(Command("eat"))
+@router.message(Command("deat"))
 async def eat_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
 

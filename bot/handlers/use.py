@@ -39,7 +39,7 @@ def _json2dict(raw):
         except Exception:
             return {}
 
-@router.message(Command("use"))
+@router.message(Command("duse"))
 async def use_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
 
