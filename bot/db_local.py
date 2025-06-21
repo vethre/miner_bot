@@ -236,6 +236,12 @@ async def update_streak(cid: int, uid: int) -> int:
         "UPDATE progress_local SET streak=:s, last_mine_day=:d WHERE chat_id=:c AND user_id=:u",
         {"s": streak, "d": today, "c": cid, "u": uid}
     )
+
+    if streak % 5 == 0:
+        bonus = 50 + 10 * (streak // 5)      
+        await add_xp(cid, uid, bonus)
+        await add_money(cid, uid, 100)      
+
     return streak
 
 # ─── PICK DUR HELPERS ────────────────────────────────────────────────
