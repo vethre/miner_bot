@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import List, Dict
 from aiogram.utils.markdown import link
@@ -185,7 +186,7 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,torch_mult:float)
                      {"c":cid,"u":uid})
     member = await bot.get_chat_member(cid, uid)
     nick = member.user.full_name
-    await bot.send_message(cid,f"🔥 {nick}! Переплавка закончена: {cnt}×{rec['out_name']}")
+    await bot.send_message(cid,f"🔥 {nick}! Переплавка закончена: {cnt}×{rec['out_name']}", parse_mode="HTML")
 
 # ────────── /dstart ──────────
 @router.message(Command("dstart"))
@@ -313,14 +314,25 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     energy, _ = await update_energy(cid, uid)
     hunger, _ = await update_hunger(cid, uid)
     if energy <= 15:
-        return await message.reply(f"😴 Недостаточно энергии {energy}/20 - минимум. Отдохни.")
+        return await message.reply(f"😴 Недостаточно энергии {energy} (20 - минимум). Отдохни.")
     if hunger < HUNGER_LIMIT:
-        return await message.reply(f"🍽️ Ты слишкон голоден {hunger}/20 - минимум, сперва /eat!")
+        return await message.reply(f"🍽️ Ты слишкон голоден {hunger} (20 - минимум), сперва /eat!")
 
     prog = await get_progress(cid, uid)
+
+    raw_map = prog.get("pick_dur_map") or "{}"
+    try:
+        dur_map = json.loads(raw_map) if isinstance(raw_map, str) else raw_map
+    except ValueError:
+        dur_map = {}
+
+    cur_pick = prog.get("current_pickaxe")
+    if cur_pick and dur_map.get(cur_pick, 0) == 0:
+            return await message.reply("⚠️ Кирка сломана! /repair")
     if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
-        left = int((prog["mining_end"] - dt.datetime.utcnow()).total_seconds())
-        return await message.reply(f"⛏️ Ты ещё в шахте, осталось {left} сек.")
+        delta = prog["mining_end"] - dt.datetime.utcnow()
+        left = max(1, round(delta.total_seconds() / 60))
+        return await message.reply(f"⛏️ Ты ещё в шахте, осталось {left} мин.")
 
     tier = get_tier(prog["level"])
     bonus_tier = BONUS_BY_TIER[tier]
@@ -342,7 +354,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     )
     sec      = get_mine_duration(tier)
     minutes  = max(1, round(sec / 60))
-    msg = await message.reply(f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин.\n🗲 Энергия −12 / Голод −10. Удачи!")
+    msg = await message.reply(f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин.\n🔋 Энергия −12 / Голод −10. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
@@ -356,7 +368,10 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
     balance = await get_money(cid, uid)
 
     lines = [f"🧾 Баланс: {balance} монет", "<b>📦 Инвентарь:</b>"]
+    current_pick = (await get_progress(cid, uid)).get("current_pickaxe")
     for row in inv:
+        if row["item"] == current_pick:
+            continue
         meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": ""})
         pre = f"{meta['emoji']} " if meta.get("emoji") else ""
         lines.append(f"{pre}{meta['name']}: {row['qty']}")
@@ -624,9 +639,10 @@ TELEGRAPH_LINK = "https://telegra.ph/Cave-Miner---Info-06-17"
 # /about
 @router.message(Command("dabout"))
 async def about_cmd(message: types.Message):
+    text = link("🔍 О БОТЕ ⬩ РУКОВОДСТВО ⬩ КОМАНДЫ", TELEGRAPH_LINK)
     msg = await message.answer_photo(
         ABOUT_IMG_ID,
-        caption=f"🔍 Больше о боте — {link("СТАТЬЯ", TELEGRAPH_LINK)}", 
+        caption=text, 
         parse_mode="HTML"
     )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
