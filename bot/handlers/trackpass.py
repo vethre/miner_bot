@@ -92,9 +92,9 @@ async def _send_track_page(chat_id:int, user_id:int, page:int,
     nav.button(text=f"{page+1}/{pages}", callback_data="tp:noop:x")
     if page<pages-1:
         nav.button(text="▶️", callback_data=f"tp:pg:{page+1}")
-    nav.adjust(len(nav.buttons))
+    nav_buttons = list(list(nav.buttons))
     # з’єднуємо
-    kb.row(*nav.buttons, width=len(nav.buttons))
+    kb.row(*nav.buttons, width=len(list(nav.buttons)))
 
     if edit:
         sent = await bot_message.edit_text("\n".join(lines),
