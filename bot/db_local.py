@@ -157,11 +157,6 @@ async def get_money(cid: int, uid: int) -> int:
 # ────────── XP / LEVEL ──────────
 async def add_xp(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)
-<<<<<<< HEAD
-    
-=======
-
->>>>>>> 9ac374f (Refactor database queries for XP and energy updates, add timezone handling, and improve item usage instructions)
     row = await db.fetch_one(
         "SELECT level, xp FROM progress_local WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
