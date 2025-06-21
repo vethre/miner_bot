@@ -6,6 +6,7 @@ from aiogram.utils.markdown import hcode
 from bot.db_local import add_money, add_item, db, cid_uid, get_money, get_progress, get_inventory
 from aiogram.filters.command import CommandObject
 import logging
+from datetime import datetime, timedelta, timezone
 
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.trackpass import SEASON_LEN
@@ -69,14 +70,16 @@ async def dev_pass(message: types.Message):
     if message.from_user.id not in ADMINS:      # ваш список
         return
     cid, uid = await cid_uid(message)
+
+    expires = datetime.now(timezone.utc) + timedelta(days=SEASON_LEN)
     await db.execute(
         """UPDATE progress_local
               SET cave_pass=TRUE,
-                  pass_expires=NOW()+INTERVAL ':d day'
+                  pass_expires=:exp
             WHERE chat_id=:c AND user_id=:u""",
-        {"d": SEASON_LEN, "c": cid, "u": uid},
+        {"exp": expires, "c": cid, "u": uid},
     )
-    await message.reply("Выдан premium-Pass на тест 🎫")
+    await message.reply(f"Выдан premium-Pass на тест 🎫 до {expires.strftime('%d.%m.%Y %H:%M UTC')}")
 
 @router.message(Command("devskipday"))
 async def dev_skip(message: types.Message):
