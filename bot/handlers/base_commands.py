@@ -213,6 +213,7 @@ async def profile_cmd(message: types.Message):
     lvl     = prog.get("level", 1)
     xp      = prog.get("xp", 0)
     next_xp = lvl * 80
+    streaks = prog.get("streak", 0)
 
     # Кирка та її міцність
     current         = prog.get("current_pickaxe") or "wooden_pickaxe"
@@ -246,6 +247,7 @@ async def profile_cmd(message: types.Message):
     text = (
         f"👤 <b>Профиль:</b> {message.from_user.full_name}\n"
         f"⭐ <b>Уровень:</b> {lvl} (XP {xp}/{next_xp})\n"
+        f"🔥 <b>Серия:</b> {streaks}\n" 
         f"💎 <b>Cave Pass:</b> {pass_str}\n\n"
         f"🔋 <b>Энергия:</b> {energy}/100\n"
         f"🍗 <b>Голод:</b> {hunger}/100\n\n"
