@@ -158,7 +158,7 @@ async def get_money(cid: int, uid: int) -> int:
 async def add_xp(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)
     
-    row = await db.fetch_all(
+    row = await db.fetch_one(
         "SELECT level, xp FROM progress_local WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
     )
