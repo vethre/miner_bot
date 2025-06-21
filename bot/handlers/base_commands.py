@@ -313,14 +313,15 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     energy, _ = await update_energy(cid, uid)
     hunger, _ = await update_hunger(cid, uid)
     if energy <= 15:
-        return await message.reply(f"😴 Недостаточно энергии {energy}/20 - минимум. Отдохни.")
+        return await message.reply(f"😴 Недостаточно энергии {energy} (20 - минимум). Отдохни.")
     if hunger < HUNGER_LIMIT:
-        return await message.reply(f"🍽️ Ты слишкон голоден {hunger}/20 - минимум, сперва /eat!")
+        return await message.reply(f"🍽️ Ты слишкон голоден {hunger} (20 - минимум), сперва /eat!")
 
     prog = await get_progress(cid, uid)
     if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
-        left = int((prog["mining_end"] - dt.datetime.utcnow()).total_seconds())
-        return await message.reply(f"⛏️ Ты ещё в шахте, осталось {left} сек.")
+        delta = prog["mining_end"] - dt.datetime.utcnow()
+        left = max(1, round(delta.total_seconds() / 60))
+        return await message.reply(f"⛏️ Ты ещё в шахте, осталось {left} мин.")
 
     tier = get_tier(prog["level"])
     bonus_tier = BONUS_BY_TIER[tier]
@@ -342,7 +343,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     )
     sec      = get_mine_duration(tier)
     minutes  = max(1, round(sec / 60))
-    msg = await message.reply(f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин.\n🗲 Энергия −12 / Голод −10. Удачи!")
+    msg = await message.reply(f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин.\n🔋 Энергия −12 / Голод −10. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
