@@ -35,7 +35,7 @@ async def give_case_to_user(cid: int, uid: int, count: int=1):
       {"n": count, "c": cid, "u": uid}
     )
 
-@router.message(Command("case"))
+@router.message(Command("dcase"))
 async def case_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)

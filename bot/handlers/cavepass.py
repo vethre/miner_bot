@@ -21,7 +21,7 @@ EX_NAME = "Хрустальная кирка"
 EX_EMOJI = "💎"
 ITEM_DEFS[EX_KEY] = {"name": EX_NAME, "emoji": EX_EMOJI}
 
-@router.message(Command("cavepass"))
+@router.message(Command("dcavepass"))
 async def cavepass_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)
@@ -62,7 +62,7 @@ async def cavepass_cmd(message: types.Message):
 # тільки для адмінів
 ADMINS = {700929765, 988127866}
 
-@router.message(Command("activate_pass"))
+@router.message(Command("dactivate_pass"))
 async def activate_pass_cmd(message: types.Message):
     if message.from_user.id not in ADMINS:
         return await message.reply("⚠️ У вас нет прав")

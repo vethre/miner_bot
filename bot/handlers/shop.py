@@ -58,17 +58,17 @@ async def _send_shop_page(chat_id: int, *, page: int,
         meta = SHOP_ITEMS[iid]
         kb.button(
             text=f"{meta['emoji']} {meta['name']} — {meta['price']} мон.",
-            callback_data=f"buy:{iid}"
+            callback_data=f"dbuy:{iid}"
         )
     kb.adjust(1) # Display each shop item button on its own row
 
     # Навігація (Pagination) keyboard
     nav = InlineKeyboardBuilder()
     if page > 0:
-        nav.button(text="« Назад", callback_data=f"shop:pg:{page-1}") # Corrected callback data
+        nav.button(text="« Назад", callback_data=f"dshop:pg:{page-1}") # Corrected callback data
     nav.button(text=f"{page+1}/{len(PAGES)}", callback_data="noop") # Page number display
     if page < len(PAGES)-1:
-        nav.button(text="Вперёд »", callback_data=f"shop:pg:{page+1}") # Corrected callback data
+        nav.button(text="Вперёд »", callback_data=f"dshop:pg:{page+1}") # Corrected callback data
 
     # Convert nav.buttons generator to a list to get its length and use with kb.row()
     nav_buttons_list = list(nav.buttons)
@@ -88,12 +88,12 @@ async def _send_shop_page(chat_id: int, *, page: int,
 # ------------------------------------------------------------------ handlers
 
 # Handler for initial /shop command
-@router.message(Command("shop"))
+@router.message(Command("dshop"))
 async def shop_cmd(message: types.Message):
     await _send_shop_page(message.chat.id, page=0, bot_message=message, edit=False)
 
 # Handler for pagination buttons (e.g., "shop:pg:0", "shop:pg:1")
-@router.callback_query(F.data.startswith("shop:pg:"))
+@router.callback_query(F.data.startswith("dshop:pg:"))
 async def shop_pagination(callback: CallbackQuery):
     await callback.answer() # Acknowledge the callback query
     _, _, page_str = callback.data.split(":") # Split to get the page number
@@ -109,7 +109,7 @@ async def noop_cb(callback: CallbackQuery):
     await callback.answer()
 
 # Handler for "buy" buttons
-@router.callback_query(F.data.startswith("buy:"))
+@router.callback_query(F.data.startswith("dbuy:"))
 async def shop_buy_callback(callback: CallbackQuery):
     await callback.answer() # Acknowledge the callback query
     cid, uid = callback.message.chat.id, callback.from_user.id
