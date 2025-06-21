@@ -56,7 +56,7 @@ async def id_cmd(message: types.Message):
     await message.reply(text, parse_mode="HTML")
 
 @router.message(Command("announce"))
-async def announce_cmd(message: types.Message, bot: types.Bot):
+async def announce_cmd(message: types.Message, bot: Bot):
     # ─── доступ тільки для адмінів ─────────────────────────────
     if message.from_user.id not in ADMINS:
         return await message.reply("⛔️ Только для разработчика")
