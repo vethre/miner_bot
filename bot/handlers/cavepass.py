@@ -15,7 +15,7 @@ PASS_PRICE_COINS = 1000           # якщо все ж хочете альтер
 PASS_PRICE_UAH = 53               # реальна ціна в гривнях
 PAYMENT_LINK = "https://send.monobank.ua/jar/A8ew2aMM3S"  # замініть на ваш
 
-PASS_DURATION_DAYS = 30
+PASS_DURATION_DAYS = 19
 EX_KEY = "crystal_pickaxe"
 EX_NAME = "Хрустальная кирка"
 EX_EMOJI = "💎"
@@ -38,7 +38,7 @@ async def cavepass_cmd(message: types.Message):
         )
         builder.adjust(1)
         text = (
-            "<b>Cave Pass</b> — 30 дней премиальных бонусов:\n"
+            "<b><i>[Pre-Season]</i> Cave Pass</b> — 14 дней премиальных бонусов:\n"
             f" • Эксклюзивная {EX_EMOJI} <b>{EX_NAME}</b>\n"
             " • ×1.5 XP при добывании\n"
             " • +10 пассивного XP каждый час!\n\n"
@@ -84,7 +84,7 @@ async def activate_pass_cmd(message: types.Message):
 
     cid = message.chat.id if message.chat.type in ("group","supergroup") else 0
     now = dt.datetime.utcnow()
-    exp = dt.datetime(2025, 7, 28, 23, 59, 59)
+    exp = dt.datetime(2025, 7, 10, 21, 59, 59)
 
     # списувати внутрішню валюту не будемо, тільки активуємо
     await db.execute(
