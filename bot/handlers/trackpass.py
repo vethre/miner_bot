@@ -1,17 +1,68 @@
 from __future__ import annotations
 import json, math
+import datetime as dt
 
 from aiogram import F, Router, types
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import CallbackQuery
 
-from bot.db_local import cid_uid, get_progress, db
+from bot.db import add_item
+from bot.db_local import add_money, add_xp, cid_uid, get_progress, db
 from bot.utils.pass_rewards import grant_pass_reward
 from bot.handlers.items import ITEM_DEFS
 from bot.utils.autodelete import register_msg_for_autodelete
 
 router = Router()
+
+SEASON_ID   = 1
+SEASON_LEN  = 15          # днів дії Pass-у
+LVL_XP      = 120         # XP на 1 рівень
+
+PASS_REWARDS: dict[int, dict] = {
+    1: {"free": {"coins": 100},
+        "premium": {"item": "wood_handle", "qty": 2}},
+    2: {"free": {"xp": 80},
+        "premium": {"item": "torch_bundle", "qty": 2}},
+    3: {"free": {"coins": 150},
+        "premium": {"item": "crystal_pickaxe", "qty": 5}},
+    4: {"free": {"coins": 150},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    5: {"free": {"coins": 150},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    6: {"free": {"coins": 150},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    7: {"free": {"coins": 150},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    8: {"free": {"coins": 150},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    9: {"free": {"coins": 150},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    10: {"free": {"coins": 150},
+        "premium": {"item": "amethyst_pickaxe", "qty": 1}},
+    11: {"free": {"coins": 150},
+        "premium": {"item": "lapis", "qty": 5}},
+    12: {"free": {"coins": 150},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    13: {"free": {"coins": 150},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    14: {"free": {"item": "amethyst", "qty": 7},
+        "premium": {"item": "lapis", "qty": 5}},
+    15: {"free": {"item": "gold_ingot", "qty": 13},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    16: {"free": {"item": "iron_ingot", "qty": 15},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    17: {"free": {"coins": 350},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    18: {"free": {"xp": 270},
+        "premium": {"item": "emerald", "qty": 5}},
+    19: {"free": {"coins": 500},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    20: {"free": {"xp": 300},
+        "premium": {"item": "iron_ingot", "qty": 5}},
+    # …
+}
+MAX_LEVEL = max(PASS_REWARDS)
 
 async def _load_track() -> list[dict]:
     rows = await db.fetch_all("SELECT level, reward_type, reward_data FROM pass_track ORDER BY level")
@@ -24,133 +75,134 @@ async def _claimed_set(cid:int, uid:int) -> set[int]:
     )
     return {r["level"] for r in rows}
 
+async def add_pass_xp(cid:int, uid:int, delta:int):
+    """Нарахувати XP треку й, за потреби, підвищити рівень."""
+    row = await db.fetch_one(
+        "SELECT cave_pass, pass_xp, pass_level FROM progress_local "
+        "WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
+    )
+    if not row:                      # safety
+        return
+    xp  = row["pass_xp"] + delta
+    lvl = row["pass_level"]
+    up  = 0
+    while xp >= LVL_XP and lvl + up < MAX_LEVEL:
+        xp -= LVL_XP
+        up += 1
+    if up:
+        await db.execute(
+            "UPDATE progress_local SET pass_xp=:xp, pass_level=pass_level+:up "
+            "WHERE chat_id=:c AND user_id=:u",
+            {"xp": xp, "up": up, "c": cid, "u": uid}
+        )
+    else:
+        await db.execute(
+            "UPDATE progress_local SET pass_xp=:xp WHERE chat_id=:c AND user_id=:u",
+            {"xp": xp, "c": cid, "u": uid}
+        )
+
+PAGE_SIZE = 4       # скільки level-карток на сторінку
+
+def _progress_bar(p: int, tot:int=LVL_XP, width:int=12) -> str:
+    filled = round(p / tot * width)
+    return "▰" * filled + "▱" * (width - filled)
+
 @router.message(Command("trackpass"))
 async def trackpass_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
-    await _send_track_page(chat_id=cid, user_id=uid, page=0, bot_message=message, edit=False)
+    await _send_track_page(cid, uid, page=0, bot_message=message, edit=False)
 
-@router.callback_query(F.data.startswith("tp:"))  # tp = track pass
-async def trackpass_callback(cb: CallbackQuery):
+@router.callback_query(F.data.startswith("tp:"))
+async def tp_cb(cb: types.CallbackQuery):
+    _, action, arg = cb.data.split(":")
     cid, uid = cb.message.chat.id, cb.from_user.id
-    _, action, arg = cb.data.split(":", 2)
-
-    if action == "pg":
+    if action == "page":
         await _send_track_page(cid, uid, int(arg), cb.message, edit=True)
-        await cb.answer()
     elif action == "claim":
-        level = int(arg)
-        await _attempt_claim(cid, uid, level, cb)
-    else:
-        await cb.answer()
-
-PER_PAGE = 5
+        lvl = int(arg)
+        await _claim_reward(cid, uid, lvl, cb)
 
 async def _send_track_page(chat_id:int, user_id:int, page:int,
-                           bot_message:types.Message, edit:bool=True):
-    track  = await _load_track()
-    pages  = math.ceil(len(track) / PER_PAGE)
-    page   = max(0, min(page, pages-1))
-    prog   = await get_progress(chat_id, user_id)       # level / xp
-    user_lvl = prog.get("level", 1)
+                           bot_message:types.Message, edit:bool):
+    prog = await get_progress(chat_id, user_id)
+    have_pass = prog.get("cave_pass", False) and (prog["pass_expires"] or dt.datetime.min) > dt.datetime.utcnow()
+    lvl  = prog.get("pass_level", 0)
+    xp   = prog.get("pass_xp", 0)
+    claimed = (prog.get("pass_claimed") or {})
 
-    # -------- текст ---------------------------------------------------
-    start = page*PER_PAGE
-    chunk = track[start:start+PER_PAGE]
-    lines = [f"🎫 <b>Cave Pass — Track {page+1}/{pages}</b>",
-             f"Твій рівень: {user_lvl}"]
-    for row in chunk:
-        lvl = row["level"]
-        locked  = "🔒" if lvl > user_lvl else "✅"
-        preview = _preview_reward(row)
-        lines.append(f"{locked} <b>{lvl}</b>. {preview}")
+    start = page * PAGE_SIZE + 1
+    end   = min(start + PAGE_SIZE - 1, MAX_LEVEL)
 
-    # -------- клавіатура ---------------------------------------------
+    lines = [f"🎫 <b>Cave Pass Season {SEASON_ID}</b>",
+             f"Level: {lvl}/{MAX_LEVEL}  XP: {_progress_bar(xp)} {xp}/{LVL_XP}",
+             ""]
     kb = InlineKeyboardBuilder()
 
-    for row in chunk:
-        lvl = row["level"]
-        if lvl > user_lvl:
-            text = "🔒"
-            kb.button(text=text, callback_data="tp:noop:x")
-        else:
-            # перевіряємо, забрано чи ні
-            claimed = await db.fetch_val(
-                "SELECT 1 FROM pass_claims WHERE chat_id=:c AND user_id=:u AND level=:l",
-                {"c":chat_id,"u":user_id,"l":lvl}
-            )
-            if claimed:
-                kb.button(text="✅ Забрано", callback_data="tp:noop:x")
-            else:
-                kb.button(text=f"🎁 Забрати {lvl}", callback_data=f"tp:claim:{lvl}")
+    for lv in range(start, end + 1):
+        rew = PASS_REWARDS[lv]
+        status = "✅" if str(lv) in claimed else ("🟢" if lv <= lvl else "🔒")
+        free = _rew_str(rew["free"])
+        prem = _rew_str(rew["premium"])
+        lines.append(f"<b>{status} Level {lv}</b>\nFREE  — {free}\nPASS — {prem}")
 
-    kb.adjust(1)                         # вертикальний стовп
+        if lv <= lvl and str(lv) not in claimed:
+            kb.button(text=f"Забрать L{lv}", callback_data=f"tp:claim:{lv}")
 
-    # навігація
+    # пагінація
     nav = InlineKeyboardBuilder()
-    if page>0:
-        nav.button(text="◀️", callback_data=f"tp:pg:{page-1}")
-    nav.button(text=f"{page+1}/{pages}", callback_data="tp:noop:x")
-    if page<pages-1:
-        nav.button(text="▶️", callback_data=f"tp:pg:{page+1}")
-    nav_buttons = list(list(nav.buttons))
-    # з’єднуємо
-    kb.row(*nav.buttons, width=len(list(nav.buttons)))
+    if start > 1:
+        nav.button(text="⬅️", callback_data=f"tp:page:{page-1}")
+    nav.button(text=f"{page+1}/{(MAX_LEVEL-1)//PAGE_SIZE+1}", callback_data="noop")
+    if end < MAX_LEVEL:
+        nav.button(text="➡️", callback_data=f"tp:page:{page+1}")
 
+    kb.row(*nav.buttons)
+
+    text = "\n".join(lines)
     if edit:
-        sent = await bot_message.edit_text("\n".join(lines),
-                                           parse_mode="HTML",
-                                           reply_markup=kb.as_markup())
+        await bot_message.edit_text(text, parse_mode="HTML", reply_markup=kb.as_markup())
     else:
-        sent = await bot_message.reply("\n".join(lines),
-                                       parse_mode="HTML",
-                                       reply_markup=kb.as_markup())
-    register_msg_for_autodelete(chat_id, sent.message_id)
+        await bot_message.reply(text, parse_mode="HTML", reply_markup=kb.as_markup())
 
+def _rew_str(r:dict)->str:
+    if "coins" in r:   return f"{r['coins']}💰"
+    if "xp" in r:      return f"{r['xp']} XP"
+    return f"{r['qty']}×{ITEM_DEFS[r['item']]['emoji']} {ITEM_DEFS[r['item']]['name']}"
 
-def _preview_reward(row:dict)->str:
-    t = row["reward_type"]
-    d = row["reward_data"]
-    if isinstance(d, str):
-        d = json.loads(d)
-    if t == "coins":
-        return f"{d['coins']} монет"
-    if t == "xp":
-        return f"{d['xp']} XP"
-    if t == "item":
-        items = []
-        for itm in d["items"]:
-            meta = ITEM_DEFS.get(itm["item"], {"name": itm["item"], "emoji": ""})
-            pre  = f"{meta.get('emoji','')}" if meta.get("emoji") else ""
-            items.append(f"{pre}{meta['name']}×{itm['qty']}")
-        return ", ".join(items)
-    return "?"
-
-# ────────────────────────────────────────────────────────────
-#  Спроба забрати нагороду
-# ────────────────────────────────────────────────────────────
-async def _attempt_claim(cid:int, uid:int, level:int, cb:CallbackQuery):
-    track_row = await db.fetch_one("SELECT * FROM pass_track WHERE level=:l", {"l":level})
-    if not track_row:
-        return await cb.answer("Невідома нагорода", show_alert=True)
-
+async def _claim_reward(cid:int, uid:int, lvl:int, cb:types.CallbackQuery):
     prog = await get_progress(cid, uid)
-    if level > prog.get("level", 1):
-        return await cb.answer("Недостатній рівень!", show_alert=True)
+    if lvl > prog.get("pass_level",0):
+        return await cb.answer("Недоступно 👀", show_alert=True)
+    claimed = prog.get("pass_claimed") or {}
+    if str(lvl) in claimed:
+        return await cb.answer("Уже забрано", show_alert=False)
 
-    already = await db.fetch_val(
-        "SELECT 1 FROM pass_claims WHERE chat_id=:c AND user_id=:u AND level=:l",
-        {"c":cid,"u":uid,"l":level}
-    )
-    if already:
-        return await cb.answer("Вже забрано 😉")
+    rew = PASS_REWARDS[lvl]["free"]
+    # premium частина
+    if prog.get("cave_pass"):
+        rew_p = PASS_REWARDS[lvl]["premium"]
+        _merge_rewards(rew, rew_p)
 
     # видаємо
-    await grant_pass_reward(cid, uid, track_row["reward_type"], track_row["reward_data"])
+    await _apply_reward(cid, uid, rew)
+    claimed[str(lvl)] = True
     await db.execute(
-        "INSERT INTO pass_claims(chat_id,user_id,level) VALUES(:c,:u,:l)",
-        {"c":cid,"u":uid,"l":level}
+        "UPDATE progress_local SET pass_claimed=:cl WHERE chat_id=:c AND user_id=:u",
+        {"cl": json.dumps(claimed), "c": cid, "u": uid}
     )
-    await cb.answer("🎉 Нагороду отримано!")
-    # перерендер сторінки
-    page = (level-1)//PER_PAGE
-    await _send_track_page(cid, uid, page, cb.message, edit=True)
+    await cb.answer("🎉 Награда получена!")
+    await _send_track_page(cid, uid, (lvl-1)//PAGE_SIZE, cb.message, edit=True)
+
+def _merge_rewards(base:dict, extra:dict):
+    if "coins" in extra: base["coins"] = base.get("coins",0)+extra["coins"]
+    if "xp"    in extra: base["xp"]    = base.get("xp",0)+extra["xp"]
+    if "item"  in extra:
+        base.setdefault("items", []).append(extra)
+
+async def _apply_reward(cid:int, uid:int, rew:dict):
+    if "coins" in rew: await add_money(cid, uid, rew["coins"])
+    if "xp"    in rew: await add_xp   (cid, uid, rew["xp"])
+    if "items" in rew:
+        for itm in rew["items"]:
+            await add_item(cid, uid, itm["item"], itm["qty"])

@@ -32,6 +32,7 @@ from bot.db_local import (
     change_dur,
     _jsonb_to_dict,
 )
+from bot.handlers.trackpass import add_pass_xp
 from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
@@ -145,6 +146,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     await add_item(cid,uid,ore_id,amount)
     await add_xp  (cid,uid,xp_gain)
     streak=await update_streak(cid,uid)
+    await add_pass_xp(cid, uid, (xp_gain*2))
 
     # ---- прочність конкретної кирки (JSON-мапа) ----
     broken = False
@@ -182,6 +184,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
 async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,torch_mult:float):
     await asyncio.sleep(get_smelt_duration(cnt,torch_mult))
     await add_item(cid,uid,rec["out_key"],cnt)
+    await add_pass_xp(cid, uid, (cnt*3))
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
                      {"c":cid,"u":uid})
     member = await bot.get_chat_member(cid, uid)
@@ -467,6 +470,7 @@ async def smelt_cmd(message: types.Message):
     # ───── 3. Списуємо руду ─────
     used = cnt * need_for_one
     await add_item(cid, uid, ore_key, -used)
+    await add_pass_xp(cid, uid, (used*2))
 
     # ───── 4. Torch Bundle (опційно) ─────
     torch_mult = 1.0

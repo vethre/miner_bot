@@ -8,6 +8,7 @@ from aiogram.filters.command import CommandObject
 import logging
 
 from bot.handlers.items import ITEM_DEFS
+from bot.handlers.trackpass import SEASON_LEN
 from bot.utils.autodelete import register_msg_for_autodelete
 
 router = Router()
@@ -62,6 +63,20 @@ async def devdrop(message: types.Message):
     await add_item(message.chat.id, message.from_user.id, "diamond", 999)
     await add_money(message.chat.id, message.from_user.id, 1_000_000)
     await message.reply("💎 devdrop ok")
+
+@router.message(Command("devpass"))
+async def dev_pass(message: types.Message):
+    if message.from_user.id not in ADMINS:      # ваш список
+        return
+    cid, uid = await cid_uid(message)
+    await db.execute(
+        """UPDATE progress_local
+              SET cave_pass=TRUE,
+                  pass_expires=NOW()+INTERVAL ':d day'
+            WHERE chat_id=:c AND user_id=:u""",
+        {"d": SEASON_LEN, "c": cid, "u": uid},
+    )
+    await message.reply("Выдан premium-Pass на тест 🎫")
 
 @router.message(Command("devskipday"))
 async def dev_skip(message: types.Message):
