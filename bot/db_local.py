@@ -291,27 +291,51 @@ def _jsonb_to_dict(value):
         return json.loads(value)          # ← «універсальна» точка
     raise TypeError("Unexpected JSONB type")
 
+def _to_int(x):          # допоміжна функція
+    try:
+        return int(x)
+    except (TypeError, ValueError):
+        return 0
+
 async def change_dur(cid:int, uid:int, key:str, delta:int):
     row = await db.fetch_one(
         "SELECT pick_dur_map, pick_dur_max_map FROM progress_local "
         "WHERE chat_id=:c AND user_id=:u",
-        {"c":cid, "u":uid}
+        {"c": cid, "u": uid}
     )
+
     dur_map     = _jsonb_to_dict(row["pick_dur_map"])
     dur_max_map = _jsonb_to_dict(row["pick_dur_max_map"])
 
+    # перетворюємо значення у числа
+    dur_map     = {k: _to_int(v) for k, v in dur_map.items()}
+    dur_max_map = {k: _to_int(v) for k, v in dur_max_map.items()}
+
+    # якщо ключів ще нема – заводимо з дефолтами
     if key not in dur_max_map:
         from bot.handlers.use import PICKAXES
         dur_max_map[key] = PICKAXES[key]["dur"]
     if key not in dur_map:
         dur_map[key] = dur_max_map[key]
 
+    # змінюємо міцність
     dur_map[key] = max(0, dur_map[key] + delta)
-    await db.execute("""
+
+    # записуємо назад
+    await db.execute(
+        """
         UPDATE progress_local
-            SET pick_dur_map = (:dm)::jsonb
-        WHERE chat_id=:c AND user_id=:u
-    """, {"dm": json.dumps(dur_map), "c": cid, "u": uid})
+           SET pick_dur_map = (:dm)::jsonb,
+               pick_dur_max_map = (:dmm)::jsonb
+         WHERE chat_id=:c AND user_id=:u
+        """,
+        {
+            "dm":  json.dumps(dur_map),
+            "dmm": json.dumps(dur_max_map),
+            "c": cid, "u": uid
+        }
+    )
 
     return dur_map[key], dur_max_map[key]
+
 
