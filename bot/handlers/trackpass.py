@@ -12,6 +12,7 @@ from bot.db_local import add_money, add_xp, cid_uid, get_progress, db
 from bot.utils.pass_rewards import grant_pass_reward
 from bot.handlers.items import ITEM_DEFS
 from bot.utils.autodelete import register_msg_for_autodelete
+from bot.utils.time import utc_now
 
 router = Router()
 
@@ -126,7 +127,7 @@ async def tp_cb(cb: types.CallbackQuery):
 async def _send_track_page(chat_id:int, user_id:int, page:int,
                            bot_message:types.Message, edit:bool):
     prog = await get_progress(chat_id, user_id)
-    have_pass = prog.get("cave_pass", False) and (prog["pass_expires"] or dt.datetime.min) > dt.datetime.utcnow()
+    have_pass = prog.get("cave_pass", False) and (prog["pass_expires"] or dt.datetime.min) > utc_now()
     lvl  = prog.get("pass_level", 0)
     xp   = prog.get("pass_xp", 0)
     claimed = (prog.get("pass_claimed") or {})
