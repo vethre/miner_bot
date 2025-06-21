@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.trackpass import SEASON_LEN
 from bot.utils.autodelete import register_msg_for_autodelete
+from bot.utils.time import utc_now
 
 router = Router()
 ADMINS = {700929765, 988127866}  # заміни на свої ID
@@ -71,7 +72,7 @@ async def dev_pass(message: types.Message):
         return
     cid, uid = await cid_uid(message)
 
-    expires = datetime.now(timezone.utc) + timedelta(days=SEASON_LEN)
+    expires = utc_now() + timedelta(days=SEASON_LEN)
     await db.execute(
         """UPDATE progress_local
               SET cave_pass=TRUE,

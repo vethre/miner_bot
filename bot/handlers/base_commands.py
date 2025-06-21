@@ -33,6 +33,7 @@ from bot.db_local import (
     _jsonb_to_dict,
 )
 from bot.handlers.trackpass import add_pass_xp
+from bot.utils.time import utc_now
 from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
@@ -140,7 +141,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     amount+= int(amount*pick_bonus)
 
     xp_gain=amount
-    if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():
+    if prog.get("cave_pass") and prog["pass_expires"]>utc_now():
         xp_gain=int(xp_gain*1.5)
 
     await add_item(cid,uid,ore_id,amount)
@@ -334,8 +335,8 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     cur_pick = prog.get("current_pickaxe")
     if cur_pick and dur_map.get(cur_pick, 0) == 0:
             return await message.reply("⚠️ Кирка сломана! /repair")
-    if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
-        delta = prog["mining_end"] - dt.datetime.utcnow()
+    if prog["mining_end"] and prog["mining_end"] > utc_now():
+        delta = prog["mining_end"] - utc_now()
         left = max(1, round(delta.total_seconds() / 60))
         return await message.reply(f"⛏️ Ты ещё в шахте, осталось {left} мин.")
 
@@ -352,7 +353,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
              WHERE chat_id=:c AND user_id=:u""",
         {
             "hc": HUNGER_COST,
-            "end": dt.datetime.utcnow() + dt.timedelta(seconds=get_mine_duration(tier)),
+            "end": utc_now() + dt.timedelta(seconds=get_mine_duration(tier)),
             "c": cid,
             "u": uid,
         },
@@ -485,7 +486,7 @@ async def smelt_cmd(message: types.Message):
     await db.execute(
         "UPDATE progress_local SET smelt_end = :e "
         "WHERE chat_id = :c AND user_id = :u",
-        {"e": dt.datetime.utcnow() + dt.timedelta(seconds=duration),
+        {"e": utc_now() + dt.timedelta(seconds=duration),
          "c": cid, "u": uid}
     )
     asyncio.create_task(smelt_timer(message.bot, cid, uid, recipe, cnt, torch_mult))
