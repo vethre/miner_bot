@@ -26,6 +26,8 @@ ALIAS = {
     "мясо": "meat",
     "борщ": "borsch",
     "энергетик": "energy_drink",
+    "борсч": "borsch",
+    "borshch": "borsch",
 }
 
 @router.message(Command("eat"))

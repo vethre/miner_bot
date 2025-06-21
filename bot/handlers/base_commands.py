@@ -639,7 +639,7 @@ TELEGRAPH_LINK = "https://telegra.ph/Cave-Miner---Info-06-17"
 # /about
 @router.message(Command("about"))
 async def about_cmd(message: types.Message):
-    text = link("<b>🔍 О БОТЕ ⬩ РУКОВОДСТВО ⬩ КОМАНДЫ</b>", TELEGRAPH_LINK)
+    text = link("🔍 О БОТЕ ⬩ РУКОВОДСТВО ⬩ КОМАНДЫ", TELEGRAPH_LINK)
     msg = await message.answer_photo(
         ABOUT_IMG_ID,
         caption=text, 
