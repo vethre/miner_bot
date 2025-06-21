@@ -64,6 +64,7 @@ ITEM_DEFS.update({
     "torch_bundle": {"name": "Факел", "emoji": "🕯️"},
     "cave_cases": {"name": "Cave Case", "emoji": "📦"},
     "energy_drink": {"name": "Энергетик", "emoji": "🥤"},
+    "borsch": {"name": "Борщ", "emoji": "🥣"},
     # інші як є …
 })
 # bot/handlers/items.py  (где собирается ITEM_DEFS)

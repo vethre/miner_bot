@@ -157,7 +157,6 @@ async def get_money(cid: int, uid: int) -> int:
 # ────────── XP / LEVEL ──────────
 async def add_xp(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)
-    
     row = await db.fetch_one(
         "SELECT level, xp FROM progress_local WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
@@ -197,6 +196,8 @@ async def update_energy(cid: int, uid: int):
     )
     energy = row["energy"]
     last   = row["last_energy_update"] or now
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=UTC)
     regen  = int((now - last).total_seconds() // ENERGY_INTERVAL_S) * ENERGY_REGEN
     if regen:
         energy = min(ENERGY_MAX, energy + regen)
@@ -224,6 +225,8 @@ async def update_hunger(cid: int, uid: int):
     )
     hunger = row["hunger"]
     last   = row["last_hunger_update"] or now
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=UTC)
     decay  = int((now - last).total_seconds() // HUNGER_INTERVAL_S) * HUNGER_DECAY
     if decay:
         hunger = max(0, hunger - decay)
