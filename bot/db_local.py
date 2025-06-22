@@ -205,24 +205,11 @@ async def get_progress(cid: int, uid: int) -> Dict[str, Any]:
 # ────────── ENERGY / HUNGER ──────────
 async def update_energy(cid: int, uid: int):
     await _ensure_progress(cid, uid)
-    now = dt.datetime.now(tz=UTC)
     row = await db.fetch_one(
-        "SELECT energy,last_energy_update FROM progress_local "
-        "WHERE chat_id=:c AND user_id=:u", {"c": cid, "u": uid}
+        "SELECT energy FROM progress_local WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
     )
-    energy = row["energy"]
-    last   = row["last_energy_update"] or now
-    if last.tzinfo is None:
-        last = last.replace(tzinfo=UTC)
-    regen  = int((now - last).total_seconds() // ENERGY_INTERVAL_S) * ENERGY_REGEN
-    if regen:
-        energy = min(ENERGY_MAX, energy + regen)
-        await db.execute(
-            "UPDATE progress_local SET energy=:e,last_energy_update=:n "
-            "WHERE chat_id=:c AND user_id=:u",
-            {"e": energy, "n": now, "c": cid, "u": uid}
-        )
-    return energy, now
+    return row["energy"]
 
 async def add_energy(cid:int, uid:int, delta:int):
     await _ensure_progress(cid, uid)
@@ -234,24 +221,11 @@ async def add_energy(cid:int, uid:int, delta:int):
 
 async def update_hunger(cid: int, uid: int):
     await _ensure_progress(cid, uid)
-    now = dt.datetime.now(tz=UTC)
     row = await db.fetch_one(
-        "SELECT hunger,last_hunger_update FROM progress_local "
-        "WHERE chat_id=:c AND user_id=:u", {"c": cid, "u": uid}
+        "SELECT hunger FROM progress_local WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
     )
-    hunger = row["hunger"]
-    last   = row["last_hunger_update"] or now
-    if last.tzinfo is None:
-        last = last.replace(tzinfo=UTC)
-    decay  = int((now - last).total_seconds() // HUNGER_INTERVAL_S) * HUNGER_DECAY
-    if decay:
-        hunger = max(0, hunger - decay)
-        await db.execute(
-            "UPDATE progress_local SET hunger=:h,last_hunger_update=:n "
-            "WHERE chat_id=:c AND user_id=:u",
-            {"h": hunger, "n": now, "c": cid, "u": uid}
-        )
-    return hunger, now
+    return row["hunger"]
 
 async def update_streak(cid: int, uid: int) -> int:
     # дістаємо останній день
@@ -261,11 +235,16 @@ async def update_streak(cid: int, uid: int) -> int:
     )
     last_day = row["last_mine_day"] or dt.date(1970,1,1)
     today = dt.date.today()
-    if last_day + dt.timedelta(days=1) == today:
-        streak = (await db.fetch_val(
+    if last_day == today:
+        streak = await db.fetch_val(
             "SELECT streak FROM progress_local WHERE chat_id=:c AND user_id=:u",
             {"c": cid, "u": uid}
-        )) + 1
+        )
+    elif last_day + dt.timedelta(days=1) == today:
+        streak = await db.fetch_val(
+            "SELECT streak FROM progress_local WHERE chat_id=:c AND user_id=:u",
+            {"c": cid, "u": uid}
+        ) + 1
     else:
         streak = 1
 

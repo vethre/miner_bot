@@ -435,7 +435,6 @@ async def sell_cmd(message: types.Message):
 async def smelt_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
 
-    # ───── 1. Парсимо аргументи ─────
     try:
         _, args = message.text.split(maxsplit=1)
         ore_part, qty_str = args.rsplit(maxsplit=1)
@@ -452,32 +451,31 @@ async def smelt_cmd(message: types.Message):
 
     recipe = SMELT_RECIPES[ore_key]
     need_for_one = recipe["in_qty"]
-
-    # ───── 2. Чи вистачає ресурсів? ─────
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     have_ore = inv.get(ore_key, 0)
-    if have_ore < qty:
-        return await message.reply(f"У тебя только {have_ore}")
 
-    # Скільки слитків реально можна зробити
+    # Якщо нема — виводимо
+    if have_ore < qty:
+        name = ITEM_DEFS.get(ore_key, {}).get("name", ore_key)
+        emoji = ITEM_DEFS.get(ore_key, {}).get("emoji", "⛏️")
+        return await message.reply(f"❌ Не хватает руды: {emoji} {name} ×{qty - have_ore}")
+
     cnt = qty // need_for_one
     if cnt < 1:
         return await message.reply(f"Нужно минимум {need_for_one}× для одного слитка")
 
-    # ───── 3. Списуємо руду ─────
+    # Списуємо
     used = cnt * need_for_one
     await add_item(cid, uid, ore_key, -used)
 
-    # ───── 4. Torch Bundle (опційно) ─────
     torch_mult = 1.0
     torch_msg = ""
     if inv.get("torch_bundle", 0) > 0:
-        torch_mult = TORCH_SPEEDUP        # 0 .7  →  30 % швидше
+        torch_mult = TORCH_SPEEDUP
         await add_item(cid, uid, "torch_bundle", -1)
         torch_msg = "🕯️ Факел использован — плавка ускорена на 30%!\n"
 
-    # ───── 5. Тривалість та таймер ─────
-    duration = get_smelt_duration(cnt, torch_mult)   # сек
+    duration = get_smelt_duration(cnt, torch_mult)
     await db.execute(
         "UPDATE progress_local SET smelt_end = :e "
         "WHERE chat_id = :c AND user_id = :u",
@@ -486,14 +484,13 @@ async def smelt_cmd(message: types.Message):
     )
     asyncio.create_task(smelt_timer(message.bot, cid, uid, recipe, cnt, torch_mult))
 
-    sec      = duration
-    minutes  = max(1, round(sec / 60))
-    # ───── 6. Відповідь та autodelete ─────
+    minutes = max(1, round(duration / 60))
     msg = await message.reply(
         f"{torch_msg}🔥 Забрасываем {cnt} руды в печь.\n"
         f"(⏲️ Через <b>{minutes}</b> минут получим {recipe['out_name']}×{cnt}.)"
     )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
+
 
 # ────────── /craft ──────────
 @router.message(Command("craft"))
@@ -506,15 +503,31 @@ async def craft_cmd(message: types.Message):
     recipe = CRAFT_RECIPES.get(craft_name)
     if not recipe:
         return await message.reply("Рецепт не найден")
+
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+
+    # Пошук відсутніх
+    missing = {}
     for k, need in recipe["in"].items():
-        if inv.get(k, 0) < need:
-            return await message.reply("Не хватает ресурсов")
+        have = inv.get(k, 0)
+        if have < need:
+            missing[k] = need - have
+
+    if missing:
+        text = "❌ Не хватает ресурсов:\n"
+        for key, qty in missing.items():
+            emoji = ITEM_DEFS.get(key, {}).get("emoji", "❓")
+            name  = ITEM_DEFS.get(key, {}).get("name", key)
+            text += f"• {emoji} {name} ×{qty}\n"
+        return await message.reply(text.strip())
+
+    # Все є — списуємо
     for k, need in recipe["in"].items():
         await add_item(cid, uid, k, -need)
     await add_item(cid, uid, recipe["out_key"], 1)
     msg = await message.reply(f"🎉 Создано: {recipe['out_name']}!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
+
 
 # ────────── /stats ──────────
 @router.message(Command("stats"))

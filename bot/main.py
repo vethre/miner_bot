@@ -17,6 +17,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 CEST = pytz.timezone("Europe/Prague")
+UTC = datetime.timezone.utc
+ENERGY_MAX = 100
+HUNGER_MAX = 100
+
 
 async def main():
     logger.info(f"▶️ Using DB_DSN: {DB_DSN!r}")
@@ -43,6 +47,18 @@ async def main():
         start=True
     )
 
+    aiocron.crontab(
+        '*/30 * * * *',  # кожні 30 хвилин
+        func=restore_energy,
+        start=True
+    )
+
+    aiocron.crontab(
+        '0 * * * *',  # кожну годину на 00 хв
+        func=reduce_hunger,
+        start=True
+    )
+
     async def _on_startup(bot: Bot):
         asyncio.create_task(auto_cleanup_task(bot, db), name="auto-delete")
 
@@ -54,6 +70,31 @@ async def main():
     # По завершенню (якщо кине SIGTERM чи Exception)
     await db.disconnect()
     logger.info("📴 Polling завершено")
+
+async def restore_energy():
+    logger.debug("[CRON] Відновлення енергії")
+    await db.execute("""
+        UPDATE progress_local
+           SET energy = LEAST(:max, energy + :step),
+               last_energy_update = :now
+         WHERE energy < :max
+    """, {
+        "step": 10,
+        "max": ENERGY_MAX,
+        "now": datetime.datetime.now(tz=UTC)
+    })
+
+async def reduce_hunger():
+    logger.debug("[CRON] Зменшення голоду")
+    await db.execute("""
+        UPDATE progress_local
+           SET hunger = GREATEST(0, hunger - :step),
+               last_hunger_update = :now
+         WHERE hunger > 0
+    """, {
+        "step": 10,
+        "now": datetime.datetime.now(tz=UTC)
+    })
 
 async def daily_reward():
     if BOT is None:
