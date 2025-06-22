@@ -113,7 +113,12 @@ async def noop_cb(callback: CallbackQuery):
 async def shop_buy_callback(callback: CallbackQuery):
     await callback.answer() # Acknowledge the callback query
     cid, uid = callback.message.chat.id, callback.from_user.id
-    _, item_id = callback.data.split(":", 1) # Split to get the item ID
+    _, item_id, data = callback.data.split(":", 1) # Split to get the item ID
+    orig_uid = data
+    orig_uid = int(orig_uid)
+    # тільки автор може натискати
+    if callback.from_user.id != orig_uid:
+        return await callback.answer("Эта кнопка не для тебя", show_alert=True)
 
     if (item := SHOP_ITEMS.get(item_id)) is None:
         return await callback.message.reply("Товар не найден 😕")
