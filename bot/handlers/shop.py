@@ -58,7 +58,7 @@ async def _send_shop_page(chat_id: int, *, page: int,
         meta = SHOP_ITEMS[iid]
         kb.button(
             text=f"{meta['emoji']} {meta['name']} — {meta['price']} мон.",
-            callback_data=f"buy:{iid}"
+            callback_data=f"buy:{iid}:{bot_message.from_user.id}"
         )
     kb.adjust(1) # Display each shop item button on its own row
 
@@ -113,12 +113,14 @@ async def noop_cb(callback: CallbackQuery):
 async def shop_buy_callback(callback: CallbackQuery):
     await callback.answer() # Acknowledge the callback query
     cid, uid = callback.message.chat.id, callback.from_user.id
-    _, item_id, data = callback.data.split(":", 1) # Split to get the item ID
-    orig_uid = data
-    orig_uid = int(orig_uid)
-    # тільки автор може натискати
-    if callback.from_user.id != orig_uid:
-        return await callback.answer("Эта кнопка не для тебя", show_alert=True)
+    try:
+        _, item_id, orig_uid_str = callback.data.split(":")
+        orig_uid = int(orig_uid_str)
+    except ValueError:
+        return await callback.answer("Неверные данные", show_alert=True)
+
+    if uid != orig_uid:
+        return await callback.answer("Эта кнопка не для тебя 😠", show_alert=True)
 
     if (item := SHOP_ITEMS.get(item_id)) is None:
         return await callback.message.reply("Товар не найден 😕")
