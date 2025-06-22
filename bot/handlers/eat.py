@@ -26,6 +26,8 @@ ALIAS = {
     "мясо": "meat",
     "борщ": "borsch",
     "энергетик": "energy_drink",
+    "борсч": "borsch",
+    "borshch": "borsch",
 }
 
 @router.message(Command("eat"))
@@ -36,7 +38,7 @@ async def eat_cmd(message: types.Message):
     try:
         _, raw_key = message.text.split(maxsplit=1)
     except ValueError:
-        return await message.reply("📥 Как употреблять: /eat <что-то съедобное>")
+        return await message.reply("📥 Как употреблять: /eat 'что-то съедобное'")
 
     key  = ALIAS.get(raw_key.lower().strip(), raw_key.lower().strip())
     item = CONSUMABLES.get(key)

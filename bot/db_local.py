@@ -157,10 +157,43 @@ async def get_money(cid: int, uid: int) -> int:
 # ────────── XP / LEVEL ──────────
 async def add_xp(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)
-    await db.execute(
-        "UPDATE progress_local SET xp = xp + :d WHERE chat_id=:c AND user_id=:u",
-        {"d": delta, "c": cid, "u": uid}
+
+    row = await db.fetch_one(
+        "SELECT level, xp FROM progress_local "
+        "WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
     )
+    lvl, xp = row["level"], row["xp"] + delta
+    threshold = lvl * 80
+
+    leveled = False
+    while xp >= threshold:
+        xp -= threshold
+        lvl += 1
+        threshold = lvl * 80
+        leveled = True
+
+    if leveled:
+        # оновлюємо XP і рівень
+        await db.execute(
+            """
+            UPDATE progress_local
+               SET xp = :xp,
+                   level = :lvl
+             WHERE chat_id = :c AND user_id = :u
+            """,
+            {"xp": xp, "lvl": lvl, "c": cid, "u": uid}
+        )
+    else:
+        # тільки XP
+        await db.execute(
+            """
+            UPDATE progress_local
+               SET xp = :xp
+             WHERE chat_id = :c AND user_id = :u
+            """,
+            {"xp": xp, "c": cid, "u": uid}
+        )
 
 async def get_progress(cid: int, uid: int) -> Dict[str, Any]:
     row = await db.fetch_one(
@@ -215,16 +248,15 @@ async def update_streak(cid: int, uid: int) -> int:
     else:
         streak = 1
 
-    # зберігаємо
     await db.execute(
         "UPDATE progress_local SET streak=:s, last_mine_day=:d WHERE chat_id=:c AND user_id=:u",
         {"s": streak, "d": today, "c": cid, "u": uid}
     )
 
     if streak % 5 == 0:
-        bonus = 50 + 10 * (streak // 5)      # примерная формула
+        bonus = 50 + 10 * (streak // 5)      
         await add_xp(cid, uid, bonus)
-        await add_money(cid, uid, 100)       # ⇐ или уберите, если не нужно
+        await add_money(cid, uid, 100)      
 
     return streak
 
@@ -246,36 +278,59 @@ async def set_pick(cid:int, uid:int, pick_key:str, max_dur:int):
     )
 
 def _jsonb_to_dict(value):
-    # asyncpg інколи повертає вже dict (якщо server >12), інколи str
     if value is None:
         return {}
     if isinstance(value, dict):
         return value
     if isinstance(value, str):
-        return json.loads(value)          # ← наша «універсальна» точка
+        return json.loads(value)          # ← «універсальна» точка
     raise TypeError("Unexpected JSONB type")
+
+def _to_int(x):          # допоміжна функція
+    try:
+        return int(x)
+    except (TypeError, ValueError):
+        return 0
 
 async def change_dur(cid:int, uid:int, key:str, delta:int):
     row = await db.fetch_one(
         "SELECT pick_dur_map, pick_dur_max_map FROM progress_local "
         "WHERE chat_id=:c AND user_id=:u",
-        {"c":cid, "u":uid}
+        {"c": cid, "u": uid}
     )
+
     dur_map     = _jsonb_to_dict(row["pick_dur_map"])
     dur_max_map = _jsonb_to_dict(row["pick_dur_max_map"])
 
+    # перетворюємо значення у числа
+    dur_map     = {k: _to_int(v) for k, v in dur_map.items()}
+    dur_max_map = {k: _to_int(v) for k, v in dur_max_map.items()}
+
+    # якщо ключів ще нема – заводимо з дефолтами
     if key not in dur_max_map:
         from bot.handlers.use import PICKAXES
         dur_max_map[key] = PICKAXES[key]["dur"]
     if key not in dur_map:
         dur_map[key] = dur_max_map[key]
 
+    # змінюємо міцність
     dur_map[key] = max(0, dur_map[key] + delta)
-    await db.execute("""
+
+    # записуємо назад
+    await db.execute(
+        """
         UPDATE progress_local
-            SET pick_dur_map = (:dm)::jsonb
-        WHERE chat_id=:c AND user_id=:u
-    """, {"dm": json.dumps(dur_map), "c": cid, "u": uid})
+           SET pick_dur_map = (:dm)::jsonb,
+               pick_dur_max_map = (:dmm)::jsonb
+         WHERE chat_id=:c AND user_id=:u
+        """,
+        {
+            "dm":  json.dumps(dur_map),
+            "dmm": json.dumps(dur_max_map),
+            "c": cid, "u": uid
+        }
+    )
 
     return dur_map[key], dur_max_map[key]
+
 

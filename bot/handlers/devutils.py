@@ -55,6 +55,30 @@ async def id_cmd(message: types.Message):
     )
     await message.reply(text, parse_mode="HTML")
 
+@router.message(Command("announce"))
+async def announce_cmd(message: types.Message, bot: Bot):
+    # ─── доступ тільки для адмінів ─────────────────────────────
+    if message.from_user.id not in ADMINS:
+        return await message.reply("⛔️ Только для разработчика")
+
+    # ─── текст оголошення ──────────────────────────────────────
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
+        return await message.reply("Используй: /announce 'текст'")
+    text = parts[1]
+
+    # ─── вибираємо всі групи ───────────────────────────────────
+    rows = await db.fetch_all("SELECT chat_id FROM groups")
+    ok, fail = 0, 0
+    for r in rows:
+        try:
+            await bot.send_message(r["chat_id"], text, parse_mode="HTML")
+            ok += 1
+        except Exception:
+            fail += 1
+
+    await message.reply(f"✅ Отослано: {ok}, ошибок: {fail}")
+
 # ───────────── Команда /debug ─────────────
 @router.message(Command("debug"))
 async def debug_cmd(message: types.Message):
