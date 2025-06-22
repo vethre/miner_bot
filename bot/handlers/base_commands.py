@@ -18,6 +18,7 @@ from aiogram.enums import ChatMemberStatus
 
 from bot.db import db, create_user, get_user
 from bot.db_local import (
+    UTC,
     cid_uid,
     add_item,
     add_money,
@@ -139,7 +140,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     amount+= int(amount*pick_bonus)
 
     xp_gain=amount
-    if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():
+    if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.now(tz=UTC):
         xp_gain=int(xp_gain*1.5)
 
     await add_item(cid,uid,ore_id,amount)
@@ -206,8 +207,8 @@ async def profile_cmd(message: types.Message):
     await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
 
     # обчислюємо енергію та голод
-    energy, _ = await update_energy(cid, uid)
-    hunger, _ = await update_hunger(cid, uid)
+    energy = await update_energy(cid, uid)
+    hunger = await update_hunger(cid, uid)
 
     prog    = await get_progress(cid, uid)
     lvl     = prog.get("level", 1)
@@ -313,10 +314,10 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     if not user:
         return await message.reply("Сперва /start")
 
-    energy, _ = await update_energy(cid, uid)
-    hunger, _ = await update_hunger(cid, uid)
+    energy = await update_energy(cid, uid)
+    hunger = await update_hunger(cid, uid)
     if energy <= 15:
-        return await message.reply(f"😴 Недостаточно энергии {energy} (20 - минимум). Отдохни.")
+        return await message.reply(f"😴 Недостаточно энергии {energy} (15 - минимум). Отдохни.")
     if hunger < HUNGER_LIMIT:
         return await message.reply(f"🍽️ Ты слишкон голоден {hunger} (20 - минимум), сперва /eat!")
 
