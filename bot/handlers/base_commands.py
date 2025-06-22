@@ -140,7 +140,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     amount+= int(amount*pick_bonus)
 
     xp_gain=amount
-    if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.now(tz=UTC):
+    if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():
         xp_gain=int(xp_gain*1.5)
 
     await add_item(cid,uid,ore_id,amount)
@@ -332,8 +332,8 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     cur_pick = prog.get("current_pickaxe")
     if cur_pick and dur_map.get(cur_pick, 0) == 0:
             return await message.reply("⚠️ Кирка сломана! /repair")
-    if prog["mining_end"] and prog["mining_end"] > dt.datetime.now(tz=UTC):
-        delta = prog["mining_end"] - dt.datetime.now(tz=UTC)
+    if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
+        delta = prog["mining_end"] - dt.datetime.utcnow()
         left = max(1, round(delta.total_seconds() / 60))
         return await message.reply(f"⛏️ Ты ещё в шахте, осталось {left} мин.")
 
