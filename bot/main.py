@@ -50,7 +50,7 @@ async def main():
     )
 
     aiocron.crontab(
-        '*/30 * * * *',  # кожні 30 хвилин
+        '*/45 * * * *',  # кожні 45 хвилин
         func=restore_energy,
         start=True
     )
