@@ -319,7 +319,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     if energy <= 15:
         return await message.reply(f"😴 Недостаточно энергии {energy} (15 - минимум). Отдохни.")
     if hunger < HUNGER_LIMIT:
-        return await message.reply(f"🍽️ Ты слишкон голоден {hunger} (20 - минимум), сперва /eat!")
+        return await message.reply(f"🍽️ Ты слишком голоден {hunger} (20 - минимум), сперва /eat!")
 
     prog = await get_progress(cid, uid)
 

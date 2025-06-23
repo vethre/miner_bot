@@ -1,6 +1,8 @@
 # bot/handlers/use.py
 from aiogram import Router, types
 from aiogram.filters import Command
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import CallbackQuery
 from bot.db_local import cid_uid, get_inventory, add_item, db
 import json, asyncpg
 
@@ -42,69 +44,77 @@ def _json2dict(raw):
 @router.message(Command("use"))
 async def use_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
 
-    # ---------- 1. аргумент ----------
+    pick_keys = [k for k in PICKAXES if inv.get(k, 0) > 0]
+    if not pick_keys:
+        return await message.reply("У тебя нет ни одной кирки 🪨")
+
+    kb = InlineKeyboardBuilder()
+    for key in pick_keys:
+        meta = PICKAXES[key]
+        kb.button(
+            text=f"{meta['emoji']} {meta['name']} ({inv[key]} шт.)",
+            callback_data=f"use:{key}:{uid}"
+        )
+    kb.adjust(1)
+    await message.reply("🔧 Выбери кирку:", reply_markup=kb.as_markup())
+
+
+@router.callback_query(F.data.startswith("use:"))
+async def use_callback(callback: CallbackQuery):
+    cid, uid = await cid_uid(callback)
     try:
-        _, arg = message.text.split(maxsplit=1)
+        _, key, orig_uid_str = callback.data.split(":")
+        orig_uid = int(orig_uid_str)
     except ValueError:
-        return await message.reply("Как выбрать кирку: /use <название>")
-    arg = arg.lower().replace("'", "’").strip()
-    key = ALIAS.get(arg, arg)
-    if key not in PICKAXES:
-        return await message.reply(f"Нет кирки «{arg}» 😕")
+        return await callback.answer("Неверные данные", show_alert=True)
 
-    # ---------- 2. інвентар ----------
+    if uid != orig_uid:
+        return await callback.answer("Эта кнопка не для тебя 😾", show_alert=True)
+
+    if key not in PICKAXES:
+        return await callback.answer("Такой кирки не существует 😵")
+
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     if inv.get(key, 0) < 1:
-        return await message.reply(f"У тебя нет {PICKAXES[key]['name']}")
+        return await callback.answer("У тебя нет этой кирки ❌", show_alert=True)
 
-    # ---------- 3. читаємо прогрес ----------
-    prog = await db.fetch_one(
-        """SELECT current_pickaxe, pick_dur_map, pick_dur_max_map
-             FROM progress_local
-            WHERE chat_id=:c AND user_id=:u""",
-        {"c": cid, "u": uid}
-    )
-    cur          = prog["current_pickaxe"]
-    dur_map      = _json2dict(prog["pick_dur_map"])
-    dur_max_map  = _json2dict(prog["pick_dur_max_map"])
+    prog = await db.fetch_one("""
+        SELECT current_pickaxe, pick_dur_map, pick_dur_max_map
+          FROM progress_local
+         WHERE chat_id=:c AND user_id=:u
+    """, {"c": cid, "u": uid})
+    cur = prog["current_pickaxe"]
+    dur_map = _json2dict(prog["pick_dur_map"])
+    dur_max_map = _json2dict(prog["pick_dur_max_map"])
 
-    # ---------- 4. оновлюємо durability-мапи ----------
     if key not in dur_max_map:
         dur_max_map[key] = PICKAXES[key]["dur"]
     if key not in dur_map:
         dur_map[key] = dur_max_map[key]
 
-    # ---------- 5. транзакція ----------
     async with db.transaction():
-        # 5-a: списуємо нову кирку
         await add_item(cid, uid, key, -1)
-
-        # 5-b: повертаємо попередню (якщо була)
         if cur:
             await add_item(cid, uid, cur, +1)
-
-        # 5-c: зберігаємо прогрес
-        await db.execute(
-            """
+        await db.execute("""
             UPDATE progress_local
-               SET current_pickaxe   = :p,
-                   pick_dur_map      = (:dm)::jsonb,
-                   pick_dur_max_map  = (:dmm)::jsonb
+               SET current_pickaxe = :p,
+                   pick_dur_map = (:dm)::jsonb,
+                   pick_dur_max_map = (:dmm)::jsonb
              WHERE chat_id = :c AND user_id = :u
-            """,
-            {
-                "p":   key,
-                "dm":  json.dumps(dur_map),
-                "dmm": json.dumps(dur_max_map),
-                "c":   cid,
-                "u":   uid,
-            }
-        )
+        """, {
+            "p": key,
+            "dm": json.dumps(dur_map),
+            "dmm": json.dumps(dur_max_map),
+            "c": cid,
+            "u": uid
+        })
 
-    # ---------- 6. відповідь ----------
-    await message.reply(
+    await callback.message.edit_text(
         f"{PICKAXES[key]['emoji']} Взял <b>{PICKAXES[key]['name']}</b> "
-        f"(бонус +{int(PICKAXES[key]['bonus']*100)} %)",
+        f"(бонус +{int(PICKAXES[key]['bonus'] * 100)}%)",
         parse_mode="HTML"
     )
+    # (…все як було, без змін)

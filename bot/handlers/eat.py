@@ -2,6 +2,8 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 import datetime as dt
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import CallbackQuery
 
 from bot.db_local import (
     cid_uid, get_inventory, add_item,
@@ -33,47 +35,57 @@ ALIAS = {
 @router.message(Command("eat"))
 async def eat_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
 
-    # --- 1) аргумент --------------------------------------------------------
+    edible_keys = [k for k in CONSUMABLES if inv.get(k, 0) > 0]
+    if not edible_keys:
+        return await message.reply("🍽️ У тебя нет ничего съедобного")
+
+    kb = InlineKeyboardBuilder()
+    for key in edible_keys:
+        meta = CONSUMABLES[key]
+        kb.button(text=f"{meta['name']} ({inv[key]} шт.)", callback_data=f"eat:{key}:{uid}")
+    kb.adjust(1)
+    await message.reply("Выбери, что хочешь съесть:", reply_markup=kb.as_markup())
+
+
+@router.callback_query(F.data.startswith("eat:"))
+async def eat_callback(callback: CallbackQuery):
+    cid, uid = await cid_uid(callback)
     try:
-        _, raw_key = message.text.split(maxsplit=1)
+        _, key, orig_uid_str = callback.data.split(":")
+        orig_uid = int(orig_uid_str)
     except ValueError:
-        return await message.reply("📥 Как употреблять: /eat 'что-то съедобное'")
+        return await callback.answer("Неверные данные", show_alert=True)
 
-    key  = ALIAS.get(raw_key.lower().strip(), raw_key.lower().strip())
+    if uid != orig_uid:
+        return await callback.answer("Эта еда не для тебя 😤", show_alert=True)
+
     item = CONSUMABLES.get(key)
     if not item:
-        return await message.reply(f"Не знаю {raw_key} 🤔")
+        return await callback.answer("Такой еды нет 😅")
 
-    # --- 2) инвентарь --------------------------------------------------------
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     if inv.get(key, 0) < 1:
-        return await message.reply(f"У тебя нет {item['name']}")
+        return await callback.answer("У тебя нет этого блюда 😔", show_alert=True)
 
-    # --- 3) списываем предмет -----------------------------------------------
     await add_item(cid, uid, key, -1)
-
     now = dt.datetime.utcnow()
 
-    # --- 4) едим или пьем ----------------------------------------------------
-    if "hunger" in item:                                 # это еда
+    if "hunger" in item:
         curr_hunger, _ = await update_hunger(cid, uid)
         new_hunger = min(100, curr_hunger + item["hunger"])
-
-        await db.execute(
-            """UPDATE progress_local
-                   SET hunger = :h,
-                       last_hunger_update = :now
-                 WHERE chat_id=:c AND user_id=:u""",
-            {"h": new_hunger, "now": now, "c": cid, "u": uid}
-        )
-        txt = f"{item['name']} съедено 🍽️\nГолод: {new_hunger}/100"
-
-    else:                                                # это напиток
+        await db.execute("""
+            UPDATE progress_local
+               SET hunger = :h,
+                   last_hunger_update = :now
+             WHERE chat_id=:c AND user_id=:u
+        """, {"h": new_hunger, "now": now, "c": cid, "u": uid})
+        text = f"Ты съел: {item['name']}. 🍽️\nГолод: {new_hunger}/100"
+    else:
         inc = item["energy"]
         await add_energy(cid, uid, inc)
-        new_energy, _ = await update_energy(cid, uid)    # пересчитаем после add_energy
-        txt = f"{item['name']} выпит 🥤\nЭнергия: {new_energy}/100"
+        new_energy, _ = await update_energy(cid, uid)
+        text = f"Ты выпил: {item['name']}. 🥤\nЭнергия: {new_energy}/100"
 
-    msg = await message.reply(txt)
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
+    await callback.message.edit_text(text)

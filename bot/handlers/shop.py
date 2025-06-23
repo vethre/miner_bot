@@ -4,6 +4,8 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from itertools import islice
+# Добавлено в imports:
+from typing import Optional
 
 from bot.db_local import cid_uid, get_money, add_money, add_item
 from bot.handlers.cases import give_case_to_user
@@ -40,40 +42,38 @@ def max_page() -> int:
     """Returns the index of the last page."""
     return len(PAGES) - 1
 
+# 🛍 Покращена версія _send_shop_page:
+async def _send_shop_page(
+    chat_id: int,
+    *,
+    page: int,
+    bot_message: types.Message,
+    user_id: Optional[int] = None,
+    edit: bool = True
+):
+    items = PAGES[page]
+    kb = InlineKeyboardBuilder()
 
-async def _send_shop_page(chat_id: int, *, page: int,
-                          bot_message: types.Message,
-                          edit: bool = True):
-    """
-    Sends or edits the shop page message with inline keyboard.
-    :param chat_id: The ID of the chat.
-    :param page: The current page number (0-indexed).
-    :param bot_message: The message object to edit or reply to.
-    :param edit: If True, edits the message; otherwise, sends a new one.
-    """
-    items = PAGES[page] # Get items for the current page
-    kb = InlineKeyboardBuilder() # Keyboard for shop items
+    # ВАЖЛИВО: використай user_id, або fallback на from_user.id
+    uid = user_id or bot_message.from_user.id
 
     for iid in items:
         meta = SHOP_ITEMS[iid]
         kb.button(
             text=f"{meta['emoji']} {meta['name']} — {meta['price']} мон.",
-            callback_data=f"buy:{iid}:{bot_message.from_user.id}"
+            callback_data=f"buy:{iid}:{uid}"
         )
-    kb.adjust(1) # Display each shop item button on its own row
+    kb.adjust(1)
 
-    # Навігація (Pagination) keyboard
     nav = InlineKeyboardBuilder()
     if page > 0:
-        nav.button(text="« Назад", callback_data=f"shop:pg:{page-1}") # Corrected callback data
-    nav.button(text=f"{page+1}/{len(PAGES)}", callback_data="noop") # Page number display
+        nav.button(text="« Назад", callback_data=f"shop:pg:{page-1}")
+    nav.button(text=f"{page+1}/{len(PAGES)}", callback_data="noop")
     if page < len(PAGES)-1:
-        nav.button(text="Вперёд »", callback_data=f"shop:pg:{page+1}") # Corrected callback data
-
-    # Convert nav.buttons generator to a list to get its length and use with kb.row()
+        nav.button(text="Вперёд »", callback_data=f"shop:pg:{page+1}")
     nav_buttons_list = list(nav.buttons)
-    nav.adjust(len(nav_buttons_list)) # Place all navigation buttons in a single row
-    kb.row(*nav_buttons_list) # Add the navigation row to the main keyboard
+    nav.adjust(len(nav_buttons_list))
+    kb.row(*nav_buttons_list)
 
     if edit:
         await bot_message.edit_reply_markup(reply_markup=kb.as_markup())
@@ -85,22 +85,32 @@ async def _send_shop_page(chat_id: int, *, page: int,
             reply_markup=kb.as_markup()
         )
 
+
 # ------------------------------------------------------------------ handlers
 
 # Handler for initial /shop command
 @router.message(Command("shop"))
 async def shop_cmd(message: types.Message):
-    await _send_shop_page(message.chat.id, page=0, bot_message=message, edit=False)
+   await _send_shop_page(
+    chat_id=message.chat.id,
+    page=0,
+    bot_message=message,
+    user_id=message.from_user.id,  # ← ключове!
+    edit=False
+)
 
 # Handler for pagination buttons (e.g., "shop:pg:0", "shop:pg:1")
 @router.callback_query(F.data.startswith("shop:pg:"))
 async def shop_pagination(callback: CallbackQuery):
     await callback.answer() # Acknowledge the callback query
     _, _, page_str = callback.data.split(":") # Split to get the page number
-    await _send_shop_page(callback.message.chat.id,
-                          page=int(page_str),
-                          bot_message=callback.message,
-                          edit=True)
+    await _send_shop_page(
+        chat_id=callback.message.chat.id,
+        page=int(page_str),
+        bot_message=callback.message,
+        user_id=callback.from_user.id,  # ← ключове!
+        edit=True
+    )
 
 # Handler for the "noop" button (e.g., the page number button)
 @router.callback_query(F.data == "noop")

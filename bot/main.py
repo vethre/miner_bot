@@ -1,5 +1,6 @@
 # bot/main.py
 import asyncio
+import random
 import aiocron, pytz, datetime
 import logging
 from zoneinfo import ZoneInfo
@@ -36,7 +37,8 @@ async def main():
     register_handlers(dp)
 
     aiocron.crontab(
-        '0 7 * * *',          # 07:00 UTC ≈ 09:00 CEST
+        '* * * * *', # every minute
+        #'0 7 * * *',          # 07:00 UTC ≈ 09:00 CEST
         func=daily_reward,
         start=True            # одразу активувати
     )
@@ -101,27 +103,20 @@ async def daily_reward():
         return
 
     today = datetime.date.today()
-
-    # берём ВСЕ группы, которые бот «знает»
     groups = await db.fetch_all("SELECT chat_id FROM groups")
 
     for g in groups:
         chat_id = g["chat_id"]
 
-        # одна выборка — все юзеры ЭТОГО чата, кому ещё не выдавали бонус
         rows = await db.fetch_all("""
-            SELECT pl.user_id,
-                   pl.level,
-                   COALESCE(b.coins,0)   AS coins,
+            SELECT pl.user_id, pl.level,
+                   COALESCE(b.coins,0) AS coins,
                    u.username
-            FROM   progress_local pl
-                   LEFT JOIN balance_local b
-                          ON b.chat_id = pl.chat_id AND b.user_id = pl.user_id
-                   LEFT JOIN users u       -- только ради username
-                          ON u.user_id = pl.user_id
-            WHERE  pl.chat_id   = :chat
-              AND  (pl.last_daily IS NULL
-                    OR pl.last_daily < :today)
+              FROM progress_local pl
+         LEFT JOIN balance_local b ON b.chat_id = pl.chat_id AND b.user_id = pl.user_id
+         LEFT JOIN users u         ON u.user_id = pl.user_id
+             WHERE pl.chat_id = :chat
+               AND (pl.last_daily IS NULL OR pl.last_daily < :today)
         """, {"chat": chat_id, "today": today})
 
         if not rows:
@@ -131,13 +126,21 @@ async def daily_reward():
         async with db.transaction():
             for r in rows:
                 lvl = r["level"]
-                # — простенькая шкала —
-                if   lvl < 5:   money, xp =  60, 40
-                elif lvl < 10:  money, xp =  70, 50
-                elif lvl < 15:  money, xp = 130, 60
-                else:           money, xp = 300, 70
 
-                # баланс
+                # 🎲 випадковий бонус
+                if lvl < 5:
+                    money = random.randint(50, 100)
+                    xp = random.randint(30, 60)
+                elif lvl < 10:
+                    money = random.randint(80, 140)
+                    xp = random.randint(50, 80)
+                elif lvl < 15:
+                    money = random.randint(120, 180)
+                    xp = random.randint(60, 100)
+                else:
+                    money = random.randint(200, 350)
+                    xp = random.randint(70, 120)
+
                 await db.execute("""
                     INSERT INTO balance_local(chat_id,user_id,coins)
                          VALUES(:c,:u,:m)
@@ -145,30 +148,23 @@ async def daily_reward():
                          UPDATE SET coins = balance_local.coins + :m
                 """, {"c": chat_id, "u": r["user_id"], "m": money})
 
-                # XP
                 await add_xp(chat_id, r["user_id"], xp)
 
-                # отметка «бонус получен»
                 await db.execute("""
                     UPDATE progress_local
                        SET last_daily = :today
                      WHERE chat_id=:c AND user_id=:u
                 """, {"today": today, "c": chat_id, "u": r["user_id"]})
 
-                # красивый mention
                 nick = r["username"]
                 mention = f"@{nick}" if nick else f'<a href="tg://user?id={r["user_id"]}">шахтёр</a>'
                 messages.append(f"{mention} →  +{money}💰  +{xp} XP")
 
-        # рассылаем готовый список только в эту группу
         try:
-            text = (
-                f"🎁 <b>Ежедневный бонус {today.strftime('%d.%m.%Y')}</b>\n"
-                + "\n".join(messages)
-            )
+            text = f"🎁 <b>Ежедневный бонус {today.strftime('%d.%m.%Y')}</b>\n" + "\n".join(messages)
             await BOT.send_message(chat_id, text, parse_mode="HTML")
         except Exception:
-            pass  # группа могла запретить боту писать
+            pass
 
 
 async def hourly_pass_xp():
