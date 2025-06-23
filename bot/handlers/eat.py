@@ -1,5 +1,5 @@
 # bot/handlers/eat.py
-from aiogram import Router, types
+from aiogram import Router, types, F
 from aiogram.filters import Command
 import datetime as dt
 from aiogram.utils.keyboard import InlineKeyboardBuilder
