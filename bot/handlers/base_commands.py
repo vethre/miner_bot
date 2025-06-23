@@ -584,7 +584,7 @@ async def stats_callback(callback: CallbackQuery):
             member = await callback.bot.get_chat_member(cid, uid)
             user = member.user
             if user.username:
-                mention = f"@{user.username}"
+                mention = f"{user.username}"
             else:
                 mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
             lines.append(f"{i}. {mention} — уровень {lvl} (XP {xp})")
@@ -601,7 +601,7 @@ async def stats_callback(callback: CallbackQuery):
             member = await callback.bot.get_chat_member(cid, uid)
             user = member.user
             if user.username:
-                mention = f"@{user.username}"
+                mention = f"{user.username}"
             else:
                 mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
 
