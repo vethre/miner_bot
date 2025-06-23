@@ -227,6 +227,14 @@ async def profile_cmd(message: types.Message):
     dur             = dur_map.get(current,      PICKAXES[current]["dur"])
     dur_max         = dur_max_map.get(current,  PICKAXES[current]["dur"])
 
+    # Legacy
+    inventory = await get_inventory(cid, uid)
+    for row in inventory:
+        if row["item"] == "legacy_pickaxe":
+            legacy = ITEM_DEFS.get("legacy_pickaxe", {"name": "Памятная кирка"})
+            text += f"\n\n🏛️ <b>Памятка:</b> {legacy['name']}"
+            break
+
     # Pass
     has_pass    = prog.get("cave_pass", False)
     expires     = prog.get("pass_expires")

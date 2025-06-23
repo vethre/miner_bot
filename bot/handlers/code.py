@@ -12,67 +12,60 @@ router = Router()
 @router.message(Command("code"))
 async def promo_code_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
+    code = message.text.split(maxsplit=1)[1].strip().lower()
 
-    try:
-        _, code = message.text.split(maxsplit=1)
-        code = code.strip().lower()
-    except ValueError:
-        return await message.reply("📥 Введи промокод: /code <твой_код>")
-
-    row = await db.fetch_one(
-        "SELECT * FROM promo_codes WHERE code=:code",
-        {"code": code}
-    )
+    row = await db.fetch_one("SELECT * FROM promocodes WHERE code=:code", {"code": code})
     if not row:
-        return await message.reply("❌ Промокод не найден или неактивен.")
+        return await message.reply("❌ Промокод не найден")
 
-    if row["chat_id"] is not None and row["chat_id"] != cid:
-        return await message.reply("🚫 Этот промокод не действует в этом чате.")
+    used_by = row["used_by"] or "[]"
+    try:
+        used_by = json.loads(used_by)
+    except Exception:
+        used_by = []
 
-    used_by = json.loads(row["used_by"]) if isinstance(row["used_by"], str) else row["used_by"]
-    if uid in used_by:
-        return await message.reply("⛔️ Ты уже использовал этот промокод.")
+    # Підтримка старого формату (тільки user_id)
+    if used_by and isinstance(used_by[0], int):
+        already_used = uid in used_by
+        if not already_used:
+            used_by.append(uid)
+    else:
+        already_used = any(u.get("chat_id") == cid and u.get("user_id") == uid for u in used_by)
+        if not already_used:
+            used_by.append({"chat_id": cid, "user_id": uid})
 
-    if row["max_uses"] is not None and len(used_by) >= row["max_uses"]:
-        return await message.reply("😢 Промокод уже полностью использован.")
+    if already_used:
+        return await message.reply("🚫 Ты уже активировал этот промокод в этом чате.")
 
-    if row["expires_at"] and row["expires_at"] < dt.datetime.utcnow():
-        return await message.reply("⌛ Этот промокод уже истёк.")
+    # 💰 выдача награды
+    reward = row["reward"]
+    if isinstance(reward, str):
+        reward = json.loads(reward)
 
-    reward_raw = row["reward"]
-    # применяем награду
-    reward = json.loads(reward_raw) if isinstance(reward_raw, str) else reward_raw
     coins = reward.get("coins", 0)
-    xp = reward.get("xp", 0)
-    items = reward.get("items", {})
+    xp    = reward.get("xp", 0)
+    items = reward.get("items", {})  # {"item_id": qty}
 
-    await add_money(cid, uid, coins)
-    await add_xp(cid, uid, xp)
-
-    cases = reward.get("cave_cases", 0)
-
-    if cases:
-        await give_case_to_user(cid, uid, cases)
+    if coins < 0:
+        await add_money(cid, uid, coins)  # списание монет
+        return await message.reply(f"😅 Интересный выбор... −{abs(coins)} монет списано")
+    
+    if coins:
+        await add_money(cid, uid, coins)
+    if xp:
+        await add_xp(cid, uid, xp)
     for item_id, qty in items.items():
         await add_item(cid, uid, item_id, qty)
 
-    used_by.append(uid)
-
     await db.execute(
-        """UPDATE promo_codes
-              SET used_by = :used
-            WHERE code = :code""",
+        "UPDATE promocodes SET used_by = :used WHERE code = :code",
         {"used": json.dumps(used_by), "code": code}
     )
 
-    # відповідаємо користувачу
-    lines = ["🎉 <b>Промокод активирован!</b>"]
-    if coins:
-        lines.append(f"💰 Монеты: +{coins}")
-    if xp:
-        lines.append(f"📚 XP: +{xp}")
-    for item_id, qty in items.items():
-        lines.append(f"🎁 {item_id}: +{qty}")
-
-    msg = await message.reply("\n".join(lines), parse_mode="HTML")
+    msg = await message.reply(f"✅ Промокод активирован!\nНаграда: {coins} монет, {xp} XP")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
+
+
+if cases:
+        lines.append(f"📦 Cave Case: +{cases}")
+        cases = reward.get("cave_cases", 0)
