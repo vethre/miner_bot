@@ -3,6 +3,7 @@ import datetime as dt
 from zoneinfo import ZoneInfo
 import json, asyncpg
 from typing import Tuple, List, Dict, Any
+from aiogram.types import Message, CallbackQuery
 from bot.db import db               # глобальний async-connection
 
 UTC = ZoneInfo("UTC")
@@ -85,9 +86,18 @@ HUNGER_MAX, HUNGER_DECAY, HUNGER_INTERVAL_S   = 100, 10, 60 * 60
 DEFAULT_DUR = 65 
 
 # ────────── HELPER ──────────
-async def cid_uid(msg) -> Tuple[int, int]:
-    cid = msg.chat.id if msg.chat.type in ("group", "supergroup") else 0
-    return cid, msg.from_user.id
+async def cid_uid(msg: Message | CallbackQuery) -> Tuple[int, int]:
+    if isinstance(msg, CallbackQuery):
+        chat = msg.message.chat
+        user = msg.from_user
+    elif isinstance(msg, Message):
+        chat = msg.chat
+        user = msg.from_user
+    else:
+        raise TypeError("cid_uid: unsupported type")
+
+    cid = chat.id if chat.type in ("group", "supergroup") else 0
+    return cid, user.id
 
 async def _ensure_progress(cid: int, uid: int):
     dm  = json.dumps({"wooden_pickaxe": DEFAULT_DUR})

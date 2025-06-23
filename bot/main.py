@@ -37,7 +37,7 @@ async def main():
     register_handlers(dp)
 
     aiocron.crontab(
-        '* * * * *', # every minute
+        '*/1 * * * *', # every minute
         #'0 7 * * *',          # 07:00 UTC ≈ 09:00 CEST
         func=daily_reward,
         start=True            # одразу активувати
