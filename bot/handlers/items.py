@@ -80,7 +80,7 @@ ITEM_DEFS["iron_pickaxe"]["emoji"]    = "⛏️"
 ITEM_DEFS["gold_pickaxe"]["emoji"]    = "✨"
 ITEM_DEFS["amethyst_pickaxe"]["emoji"]= "🔮"
 ITEM_DEFS["roundstone_pickaxe"]["emoji"] = "🪨"
-ITEM_DEFS["woode_pickaxe"]["emoji"] = "🪵"
+ITEM_DEFS["wooden_pickaxe"]["emoji"] = "🪵"
 
 
 EXTRA_ORES = {
