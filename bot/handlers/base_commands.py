@@ -743,3 +743,21 @@ async def autodelete_cmd(message: types.Message, bot: Bot):
         msg = await message.reply(f"🧼 Автоудаление активировано: каждые {minutes} минут бот будет чистить свои сообщения.")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
+@router.message(Command("cavebot"))
+async def cavebot_cmd(message: types.Message):
+    replies = [
+        "⚙️ CaveBot v0.1 (2022) — восстановление памяти... <code>[FAILED]</code>\nПроект Unity недоступен. Каталог отсутствует.",
+        "🧠 EONIT::ThreadWarning — ⚠️ Последняя синхронизация: <b>06.08.2023</b>\nЗагрузка backup...\n<code>load(cavebot-legacy)</code> ➝ <b>Файл повреждён</b>",
+        "<b>⚠️ SYSTEM OVERRIDE</b>\ntrace(legacy_link):\n→ UnityBuild.exe [CaveGame] = ❌\n→ bot_deploy.sh = ❌\n→ AI_CoPilot = ???\n\n<code>REBOOTING...</code>",
+        "<code>[ERR] Promo 'unreleased2023'</code> → -1 монета списана. Это шутка... или?",
+        "🔧 <b>CaveBot v1.0.0-RC</b>\n<code>error: eonite_shard not initialized</code>\n⏳ Обновление через █ дней\n<code>sys.msg: prepare for awaken</code>",
+        "🕳️ <i>06.08.2023 — день молчания</i>\n<code>LOG BACKUP → /failed_deploys/cavebot_beta</code>\n«иногда лучше не пытаться...»",
+        "🧬 <b>Eonit Signal</b>: <code>01 00 11 01 10 10 01 01</code>\n<code>Legacy transmission unstable.</code>",
+        "📀 <b>Промокод:</b> cavebot-legacy → 🪓 Legacy Pickaxe (прочность 1)\n🪦 <i>Прах был заложен в корни Eonit</i>",
+        "⚙️ <code>aiogram.dispatcher: Polling stopped (code: UNSTABLE)</code>\n🌀 Cave Core не отвечает.",
+        "<b>[ALERT] CORE NULLIFIED</b>\nОшибка связи с ядром Эонита. Текущий канал: /null",
+        "💾 <code>~$ unity_export.sh → permission denied</code>\n🧠 «если ты это читаешь — значит кто-то выжил»",
+        "<code>01000101 01001111 01001110 01001001 01010100 01000101</code>"
+        "🔄 <code>fetch_update(“Eonit Awakens”)</code> → доступ запрещён.\nПричина: доступ возможен только при наличии <b>Legacy Token</b>"
+    ]
+    await message.reply(random.choice(replies), parse_mode="HTML")
