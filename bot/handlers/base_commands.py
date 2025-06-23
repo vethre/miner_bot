@@ -642,8 +642,10 @@ async def repair_cmd(message: types.Message):
         return await message.reply("🛑 Ремонт доступен только при прочности менее 30.")
 
     # 💎 Хрустальная кирка — только один частичный ремонт
+    crystal_repaired = prog.get("crystal_repaired", False)
+
     if pick_key == "crystal_pickaxe":
-        if dur > 0:
+        if crystal_repaired:
             return await message.reply("💎 Хрустальная кирка слишком хрупкая для повторного ремонта.")
         restore = dur_max // 2
         cost = restore * 3  # дороже ремонт
