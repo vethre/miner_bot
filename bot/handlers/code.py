@@ -58,7 +58,7 @@ async def promo_code_cmd(message: types.Message):
         await add_item(cid, uid, item_id, qty)
 
     await db.execute(
-        "UPDATE promocodes SET used_by = :used WHERE code = :code",
+        "UPDATE promo_codes SET used_by = :used WHERE code = :code",
         {"used": json.dumps(used_by), "code": code}
     )
 
