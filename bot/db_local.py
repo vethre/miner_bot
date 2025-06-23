@@ -56,6 +56,15 @@ CREATE TABLE IF NOT EXISTS case_rewards (
   reward_data  JSONB   NOT NULL       
 );
 
+CREATE TABLE IF NOT EXISTS promo_codes (
+    code TEXT PRIMARY KEY,
+    chat_id BIGINT,
+    reward JSONB NOT NULL,
+    max_uses INTEGER,
+    expires_at TIMESTAMPTZ,
+    used_by JSONB DEFAULT '[]'
+);
+
 ALTER TABLE progress_local
   ADD COLUMN IF NOT EXISTS streak INT DEFAULT 0;
 
