@@ -64,8 +64,3 @@ async def promo_code_cmd(message: types.Message):
 
     msg = await message.reply(f"✅ Промокод активирован!\nНаграда: {coins} монет, {xp} XP")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
-
-
-if cases:
-        lines.append(f"📦 Cave Case: +{cases}")
-        cases = reward.get("cave_cases", 0)
