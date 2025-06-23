@@ -73,7 +73,7 @@ async def eat_callback(callback: CallbackQuery):
     now = dt.datetime.utcnow()
 
     if "hunger" in item:
-        curr_hunger, _ = await update_hunger(cid, uid)
+        curr_hunger = await update_hunger(cid, uid)
         new_hunger = min(100, curr_hunger + item["hunger"])
         await db.execute("""
             UPDATE progress_local
@@ -85,7 +85,7 @@ async def eat_callback(callback: CallbackQuery):
     else:
         inc = item["energy"]
         await add_energy(cid, uid, inc)
-        new_energy, _ = await update_energy(cid, uid)
+        new_energy = await update_energy(cid, uid)
         text = f"Ты выпил: {item['name']}. 🥤\nЭнергия: {new_energy}/100"
 
     await callback.message.edit_text(text)
