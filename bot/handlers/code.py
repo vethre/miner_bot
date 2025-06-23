@@ -25,7 +25,7 @@ async def promo_code_cmd(message: types.Message):
     if not row:
         return await message.reply("❌ Промокод не найден или неактивен.")
 
-    if row["chat_id"] != cid:
+    if row["chat_id"] is not None and row["chat_id"] != cid:
         return await message.reply("🚫 Этот промокод не действует в этом чате.")
 
     used_by = row["used_by"] or []
