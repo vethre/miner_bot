@@ -1,5 +1,6 @@
 # bot/db_local.py
 import datetime as dt
+import logging
 from zoneinfo import ZoneInfo
 import json, asyncpg
 from typing import Tuple, List, Dict, Any
@@ -264,9 +265,30 @@ async def update_streak(cid: int, uid: int) -> int:
     )
 
     if streak % 5 == 0:
-        bonus = 50 + 10 * (streak // 5)      
-        await add_xp(cid, uid, bonus)
-        await add_money(cid, uid, 100)      
+        bonus_xp = 50 + 10 * (streak // 5)
+        bonus_money = 100
+
+        await add_xp(cid, uid, bonus_xp)
+        await add_money(cid, uid, bonus_money)     
+
+    try:
+            # ⚙️ Красивий mention
+            from bot.main import BOT  # Імпортуємо глобального бота
+            member = await BOT.get_chat_member(cid, uid)
+            mention = (
+                f"@{member.user.username}"
+                if member.user.username else
+                f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
+            )
+
+            await BOT.send_message(
+                cid,
+                f"🌟 {mention}, твой стрик достиг <b>{streak} дней</b>!\n"
+                f"🎁 Бонус: +{bonus_xp} XP, +{bonus_money} монет 💰",
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        logging.warning(f"❌ Не вдалося надіслати повідомлення про streak: {e}") 
 
     return streak
 
