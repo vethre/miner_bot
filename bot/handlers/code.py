@@ -14,7 +14,7 @@ async def promo_code_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     code = message.text.split(maxsplit=1)[1].strip().lower()
 
-    row = await db.fetch_one("SELECT * FROM promocodes WHERE code=:code", {"code": code})
+    row = await db.fetch_one("SELECT * FROM promo_codes WHERE code=:code", {"code": code})
     if not row:
         return await message.reply("❌ Промокод не найден")
 
