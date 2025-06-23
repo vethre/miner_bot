@@ -5,6 +5,7 @@ import json
 
 from bot.db_local import cid_uid, db, add_money, add_xp, add_item
 from bot.handlers.cases import give_case_to_user
+from bot.handlers.items import ITEM_DEFS
 from bot.utils.autodelete import register_msg_for_autodelete
 
 router = Router()
@@ -62,5 +63,25 @@ async def promo_code_cmd(message: types.Message):
         {"used": json.dumps(used_by), "code": code}
     )
 
-    msg = await message.reply(f"✅ Промокод активирован!\nНаграда: {coins} монет, {xp} XP")
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
+    msg = ["🎉 <b>Промокод активирован!</b>\n"]
+    if coins:
+        msg.append(f"💰 {coins} монет")
+    if xp:
+        msg.append(f"📘 {xp} XP")
+
+    for item_id in items:
+        meta = ITEM_DEFS.get(item_id, {"name": item_id, "emoji": "📦"})
+        name = meta["name"]
+        emoji = meta.get("emoji", "")
+        await add_item(cid, uid, item_id, 1)
+        msg.append(f"{emoji} {name}")
+
+    # Випадок для кейсів
+    cave_cases = reward.get("cave_cases", 0)
+    if cave_cases:
+        await give_case_to_user(cid, uid, cave_cases)
+        msg.append(f"📦 Cave Case ×{cave_cases}")
+
+
+    msg_code = await message.reply("\n".join(msg), parse_mode="HTML")
+    register_msg_for_autodelete(message.chat.id, msg_code.message_id)
