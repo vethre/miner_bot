@@ -65,23 +65,21 @@ async def promo_code_cmd(message: types.Message):
 
     msg = ["🎉 <b>Промокод активирован!</b>\n"]
     if coins:
-        msg.append(f"💰 {coins} монет")
+        msg.append(f"💰 +{coins} монет")
     if xp:
-        msg.append(f"📘 {xp} XP")
+        msg.append(f"📘 +{xp} XP")
 
-    for item_id in items:
-        meta = ITEM_DEFS.get(item_id, {"name": item_id, "emoji": "📦"})
-        name = meta["name"]
-        emoji = meta.get("emoji", "")
-        await add_item(cid, uid, item_id, 1)
-        msg.append(f"{emoji} {name}")
-
-    # Випадок для кейсів
-    cave_cases = reward.get("cave_cases", 0)
-    if cave_cases:
-        await give_case_to_user(cid, uid, cave_cases)
-        msg.append(f"📦 Cave Case ×{cave_cases}")
-
+    for item_id, qty in items.items():
+        # Випадок для Cave Case
+        if item_id == "cave_cases":
+            await give_case_to_user(cid, uid, qty)
+            msg.append(f"+📦 Cave Case ×{qty}")
+        else:
+            await add_item(cid, uid, item_id, qty)
+            meta = ITEM_DEFS.get(item_id, {"name": item_id, "emoji": "📦"})
+            name = meta["name"]
+            emoji = meta.get("emoji", "")
+            msg.append(f"+{emoji} {name} ×{qty}")
 
     msg_code = await message.reply("\n".join(msg), parse_mode="HTML")
     register_msg_for_autodelete(message.chat.id, msg_code.message_id)
