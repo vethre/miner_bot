@@ -653,6 +653,10 @@ async def repair_cmd(message: types.Message):
             return await message.reply(f"💎❌ Недостаточно монет для частичного ремонта.\nНужно {cost} монет")
         await add_money(cid, uid, -cost)
         await change_dur(cid, uid, pick_key, restore)
+        await db.execute(
+            "UPDATE progress_local SET crystal_repaired=TRUE WHERE chat_id=:c AND user_id=:u",
+            {"c": cid, "u": uid}
+        )
         return await message.reply(
             f"💎 {pick_data['name']} восстановлена до {restore}/{dur_max} за {cost} монет!"
         )
