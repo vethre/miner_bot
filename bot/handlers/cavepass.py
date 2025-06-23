@@ -38,12 +38,13 @@ async def cavepass_cmd(message: types.Message):
         )
         builder.adjust(1)
         text = (
-            "<b><i>[Pre-Season]</i> Cave Pass</b> — 14 дней премиальных бонусов:\n"
+            "<b><i>[Pre-Season]</i> Cave Pass</b> — 15 дней премиальных бонусов:\n"
             f" • Эксклюзивная {EX_EMOJI} <b>{EX_NAME}</b>\n"
             " • ×1.5 XP при добывании\n"
-            " • +10 пассивного XP каждый час!\n\n"
+            " • +10 пассивного XP каждый час!\n"
+            f" • <i><b>Примечание:</b> {EX_EMOJI} {EX_NAME} чинится только 1 раз и только наполовину.</i>\n\n"
             f"<i>Цена: {PASS_PRICE_UAH} ₴ (оплата снаружи)</i>\n"
-            "<i>После оплаты сообщите мне через /report</i>"
+            "<i>После оплаты сообщите мне через /report 'сообщение'</i>"
         )
     else:
         days = max(0, (expires.date() - now.date()).days)
