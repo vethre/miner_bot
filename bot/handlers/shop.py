@@ -23,9 +23,10 @@ SHOP_ITEMS: dict[str, dict] = {
     "gold_pickaxe":   {"price": 2000, "name": "Золотая кирка",    "emoji": "✨"},
     "torch_bundle":   {"price": 150,  "name": "Факел",            "emoji": "🕯️"},
     "bread":          {"price": 50,   "name": "Хлеб",             "emoji": "🍞"},
-    "meat":           {"price": 120,  "name": "Мясо",             "emoji": "🍖"},
+    "meat":           {"price": 110,  "name": "Мясо",             "emoji": "🍖"},
     "borsch":         {"price": 300,  "name": "Борщ",             "emoji": "🥣"},
-    "energy_drink":   {"price": 170,  "name": "Энергетик",        "emoji": "🥤"},
+    "energy_drink":   {"price": 120,  "name": "Энергетик",        "emoji": "🥤"},
+    "coffee":         {"price": 280,  "name": "Кофе",             "emoji": "☕"},
     "cave_cases":     {"price": 300,  "name": "Cave Case",        "emoji": "📦"},
 }
 

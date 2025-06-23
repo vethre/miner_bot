@@ -2,12 +2,15 @@
 
 CASE_POOL = [
     {"key": "stone_pack",     "weight": 25},
-    {"key": "coin_pack",      "weight": 30},
-    {"key": "xp_boost",       "weight": 20},
+    {"key": "repair_pack",    "weight": 20},
+    {"key": "xp_boost",       "weight": 18},
     {"key": "gold_nugget",    "weight": 10},
     {"key": "food_pack",      "weight": 8},
-    {"key": "exclusive_pack", "weight": 4},
-    {"key": "repair_pack",    "weight": 2},
+    {"key": "tool_pack",      "weight": 7},
+    {"key": "energy_combo",   "weight": 6},
+    {"key": "chef_pack",      "weight": 5},
+    {"key": "exclusive_pack", "weight": 2},
+    {"key": "coin_pack",      "weight": 1},
     {"key": "rich_pack",      "weight": 1},
 ]
 

@@ -17,10 +17,12 @@ router = Router()
 CONSUMABLES = {
     # еда → восстанавливает hunger
     "bread":        {"name": "🍞 Хлеб",  "hunger": 30},
-    "meat":         {"name": "🍖 Мясо",  "hunger": 60},
-    "borsch":       {"name": "🥣 Борщ",  "hunger": 100},
+    "meat":         {"name": "🍖 Мясо",  "hunger": 50},
+    "borsch":       {"name": "🥣 Борщ",  "hunger": 90},
     # напитки / бустеры → восстанавливают energy
-    "energy_drink": {"name": "🥤 Энергетик", "energy": 40},
+    "energy_drink": {"name": "🥤 Энергетик", "energy": 20},
+    "coffee":       {"name": "☕ Кофе",       "energy": 70},
+
 }
 
 ALIAS = {
@@ -28,6 +30,7 @@ ALIAS = {
     "мясо": "meat",
     "борщ": "borsch",
     "энергетик": "energy_drink",
+    "кофе": "coffee",
     "борсч": "borsch",
     "borshch": "borsch",
 }

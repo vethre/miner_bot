@@ -627,28 +627,44 @@ async def repair_cmd(message: types.Message):
     if not pick_key:
         return await message.reply("У тебя пока нет активной кирки.")
 
-    # ▸ тут приводимо JSONB → dict
-    dur_map     = _jsonb_to_dict(prog.get("pick_dur_map"))
+    dur_map = _jsonb_to_dict(prog.get("pick_dur_map"))
     dur_max_map = _jsonb_to_dict(prog.get("pick_dur_max_map"))
 
-    dur     = dur_map.get(pick_key, 0)
+    dur = dur_map.get(pick_key, 0)
     dur_max = dur_max_map.get(pick_key, PICKAXES[pick_key]["dur"])
+    pick_data = PICKAXES[pick_key]
 
     if dur >= dur_max:
         return await message.reply("🛠️ Кирка в идеальном состоянии!")
 
+    # ❌ Ограничение по прочности
+    if dur >= 30:
+        return await message.reply("🛑 Ремонт доступен только при прочности менее 30.")
+
+    # 💎 Хрустальная кирка — только один частичный ремонт
+    if pick_key == "crystal_pickaxe":
+        if dur > 0:
+            return await message.reply("💎 Хрустальная кирка слишком хрупкая для повторного ремонта.")
+        restore = dur_max // 2
+        cost = restore * 3  # дороже ремонт
+        if await get_money(cid, uid) < cost:
+            return await message.reply(f"💎❌ Недостаточно монет для частичного ремонта.\nНужно {cost} монет")
+        await add_money(cid, uid, -cost)
+        await change_dur(cid, uid, pick_key, restore)
+        return await message.reply(
+            f"💎 {pick_data['name']} восстановлена до {restore}/{dur_max} за {cost} монет!"
+        )
+
+    # 🧰 Стандартный ремонт
     cost = (dur_max - dur) * 2
-    if (await get_money(cid, uid)) < cost:
-        return await message.reply("Недостаточно монет для ремонта.")
-
+    if await get_money(cid, uid) < cost:
+        return await message.reply(f"🛠️❌ Недостаточно монет для ремонта.\nНужно {cost} монет")
     await add_money(cid, uid, -cost)
-    # Δ = скільки бракує до max
     await change_dur(cid, uid, pick_key, dur_max - dur)
-
-    await message.reply(
-        f"🛠️ {PICKAXES[pick_key]['name']} отремонтирована до "
-        f"{dur_max}/{dur_max} за {cost} монет!"
+    return await message.reply(
+        f"🛠️ {pick_data['name']} отремонтирована до {dur_max}/{dur_max} за {cost} монет!"
     )
+
 
 TELEGRAPH_LINK = "https://telegra.ph/Cave-Miner---Info-06-17" 
 

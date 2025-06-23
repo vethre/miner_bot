@@ -4,6 +4,7 @@ import datetime as dt
 import json
 
 from bot.db_local import cid_uid, db, add_money, add_xp, add_item
+from bot.handlers.cases import give_case_to_user
 from bot.utils.autodelete import register_msg_for_autodelete
 
 router = Router()
@@ -48,6 +49,10 @@ async def promo_code_cmd(message: types.Message):
     await add_money(cid, uid, coins)
     await add_xp(cid, uid, xp)
 
+    cases = reward.get("cave_cases", 0)
+
+    if cases:
+        await give_case_to_user(cid, uid, cases)
     for item_id, qty in items.items():
         await add_item(cid, uid, item_id, qty)
 
