@@ -38,8 +38,9 @@ async def promo_code_cmd(message: types.Message):
     if row["expires_at"] and row["expires_at"] < dt.datetime.utcnow():
         return await message.reply("⌛ Этот промокод уже истёк.")
 
+    reward_raw = row["reward"]
     # применяем награду
-    reward = row["reward"]
+    reward = json.loads(reward_raw) if isinstance(reward_raw, str) else reward_raw
     coins = reward.get("coins", 0)
     xp = reward.get("xp", 0)
     items = reward.get("items", {})
