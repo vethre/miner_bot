@@ -28,9 +28,9 @@ async def promo_code_cmd(message: types.Message):
     if row["chat_id"] is not None and row["chat_id"] != cid:
         return await message.reply("🚫 Этот промокод не действует в этом чате.")
 
-    used_by = row["used_by"] or []
+    used_by = json.loads(row["used_by"]) if isinstance(row["used_by"], str) else row["used_by"]
     if uid in used_by:
-        return await message.reply("😕 Ты уже использовал этот промокод.")
+        return await message.reply("⛔️ Ты уже использовал этот промокод.")
 
     if row["max_uses"] is not None and len(used_by) >= row["max_uses"]:
         return await message.reply("😢 Промокод уже полностью использован.")
