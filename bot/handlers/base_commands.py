@@ -370,7 +370,7 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
     inv = await get_inventory(cid, uid)
     balance = await get_money(cid, uid)
 
-    lines = [f"🧾 Баланс: {balance} монет", "<b>📦 Инвентарь:</b>"]
+    lines = [f"🧾 Баланс: {balance} монет\n", "<b>📦 Инвентарь:</b>"]
     current_pick = (await get_progress(cid, uid)).get("current_pickaxe")
     for row in inv:
         if row["item"] == current_pick:
