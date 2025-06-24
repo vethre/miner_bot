@@ -6,7 +6,7 @@ import json, asyncpg
 from typing import Tuple, List, Dict, Any
 from aiogram.types import Message, CallbackQuery
 from bot.db import db
-from bot.utils.unlockachievement import unlock_achievement               # глобальний async-connection
+              # глобальний async-connection
 
 UTC = ZoneInfo("UTC")
 
@@ -313,7 +313,7 @@ async def update_streak(cid: int, uid: int) -> int:
             "UPDATE progress_local SET streak=1, last_mine_day=:d WHERE chat_id=:c AND user_id=:u",
             {"d": today, "c": cid, "u": uid}
         )
-
+    from bot.utils.unlockachievement import unlock_achievement 
     if streak >= 10:
         await unlock_achievement(cid, uid, "streak_master")
 
