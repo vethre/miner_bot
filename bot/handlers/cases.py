@@ -90,7 +90,7 @@ async def case_cmd(message: types.Message):
         descr_parts.append(f"{data['xp']} XP")
 
     descr = " + ".join(descr_parts)
-    msg = await message.reply("📦 Открываем кейс...", reply_to_message_id=message.message_id)
+    msg = await message.reply("📦 Открываем кейс...")
 
     await asyncio.sleep(0.5)
     await msg.edit_text("📦 ▓▓░░░░░░░")
