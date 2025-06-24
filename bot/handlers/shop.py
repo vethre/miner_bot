@@ -7,7 +7,7 @@ from itertools import islice
 # Добавлено в imports:
 from typing import Optional
 
-from bot.db_local import cid_uid, get_money, add_money, add_item
+from bot.db_local import cid_uid, get_money, add_money, add_item, get_progress
 from bot.handlers.cases import give_case_to_user
 from bot.handlers.items import ITEM_DEFS
 from bot.utils.autodelete import register_msg_for_autodelete
@@ -17,17 +17,17 @@ router = Router()
 
 # ---------- каталог ----------
 SHOP_ITEMS: dict[str, dict] = {
-    "wood_handle":    {"price": 100,  "name": "Рукоять",          "emoji": "🪵"},
-    "wooden_pickaxe": {"price": 200,  "name": "Деревянная кирка", "emoji": "🔨"},
-    "iron_pickaxe":   {"price": 1000, "name": "Железная кирка",   "emoji": "⛏️"},
-    "gold_pickaxe":   {"price": 2000, "name": "Золотая кирка",    "emoji": "✨"},
-    "torch_bundle":   {"price": 150,  "name": "Факел",            "emoji": "🕯️"},
-    "bread":          {"price": 50,   "name": "Хлеб",             "emoji": "🍞"},
-    "meat":           {"price": 110,  "name": "Мясо",             "emoji": "🍖"},
-    "borsch":         {"price": 300,  "name": "Борщ",             "emoji": "🥣"},
-    "energy_drink":   {"price": 120,  "name": "Энергетик",        "emoji": "🥤"},
-    "coffee":         {"price": 280,  "name": "Кофе",             "emoji": "☕"},
-    "cave_cases":     {"price": 300,  "name": "Cave Case",        "emoji": "📦"},
+    "wood_handle":    {"price": 120,  "name": "Рукоять",          "emoji": "🪵"},
+    "wooden_pickaxe": {"price": 400,  "name": "Деревянная кирка", "emoji": "🔨"},
+    "iron_pickaxe":   {"price": 1400, "name": "Железная кирка",   "emoji": "⛏️"},
+    "gold_pickaxe":   {"price": 2800, "name": "Золотая кирка",    "emoji": "✨"},
+    "torch_bundle":   {"price": 200,  "name": "Факел",            "emoji": "🕯️"},
+    "bread":          {"price": 70,   "name": "Хлеб",             "emoji": "🍞"},
+    "meat":           {"price": 130,  "name": "Мясо",             "emoji": "🍖"},
+    "borsch":         {"price": 312,  "name": "Борщ",             "emoji": "🥣"},
+    "energy_drink":   {"price": 136,  "name": "Энергетик",        "emoji": "🥤"},
+    "coffee":         {"price": 300,  "name": "Кофе",             "emoji": "☕"},
+    "cave_cases":     {"price": 500,  "name": "Cave Case",        "emoji": "📦"},
 }
 
 ITEMS_PER_PAGE = 6 # This variable is not currently used to chunk PAGES.
@@ -145,6 +145,14 @@ async def shop_buy_callback(callback: CallbackQuery):
         await give_case_to_user(cid, uid, 1) # Specific logic for "cave_cases"
     else:
         await add_item(cid, uid, item_id, 1) # Add other items to inventory
+
+    prog = await get_progress(cid, uid)
+    active_badge = prog.get("badge_active")
+
+    if active_badge == "moneyback":
+        cashback = int(item["price"] * 0.3)
+        await add_money(cid, uid, cashback)
+        await callback.message.reply(f"💸 Бейдж Монобанк активен: возвращено {cashback} монет!")
 
     msg = await callback.message.reply(
         f"Покупка: {item['emoji']}<b>{item['name']}</b> за {item['price']} монет ✔️",

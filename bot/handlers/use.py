@@ -13,8 +13,9 @@ PICKAXES = {
     "iron_pickaxe":     {"bonus": .15, "name": "железная кирка",     "emoji": "⛏️", "dur": 90},
     "gold_pickaxe":     {"bonus": .30, "name": "золотая кирка",      "emoji": "✨", "dur": 60},
     "roundstone_pickaxe":{"bonus": .10, "name": "булыжниковая кирка", "emoji": "🪨", "dur": 80},
-    "crystal_pickaxe":  {"bonus":1.50, "name": "хрустальная кирка",  "emoji": "💎", "dur": 75},
-    "amethyst_pickaxe": {"bonus": .70, "name": "аметистовая кирка",  "emoji": "🔮", "dur":100},
+    "crystal_pickaxe":  {"bonus":.80, "name": "хрустальная кирка",  "emoji": "💎", "dur": 75},
+    "amethyst_pickaxe": {"bonus": .50, "name": "аметистовая кирка",  "emoji": "🔮", "dur":100},
+    "diamond_pickaxe": {"bonus": .75, "name": "алмазная кирка",  "emoji": "💎", "dur":65},
 }
 
 ALIAS = {
@@ -23,6 +24,7 @@ ALIAS = {
     "булыжниковая кирка":"roundstone_pickaxe",
     "хрустальная кирка":"crystal_pickaxe",
     "аметистовая кирка":"amethyst_pickaxe",
+    "алмазная кирка": "diamond_pickaxe",
 }
 
 def _json2dict(raw):

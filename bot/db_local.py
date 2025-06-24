@@ -5,7 +5,8 @@ from zoneinfo import ZoneInfo
 import json, asyncpg
 from typing import Tuple, List, Dict, Any
 from aiogram.types import Message, CallbackQuery
-from bot.db import db               # глобальний async-connection
+from bot.db import db
+from bot.utils.unlockachievement import unlock_achievement               # глобальний async-connection
 
 UTC = ZoneInfo("UTC")
 
@@ -158,6 +159,13 @@ async def get_inventory(cid: int, uid: int) -> List[Dict[str, Any]]:
         {"c": cid, "u": uid}
     )
 
+async def get_item(chat_id: int, user_id: int, item_id: str) -> int:
+    row = await db.fetch_one(
+        "SELECT qty FROM inventory_local WHERE chat_id=:c AND user_id=:u AND item=:i",
+        {"c": chat_id, "u": user_id, "i": item_id}
+    )
+    return row["qty"] if row else 0
+
 # ────────── ГРОШІ ──────────
 async def add_money(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)
@@ -305,6 +313,9 @@ async def update_streak(cid: int, uid: int) -> int:
             "UPDATE progress_local SET streak=1, last_mine_day=:d WHERE chat_id=:c AND user_id=:u",
             {"d": today, "c": cid, "u": uid}
         )
+
+    if streak >= 10:
+        await unlock_achievement(cid, uid, "streak_master")
 
     return streak
 

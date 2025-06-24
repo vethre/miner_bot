@@ -35,6 +35,9 @@ from bot.db_local import (
     _jsonb_to_dict,
 )
 from bot.handlers.cavepass import cavepass_cmd
+from bot.handlers.achievements import achievements_menu
+from bot.handlers.badge_defs import BADGES
+from bot.handlers.badges import badges_menu
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
 from bot.handlers.use import PICKAXES
@@ -42,6 +45,7 @@ from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.handlers.use import _json2dict
+from bot.utils.unlockachievement import unlock_achievement
 
 router = Router()
 
@@ -58,15 +62,15 @@ HUNGER_LIMIT = 20
 
 # ────────── Руди  + Tiers ──────────
 ORE_ITEMS = {
-    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (10, 16), "price": 2},
-    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (8, 14),  "price": 6},
-    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (5, 9),  "price": 12},
-    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (4, 9),  "price": 16},
-    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (3, 7),  "price": 28},
-    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (1, 2),  "price": 67},
-    "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1, 3),  "price": 47},
-    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 34},
-    "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (1, 4),  "price": 55},
+    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (8, 14), "price": 2},
+    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (6, 12),  "price": 5},
+    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (5, 9),  "price": 9},
+    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (4, 9),  "price": 13},
+    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (3, 7),  "price": 18},
+    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (1, 2),  "price": 57},
+    "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1, 3),  "price": 38},
+    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 30},
+    "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (1, 4),  "price": 45},
 }
 
 TIER_TABLE = [
@@ -98,12 +102,13 @@ ChanceEvent = tuple[str, str, str, int]
 #          (key , text , effect , weight)
 
 CHANCE_EVENTS: list[ChanceEvent] = [
-    ("found_coins",   "Ты нашёл кошелёк 💰  +{n} монет",  "coins:+", 230),
-    ("pet_cat",       "Погладил кошку 😸     +{n} XP",      "xp:+",    120),
-    ("robbery",       "Тебя ограбили! −{n} монет",       "coins:-", 80),
-    ("miner_snack",   "Шахтёрский перекус 🥪   +{n} энергии",  "energy:+",20),
-    ("emergency_exit",   "Выход из шахты засыпало!   -{n} энергии",  "energy:-",15),
-    ("emergency_exit_2",   "Выход из шахты засыпало! Но ты смог выбраться вовремя,   +{n} XP",  "xp:+",40),
+    ("found_coins",   "Ты нашёл кошелёк 💰  +{n} монет",  "coins:+", 100),
+    ("pet_cat",       "Погладил кошку 😸     +{n} XP",      "xp:+",    30),
+    ("robbery",       "Тебя ограбили! −{n} монет",       "coins:-", 20),
+    ("miner_snack",   "Шахтёрский перекус 🥪   +{n} энергии",  "energy:+",10),
+    ("emergency_exit",   "Выход из шахты засыпало!   -{n} энергии",  "energy:-",8),
+    ("emergency_exit_2",   "Выход из шахты засыпало! Но ты смог выбраться вовремя,   +{n} XP",  "xp:+",20),
+    ("pet_cat",       "Погладил кошку 😸, но ей это не понравилось.     -{n} энергии",      "energy:-",    12),
 ]
 
 def pick_chance_event() -> ChanceEvent|None:
@@ -148,6 +153,17 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     await add_xp  (cid,uid,xp_gain)
     streak=await update_streak(cid,uid)
 
+    if prog.get("badge_active") == "recruit":
+        await add_money(cid, uid, 30)
+
+    # Бейдж: возврат энергии
+    if prog.get("badge_active") == "cashback":
+        await db.execute(
+            "UPDATE progress_local SET energy=LEAST(100, energy + 6) "
+            "WHERE chat_id=:c AND user_id=:u",
+            {"c": cid, "u": uid}
+        )
+
     # ---- прочність конкретної кирки (JSON-мапа) ----
     broken = False
     if cur := prog.get("current_pickaxe"):
@@ -169,6 +185,9 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         "WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
     )
+
+    if prog.get("mine_count", 0) >= 20:
+        await unlock_achievement(cid, uid, "bear_miner")
 
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
@@ -216,6 +235,13 @@ async def profile_cmd(message: types.Message):
     xp      = prog.get("xp", 0)
     next_xp = lvl * 80
     streaks = prog.get("streak", 0)
+    badge = prog.get("badge_active")
+    badge_str = "–"
+    if badge:
+        b = BADGES.get(badge)
+        if b:
+            badge_str = f"{b['emoji']} {b['name']}"
+
 
     # Кирка та її міцність
     current         = prog.get("current_pickaxe") or "wooden_pickaxe"
@@ -244,6 +270,8 @@ async def profile_cmd(message: types.Message):
     builder.button(text="🛒 Магазин",    callback_data=f"profile:shop:{uid}")
     builder.button(text="⛏️ Шахта",      callback_data=f"profile:mine:{uid}")
     builder.button(text="💎 Cave Pass",      callback_data=f"profile:cavepass:{uid}")
+    builder.button(text="🏆 Ачивки", callback_data=f"dprofile:achievements:{uid}")
+    builder.button(text="🏅 Бейджи", callback_data=f"dprofile:badges:{uid}")
     builder.adjust(1)
 
     text = (
@@ -255,6 +283,7 @@ async def profile_cmd(message: types.Message):
         f"🍗 <b>Голод:</b> {hunger}/100\n\n"
         f"📦 <b>Cave Cases:</b> {cave_cases}\n"
         f"💰 <b>Баланс:</b> {balance} монет\n\n"
+        f"🏅 <b>Бейдж:</b> {badge_str}\n"
         f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})"
     )
 
@@ -298,6 +327,11 @@ async def profile_callback(callback: types.CallbackQuery):
         await mine_cmd(callback.message, user_id=orig_uid)
     elif action == "cavepass":
         await cavepass_cmd(callback.message)
+    elif action == "achievements":
+        await achievements_menu(callback.message, orig_uid)
+    elif action == "badges":
+        await badges_menu(callback.message, orig_uid)
+
 
 # ────────── /mine ──────────(F.data.startswith("profile:"))
 async def profile_callback(cb: types.CallbackQuery):
@@ -311,6 +345,10 @@ async def profile_callback(cb: types.CallbackQuery):
         await mine_cmd(cb.message, cb.from_user.id)
     elif act == "cavepass":
         await cavepass_cmd(cb.message)
+    elif act == "achievements":
+        await achievements_menu(cb.message, cb.from_user.id)
+    elif act == "badges":
+        await badges_menu(cb.message, cb.from_user.id)
 
 # ────────── /mine ──────────
 @router.message(Command("mine"))
@@ -363,11 +401,32 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
             "u": uid,
         },
     )
+    # 🔢 +1 до лічильника копань
+    await db.execute(
+        "UPDATE progress_local SET mine_count = COALESCE(mine_count, 0) + 1 WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
+    )
     sec      = get_mine_duration(tier)
     minutes  = max(1, round(sec / 60))
     msg = await message.reply(f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин.\n🔋 Энергия −12 / Голод −10. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
+
+@router.callback_query(F.data.startswith("badge:use:"))
+async def badge_use_cb(cb: types.CallbackQuery):
+    _, _, badge_id = cb.data.split(":")
+    cid, uid = cb.message.chat.id, cb.from_user.id
+    prog = await get_progress(cid, uid)
+    if badge_id not in (prog.get("badge_owned") or []):
+        return await cb.answer("У тебя нет этого бейджа 😕", show_alert=True)
+
+    await db.execute("""
+        UPDATE progress_local SET badge_active=:b
+         WHERE chat_id=:c AND user_id=:u
+    """, {"b": badge_id, "c": cid, "u": uid})
+
+    await cb.answer("✅ Бейдж активирован!")
+    await badges_menu(cb.message, uid)
 
 # ────────── /inventory ──────────
 @router.message(Command("inventory"))
@@ -534,6 +593,8 @@ async def craft_cmd(message: types.Message):
     for k, need in recipe["in"].items():
         await add_item(cid, uid, k, -need)
     await add_item(cid, uid, recipe["out_key"], 1)
+    if craft_name == "roundstone_pickaxe":
+        await unlock_achievement(cid, uid, "cobble_player")
     msg = await message.reply(f"🎉 Создано: {recipe['out_name']}!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
@@ -675,6 +736,14 @@ async def repair_cmd(message: types.Message):
         return await message.reply(f"🛠️❌ Недостаточно монет для ремонта.\nНужно {cost} монет")
     await add_money(cid, uid, -cost)
     await change_dur(cid, uid, pick_key, dur_max - dur)
+
+        # 🔧 +1 до лічильника ремонтів
+    await db.execute(
+        "UPDATE progress_local SET repair_count = COALESCE(repair_count, 0) + 1 WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
+    )
+    if prog.get("repair_count", 0) >= 10:
+        await unlock_achievement(cid, uid, "repair_master")
     return await message.reply(
         f"🛠️ {pick_data['name']} отремонтирована до {dur_max}/{dur_max} за {cost} монет!"
     )
@@ -761,7 +830,37 @@ async def cavebot_cmd(message: types.Message):
         "<code>01000101 01001111 01001110 01001001 01010100 01000101</code>"
         "🔄 <code>fetch_update(“Eonit Awakens”)</code> → доступ запрещён.\nПричина: доступ возможен только при наличии <b>Legacy Token</b>"
     ]
+
+    await unlock_achievement(message.chat.id, message.from_user.id, "cave_bot")
     await message.reply(random.choice(replies), parse_mode="HTML")
+
+@router.message(Command("pickaxes"))
+async def pickaxes_cmd(message: types.Message):
+    lines = ["<b>⛏️ Список доступных кирок:</b>\n"]
+
+    for key, data in PICKAXES.items():
+        emoji = data.get("emoji", "⛏️")
+        name = data["name"].capitalize()
+        bonus = f"{int(data['bonus'] * 100)}%"
+        durability = data["dur"]
+
+        # базова інфа
+        lines.append(f"{emoji} <b>{name}</b>")
+        lines.append(f" └ 💥 Бонус: +{bonus}")
+        lines.append(f" └ 🧱 Прочность: {durability}")
+
+        # якщо є рецепт
+        recipe = CRAFT_RECIPES.get(key)
+        if recipe:
+            rec_lines = []
+            for item, qty in recipe.items():
+                rec_lines.append(f"{qty}× {item.replace('_', ' ').capitalize()}")
+            lines.append(" └ 🧪 Рецепт: " + ", ".join(rec_lines))
+
+        lines.append("")
+
+    msg = await message.answer("\n".join(lines), parse_mode="HTML")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 @router.message(lambda msg: re.match(r"шахта\s+профиль", msg.text, re.IGNORECASE))
 async def profile_msg_cmd(message: types.Message):
@@ -782,4 +881,8 @@ async def mine_msg_cmd(message: types.Message):
 @router.message(lambda msg: re.match(r"шахта\s+пас(с)?", msg.text, re.IGNORECASE))
 async def pass_msg_cmd(message: types.Message):
     return await cavepass_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(крафты|кирки)", msg.text, re.IGNORECASE))
+async def picks_msg_cmd(message: types.Message):
+    return await pickaxes_cmd(message)
 

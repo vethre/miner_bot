@@ -11,6 +11,7 @@ from bot.db_local import cid_uid, get_progress, add_money, add_item, db, get_mon
 from bot.handlers.items import ITEM_DEFS
 from bot.assets import PASS_IMG_ID
 from bot.handlers.use import PICKAXES
+from bot.utils.unlockachievement import unlock_achievement
 
 router = Router()
 
@@ -121,6 +122,8 @@ async def activate_pass_cmd(message: types.Message):
 
     emoji = PICKAXES[pick_key]["emoji"]
     name = PICKAXES[pick_key]["name"]
+
+    await unlock_achievement(cid, uid, "pre_pass")
 
     await message.reply(
         f"✅ Cave Pass активирован для user_id={uid} в чате {cid} до {exp.date()}\n"

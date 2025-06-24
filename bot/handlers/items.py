@@ -71,6 +71,20 @@ ITEM_DEFS.update({
     },
     "legacy_pickaxe": {"name": "Памятная кирка", "emoji": "🏛️",},
     "coffee": {"name": "Кофе", "emoji": "☕"},
+    "reinforced_grip": {
+        "name": "Усиленная рукоять",
+        "emoji": "🛠️",
+    },
+    "sharp_tip": {
+        "name": "Острый наконечник",
+        "emoji": "🛠️",
+    },
+    "smoke_absorb_handle": {
+        "name": "Угольная рукоять",
+        "emoji": "🛠️",
+    },
+
+
     # інші як є …
 })
 # bot/handlers/items.py  (где собирается ITEM_DEFS)
@@ -87,6 +101,7 @@ ITEM_DEFS["gold_pickaxe"]["emoji"]    = "✨"
 ITEM_DEFS["amethyst_pickaxe"]["emoji"]= "🔮"
 ITEM_DEFS["roundstone_pickaxe"]["emoji"] = "🪨"
 ITEM_DEFS["wooden_pickaxe"]["emoji"] = "🪵"
+ITEM_DEFS["diamond_pickaxe"]["emoji"] = "💎"
 
 
 EXTRA_ORES = {

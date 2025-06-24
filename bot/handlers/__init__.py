@@ -7,7 +7,7 @@ from .groups import router as group_router
 from .cases import router as cases_router
 from .cavepass import router as pass_router
 from .devutils import router as dev_router
-from .code import router as promocode_router
+from .badgeshop import router as badgeshop_router
 
 def register_handlers(dp):
     dp.include_router(base_router)
@@ -19,4 +19,4 @@ def register_handlers(dp):
     dp.include_router(cases_router)
     dp.include_router(pass_router)
     dp.include_router(dev_router)
-    dp.include_router(promocode_router)
+    dp.include_router(badgeshop_router)

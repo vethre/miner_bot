@@ -14,6 +14,7 @@ CASE_POOL = [
     {"key": "rich_pack",      "weight": 1},
 ]
 
+import asyncio
 import random, json
 from aiogram import Router, types
 from aiogram.filters import Command
@@ -89,7 +90,19 @@ async def case_cmd(message: types.Message):
         descr_parts.append(f"{data['xp']} XP")
 
     descr = " + ".join(descr_parts)
-    await message.reply(f"📦 Твой Cave Case открыт! Выпало: {descr}")
+    msg = await message.reply("📦 Открываем кейс...", reply_to_message_id=message.message_id)
+
+    await asyncio.sleep(0.5)
+    await msg.edit_text("📦 ▓▓░░░░░░░")
+    await asyncio.sleep(0.3)
+    await msg.edit_text("📦 ▓▓▓▓░░░░")
+    await asyncio.sleep(0.3)
+    await msg.edit_text("📦 ▓▓▓▓▓▓░░")
+    await asyncio.sleep(0.3)
+
+    # 🎁 Нагорода (умовно)
+    reward_text = f"🎉 Тебе выпало: {descr}!"
+    await msg.edit_text(reward_text)
 
 
 async def give_case_to_user(chat_id: int, user_id: int, count: int) -> None:
