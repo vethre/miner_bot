@@ -417,7 +417,7 @@ async def badge_use_cb(cb: types.CallbackQuery):
     _, _, badge_id = cb.data.split(":")
     cid, uid = cb.message.chat.id, cb.from_user.id
     prog = await get_progress(cid, uid)
-    if badge_id not in (prog.get("badge_owned") or []):
+    if badge_id not in (prog.get("badges_owned") or []):
         return await cb.answer("У тебя нет этого бейджа 😕", show_alert=True)
 
     await db.execute("""
