@@ -328,9 +328,9 @@ async def profile_callback(callback: types.CallbackQuery):
     elif action == "cavepass":
         await cavepass_cmd(callback.message)
     elif action == "achievements":
-        await achievements_menu(callback.message, orig_uid)
+        await achievements_menu(callback.message, user_id=orig_uid)
     elif action == "badges":
-        await badges_menu(callback.message, orig_uid)
+        await badges_menu(callback.message, user_id=orig_uid)
 
 
 # ────────── /mine ──────────(F.data.startswith("profile:"))
