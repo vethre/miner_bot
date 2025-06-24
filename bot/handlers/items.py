@@ -70,6 +70,7 @@ ITEM_DEFS.update({
         "emoji": "🪵",
     },
     "legacy_pickaxe": {"name": "Памятная кирка", "emoji": "🏛️",},
+    "coffee": {"name": "Кофе", "emoji": "☕"},
     # інші як є …
 })
 # bot/handlers/items.py  (где собирается ITEM_DEFS)

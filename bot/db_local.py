@@ -248,56 +248,63 @@ async def update_hunger(cid: int, uid: int):
     return row["hunger"]
 
 async def update_streak(cid: int, uid: int) -> int:
-    # дістаємо останній день
     row = await db.fetch_one(
         "SELECT last_mine_day FROM progress_local WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
     )
     last_day = row["last_mine_day"] or dt.date(1970,1,1)
     today = dt.date.today()
+
+    bonus_xp = 0
+    bonus_money = 0
+
     if last_day == today:
         streak = await db.fetch_val(
             "SELECT streak FROM progress_local WHERE chat_id=:c AND user_id=:u",
             {"c": cid, "u": uid}
         )
     elif last_day + dt.timedelta(days=1) == today:
+        # ⛏️ ОНОВЛЕННЯ streak
         streak = await db.fetch_val(
             "SELECT streak FROM progress_local WHERE chat_id=:c AND user_id=:u",
             {"c": cid, "u": uid}
         ) + 1
+
+        await db.execute(
+            "UPDATE progress_local SET streak=:s, last_mine_day=:d WHERE chat_id=:c AND user_id=:u",
+            {"s": streak, "d": today, "c": cid, "u": uid}
+        )
+
+        if streak % 5 == 0:
+            bonus_xp = 50 + 10 * (streak // 5)
+            bonus_money = 100
+
+            await add_xp(cid, uid, bonus_xp)
+            await add_money(cid, uid, bonus_money)
+
+            try:
+                from bot.main import BOT
+                member = await BOT.get_chat_member(cid, uid)
+                mention = (
+                    f"@{member.user.username}"
+                    if member.user.username else
+                    f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
+                )
+                await BOT.send_message(
+                    cid,
+                    f"🌟 {mention}, твой стрик достиг <b>{streak} дней</b>!\n"
+                    f"🎁 Бонус: +{bonus_xp} XP, +{bonus_money} монет 💰",
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logging.warning(f"❌ Не вдалося надіслати повідомлення про streak: {e}")
+
     else:
         streak = 1
-
-    await db.execute(
-        "UPDATE progress_local SET streak=:s, last_mine_day=:d WHERE chat_id=:c AND user_id=:u",
-        {"s": streak, "d": today, "c": cid, "u": uid}
-    )
-
-    if streak % 5 == 0:
-        bonus_xp = 50 + 10 * (streak // 5)
-        bonus_money = 100
-
-        await add_xp(cid, uid, bonus_xp)
-        await add_money(cid, uid, bonus_money)     
-
-    try:
-            # ⚙️ Красивий mention
-            from bot.main import BOT  # Імпортуємо глобального бота
-            member = await BOT.get_chat_member(cid, uid)
-            mention = (
-                f"@{member.user.username}"
-                if member.user.username else
-                f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
-            )
-
-            await BOT.send_message(
-                cid,
-                f"🌟 {mention}, твой стрик достиг <b>{streak} дней</b>!\n"
-                f"🎁 Бонус: +{bonus_xp} XP, +{bonus_money} монет 💰",
-                parse_mode="HTML"
-            )
-    except Exception as e:
-        logging.warning(f"❌ Не вдалося надіслати повідомлення про streak: {e}") 
+        await db.execute(
+            "UPDATE progress_local SET streak=1, last_mine_day=:d WHERE chat_id=:c AND user_id=:u",
+            {"d": today, "c": cid, "u": uid}
+        )
 
     return streak
 
