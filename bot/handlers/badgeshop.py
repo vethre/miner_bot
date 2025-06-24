@@ -1,3 +1,4 @@
+import json
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery
@@ -87,7 +88,12 @@ async def badgeshop_buy(callback: CallbackQuery):
         return await callback.message.reply("Этот бейдж нельзя купить 😶")
 
     prog = await get_progress(cid, uid)
-    owned = set(prog.get("badges_owned") or [])
+    row = await db.fetch_one(
+        "SELECT badges_owned FROM progress_local WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
+    )
+    owned = json.loads(row["badges_owned"] or "[]")
+
     if badge_id in owned:
         return await callback.message.reply("Ты уже купил этот бейдж")
 
@@ -96,13 +102,13 @@ async def badgeshop_buy(callback: CallbackQuery):
     if balance < price:
         return await callback.message.reply("Недостаточно монет 💸")
     
-    
     await add_money(cid, uid, -price)
-    await db.execute("""
-        UPDATE progress_local
-           SET badges_owned = array_append(coalesce(badges_owned, '{}'), :b)
-         WHERE chat_id=:c AND user_id=:u
-    """, {"b": badge_id, "c": cid, "u": uid})
+    if badge_id not in owned:
+        owned.append(badge_id)
+        await db.execute(
+            "UPDATE progress_local SET badges_owned = :val WHERE chat_id=:c AND user_id=:u",
+            {"val": json.dumps(owned), "c": cid, "u": uid}
+        )
 
     await callback.message.reply(f"✅ Куплено: {BADGES[badge_id]['emoji']} <b>{BADGES[badge_id]['name']}</b>", parse_mode="HTML")
     await _send_badgeshop(cid, uid, 0, callback.message, edit=True)
