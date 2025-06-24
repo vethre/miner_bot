@@ -1,6 +1,7 @@
 # bot/handlers/cavepass.py
 
 import datetime as dt
+import json
 import logging
 from aiogram import Router, types, F
 from aiogram.filters import Command
