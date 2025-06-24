@@ -270,8 +270,8 @@ async def profile_cmd(message: types.Message):
     builder.button(text="🛒 Магазин",    callback_data=f"profile:shop:{uid}")
     builder.button(text="⛏️ Шахта",      callback_data=f"profile:mine:{uid}")
     builder.button(text="💎 Cave Pass",      callback_data=f"profile:cavepass:{uid}")
-    builder.button(text="🏆 Ачивки", callback_data=f"dprofile:achievements:{uid}")
-    builder.button(text="🏅 Бейджи", callback_data=f"dprofile:badges:{uid}")
+    builder.button(text="🏆 Ачивки", callback_data=f"profile:achievements:{uid}")
+    builder.button(text="🏅 Бейджи", callback_data=f"profile:badges:{uid}")
     builder.adjust(1)
 
     text = (
