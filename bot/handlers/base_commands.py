@@ -245,9 +245,6 @@ async def profile_cmd(message: types.Message):
     builder.button(text="💎 Cave Pass",      callback_data=f"profile:cavepass:{uid}")
     builder.adjust(1)
 
-    glitch_builder = InlineKeyboardBuilder()
-    glitch_builder.button(text="⛏️ C4V3 B0T", callback_data=f"profile:cavebot:{uid}")
-
     text = (
         f"👤 <b>Профиль:</b> {message.from_user.full_name}\n"
         f"⭐ <b>Уровень:</b> {lvl} (XP {xp}/{next_xp})\n"
@@ -266,25 +263,6 @@ async def profile_cmd(message: types.Message):
             legacy = ITEM_DEFS.get("legacy_pickaxe", {"name": "Памятная кирка"})
             text += f"\n\n🏛️ <b>Памятка:</b> {legacy['name']}"
             break
-
-    if xp == 666 or xp == 13 or balance == 666 or balance == 13:
-        glitch_text = (
-            "<b>⚠️ Данные повреждены</b>\n"
-            "📡 Подключение к <code>EONIT_CORE</code> не удалось\n"
-            "<i>Попробуйте позже. Или не пробуйте вовсе.</i>\n\n"
-            "<code>ERROR CODE: [HEX: 0xE0N1T]</code>\n"
-            "⚠️ Внимание: нарушена целостность шахтёрского архива.\n"
-            "⛏️ Кирка: ✖️ НЕ ОБНАРУЖЕНА\n"
-            "📦 Кейсы: ∞ | 0?\n"
-            "🔥 Стрик: #glitched\n"
-        )
-        return await message.answer_photo(
-            photo=GLITCHED_PROF_IMG_ID,
-            caption=glitch_text, 
-            parse_mode="HTML",
-            reply_to_message_id=message.message_id,
-            reply_markup=glitch_builder.as_markup())
-
 
     msg = await message.answer_photo(
         photo=PROFILE_IMG_ID,
@@ -319,8 +297,6 @@ async def profile_callback(callback: types.CallbackQuery):
         await mine_cmd(callback.message, user_id=orig_uid)
     elif action == "cavepass":
         await cavepass_cmd(callback.message)
-    elif action == "cavebot":
-        await cavebot_cmd(callback.message)
 
 # ────────── /mine ──────────(F.data.startswith("profile:"))
 async def profile_callback(cb: types.CallbackQuery):
@@ -334,8 +310,6 @@ async def profile_callback(cb: types.CallbackQuery):
         await mine_cmd(cb.message, cb.from_user.id)
     elif act == "cavepass":
         await cavepass_cmd(cb.message)
-    elif act == "cavebot":
-        await cavebot_cmd(cb.message)
 
 # ────────── /mine ──────────
 @router.message(Command("mine"))
