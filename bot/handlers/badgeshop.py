@@ -87,7 +87,7 @@ async def badgeshop_buy(callback: CallbackQuery):
         return await callback.message.reply("Этот бейдж нельзя купить 😶")
 
     prog = await get_progress(cid, uid)
-    owned = set(prog.get("badge_owned") or [])
+    owned = set(prog.get("badges_owned") or [])
     if badge_id in owned:
         return await callback.message.reply("Ты уже купил этот бейдж")
 
