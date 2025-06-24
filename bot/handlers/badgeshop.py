@@ -21,7 +21,7 @@ PAGES = [BADGE_IDS[i:i + BADGES_PER_PAGE] for i in range(0, len(BADGE_IDS), BADG
 # ────────── Вивід сторінки ──────────
 async def _send_badgeshop(chat_id: int, user_id: int, page: int, bot_message: types.Message, edit=True):
     prog = await get_progress(chat_id, user_id)
-    owned = set(prog.get("badge_owned") or [])
+    owned = set(prog.get("badges_owned") or [])
     balance = await get_money(chat_id, user_id)
 
     badge_ids = PAGES[page]
@@ -99,7 +99,7 @@ async def badgeshop_buy(callback: CallbackQuery):
     await add_money(cid, uid, -price)
     await db.execute("""
         UPDATE progress_local
-           SET badge_owned = array_append(coalesce(badge_owned, '{}'), :b)
+           SET badges_owned = array_append(coalesce(badge_owned, '{}'), :b)
          WHERE chat_id=:c AND user_id=:u
     """, {"b": badge_id, "c": cid, "u": uid})
 
