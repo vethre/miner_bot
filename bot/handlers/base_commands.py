@@ -38,7 +38,7 @@ from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
 from bot.handlers.use import PICKAXES
 from bot.handlers.shop import shop_cmd
-from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID
+from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.handlers.use import _json2dict
 
@@ -245,6 +245,9 @@ async def profile_cmd(message: types.Message):
     builder.button(text="💎 Cave Pass",      callback_data=f"profile:cavepass:{uid}")
     builder.adjust(1)
 
+    glitch_builder = InlineKeyboardBuilder()
+    glitch_builder.button(text="⛏️ C4V3 B0T", callback_data=f"profile:cavebot:{uid}")
+
     text = (
         f"👤 <b>Профиль:</b> {message.from_user.full_name}\n"
         f"⭐ <b>Уровень:</b> {lvl} (XP {xp}/{next_xp})\n"
@@ -263,6 +266,25 @@ async def profile_cmd(message: types.Message):
             legacy = ITEM_DEFS.get("legacy_pickaxe", {"name": "Памятная кирка"})
             text += f"\n\n🏛️ <b>Памятка:</b> {legacy['name']}"
             break
+
+    if xp == 666 or xp == 13 or balance == 666 or balance == 13:
+        glitch_text = (
+            "<b>⚠️ Данные повреждены</b>\n"
+            "📡 Подключение к <code>EONIT_CORE</code> не удалось\n"
+            "<i>Попробуйте позже. Или не пробуйте вовсе.</i>\n\n"
+            "<code>ERROR CODE: [HEX: 0xE0N1T]</code>\n"
+            "⚠️ Внимание: нарушена целостность шахтёрского архива.\n"
+            "⛏️ Кирка: ✖️ НЕ ОБНАРУЖЕНА\n"
+            "📦 Кейсы: ∞ | 0?\n"
+            "🔥 Стрик: #glitched\n"
+        )
+        return await message.answer_photo(
+            photo=GLITCHED_PROF_IMG_ID,
+            caption=glitch_text, 
+            parse_mode="HTML",
+            reply_to_message_id=message.message_id,
+            reply_markup=glitch_builder.as_markup())
+
 
     msg = await message.answer_photo(
         photo=PROFILE_IMG_ID,
@@ -297,6 +319,8 @@ async def profile_callback(callback: types.CallbackQuery):
         await mine_cmd(callback.message, user_id=orig_uid)
     elif action == "cavepass":
         await cavepass_cmd(callback.message)
+    elif action == "cavebot":
+        await cavebot_cmd(callback.message)
 
 # ────────── /mine ──────────(F.data.startswith("profile:"))
 async def profile_callback(cb: types.CallbackQuery):
@@ -310,6 +334,8 @@ async def profile_callback(cb: types.CallbackQuery):
         await mine_cmd(cb.message, cb.from_user.id)
     elif act == "cavepass":
         await cavepass_cmd(cb.message)
+    elif act == "cavebot":
+        await cavebot_cmd(cb.message)
 
 # ────────── /mine ──────────
 @router.message(Command("mine"))
@@ -761,30 +787,3 @@ async def cavebot_cmd(message: types.Message):
         "🔄 <code>fetch_update(“Eonit Awakens”)</code> → доступ запрещён.\nПричина: доступ возможен только при наличии <b>Legacy Token</b>"
     ]
     await message.reply(random.choice(replies), parse_mode="HTML")
-
-@router.message(Command("poop"))
-async def poop_cmd(message: types.Message):
-    cid, uid = await cid_uid(message)
-    await add_energy(cid, uid, 5)
-    energy = await update_energy(cid, uid)
-    msg = await message.reply(f"💩 Ты… сделал это.\n🔋 Энергия: {energy}/100")
-    register_msg_for_autodelete(cid, msg.message_id)
-
-# ────────── /pee ──────────
-@router.message(Command("pee"))
-async def pee_cmd(message: types.Message):
-    cid, uid = await cid_uid(message)
-    await add_energy(cid, uid, 5)
-    energy = await update_energy(cid, uid)
-    msg = await message.reply(f"🚽 Ну, полегчало…\n🔋 Энергия: {energy}/100")
-    register_msg_for_autodelete(cid, msg.message_id)
-
-# ────────── /intim ──────────
-@router.message(Command("intim"))
-async def intim_cmd(message: types.Message):
-    cid, uid = await cid_uid(message)
-    await add_energy(cid, uid, -5)
-    energy = await update_energy(cid, uid)
-    msg = await message.reply("💞 …это было интимно.\n"
-                              f"🔋 Энергия: {energy}/100")
-    register_msg_for_autodelete(cid, msg.message_id)
