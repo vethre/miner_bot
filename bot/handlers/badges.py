@@ -7,7 +7,7 @@ from .badge_defs import BADGES
 async def badges_menu(message: types.Message, uid: int):
     cid = message.chat.id
     prog = await get_progress(cid, uid)
-    owned = prog.get("badge_owned", []) or []
+    owned = prog.get("badges_owned", []) or []
     active = prog.get("badge_active")
 
     user = await message.bot.get_chat(uid)
