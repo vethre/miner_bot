@@ -3,6 +3,7 @@ from aiogram import types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.db_local import get_progress
 from bot.utils.autodelete import register_msg_for_autodelete
+from bot.utils.unlockachievement import ACHIEVEMENT_REQUIREMENTS, generate_progress_bar
 
 ACHIEVEMENTS = {
     "repair_master": {
@@ -51,8 +52,19 @@ async def achievements_menu(message: types.Message, uid: int):
     mention = user.full_name
     lines = [f"🏆 <b>Ачивки шахтёра {mention}:</b>\n"]
     for code, a in ACHIEVEMENTS.items():
-        emoji = "✅" if got.get(code) else "🔓"
-        lines.append(f"{emoji} {a['emoji']} <b>{a['name']}</b> — {a['desc']}")
+        unlocked = got.get(code)
+        emoji = "✅" if unlocked else "🔓"
+
+        line = f"{emoji} {a['emoji']} <b>{a['name']}</b> — {a['desc']}"
+        
+        req = ACHIEVEMENT_REQUIREMENTS.get(code)
+        if req and not unlocked:
+            current = prog.get(req["count_field"], 0)
+            bar = generate_progress_bar(current, req["goal"])
+            line += f"\n{bar}"
+
+        lines.append(line)
+
 
     #kb = InlineKeyboardBuilder()
     # kb.button(text="◀ Назад", callback_data=f"dcavepass")

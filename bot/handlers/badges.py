@@ -30,6 +30,7 @@ async def badges_menu(message: types.Message, uid: int):
 
         if is_owned and not is_active:
             kb.button(text=f"Активировать «{b['name']}»", callback_data=f"badge:use:{code}")
+            kb.adjust(1)
 
     #kb.button(text="◀ Назад", callback_data=f"dprofile:dcavepass:{uid}")
 

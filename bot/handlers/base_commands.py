@@ -62,11 +62,11 @@ HUNGER_LIMIT = 20
 
 # ────────── Руди  + Tiers ──────────
 ORE_ITEMS = {
-    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (8, 14), "price": 2},
-    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (6, 12),  "price": 5},
-    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (5, 9),  "price": 9},
-    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (4, 9),  "price": 13},
-    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (3, 7),  "price": 18},
+    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (10, 16), "price": 2},
+    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (8, 14),  "price": 5},
+    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (6, 12),  "price": 9},
+    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (4, 10),  "price": 13},
+    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (3, 8),  "price": 18},
     "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (1, 2),  "price": 57},
     "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1, 3),  "price": 38},
     "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 30},
@@ -138,12 +138,22 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     await asyncio.sleep(get_mine_duration(tier))
 
     prog = await get_progress(cid,uid)
+    level = prog.get("level", 1)
+    pick_key = prog.get("current_pickaxe")
+    pick_bonus = PICKAXES.get(pick_key, {}).get("bonus", 0)
+
+    # Обчислення Tier
+    tier = max([i + 1 for i, t in enumerate(TIER_TABLE) if level >= t["level_min"]], default=1)
+    tier_bonus = BONUS_BY_TIER.get(tier, 1.0)
+
+    # Загальний бонус
+    total_bonus = 1 + pick_bonus + (tier_bonus - 1)
+
+    # Кількість руди
     ore_id = random.choice(ores)
-    ore    = ORE_ITEMS[ore_id]
+    ore = ORE_ITEMS[ore_id]
     amount = random.randint(*ore["drop_range"])
-    amount = int(amount*bonus)
-    pick_bonus = PICKAXES.get(prog.get("current_pickaxe"),{}).get("bonus",0)
-    amount+= int(amount*pick_bonus)
+    amount = int(amount * total_bonus)
 
     xp_gain=amount
     if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():

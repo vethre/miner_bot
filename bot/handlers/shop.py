@@ -17,17 +17,17 @@ router = Router()
 
 # ---------- каталог ----------
 SHOP_ITEMS: dict[str, dict] = {
-    "wood_handle":    {"price": 120,  "name": "Рукоять",          "emoji": "🪵"},
+    "wood_handle":    {"price": 80,  "name": "Рукоять",          "emoji": "🪵"},
     "wooden_pickaxe": {"price": 400,  "name": "Деревянная кирка", "emoji": "🔨"},
     "iron_pickaxe":   {"price": 1400, "name": "Железная кирка",   "emoji": "⛏️"},
     "gold_pickaxe":   {"price": 2800, "name": "Золотая кирка",    "emoji": "✨"},
-    "torch_bundle":   {"price": 200,  "name": "Факел",            "emoji": "🕯️"},
-    "bread":          {"price": 70,   "name": "Хлеб",             "emoji": "🍞"},
-    "meat":           {"price": 130,  "name": "Мясо",             "emoji": "🍖"},
-    "borsch":         {"price": 312,  "name": "Борщ",             "emoji": "🥣"},
-    "energy_drink":   {"price": 136,  "name": "Энергетик",        "emoji": "🥤"},
-    "coffee":         {"price": 300,  "name": "Кофе",             "emoji": "☕"},
-    "cave_cases":     {"price": 500,  "name": "Cave Case",        "emoji": "📦"},
+    "torch_bundle":   {"price": 140,  "name": "Факел",            "emoji": "🕯️"},
+    "bread":          {"price": 30,   "name": "Хлеб",             "emoji": "🍞"},
+    "meat":           {"price": 80,  "name": "Мясо",             "emoji": "🍖"},
+    "borsch":         {"price": 180,  "name": "Борщ",             "emoji": "🥣"},
+    "energy_drink":   {"price": 40,  "name": "Энергетик",        "emoji": "🥤"},
+    "coffee":         {"price": 80,  "name": "Кофе",             "emoji": "☕"},
+    "cave_cases":     {"price": 300,  "name": "Cave Case",        "emoji": "📦"},
 }
 
 ITEMS_PER_PAGE = 6 # This variable is not currently used to chunk PAGES.
