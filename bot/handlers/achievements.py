@@ -1,6 +1,7 @@
 import json
 from aiogram import types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from bot.assets import ACHIEVE_IMG_ID
 from bot.db_local import get_progress
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.utils.unlockachievement import ACHIEVEMENT_REQUIREMENTS, generate_progress_bar
@@ -68,6 +69,10 @@ async def achievements_menu(message: types.Message, uid: int):
 
     #kb = InlineKeyboardBuilder()
     # kb.button(text="◀ Назад", callback_data=f"dcavepass")
-
-    msg = await message.answer("\n".join(lines), parse_mode="HTML") #reply_markup=kb.as_markup())
+    msg = await message.answer_photo(
+        ACHIEVE_IMG_ID,
+        caption="\n".join(lines),
+        parse_mode="HTML"
+    )
+    #msg = await message.answer("\n".join(lines), parse_mode="HTML") #reply_markup=kb.as_markup())
     register_msg_for_autodelete(message.chat.id, msg.message_id)

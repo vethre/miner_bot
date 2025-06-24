@@ -3,6 +3,7 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from bot.assets import BADGESHOP_IMG_ID
 from bot.db_local import cid_uid, get_progress, get_money, add_money, db
 from bot.handlers.badge_defs import BADGES
 from bot.utils.autodelete import register_msg_for_autodelete
@@ -54,13 +55,18 @@ async def _send_badgeshop(chat_id: int, user_id: int, page: int, bot_message: ty
         nav.button(text="Вперёд »", callback_data=f"badgeshop:pg:{page+1}")
 
     kb.row(*nav.buttons)
-    kb.button(text="◀ Назад", callback_data=f"dprofile:dbadges:{user_id}")
+    kb.button(text="◀ Назад", callback_data=f"profile:badges:{user_id}")
 
     text = "\n".join(lines)
     if edit:
         await bot_message.edit_text(text, parse_mode="HTML", reply_markup=kb.as_markup())
     else:
-        msg = await bot_message.answer(text, parse_mode="HTML", reply_markup=kb.as_markup())
+        msg = await bot_message.answer_photo(
+            BADGESHOP_IMG_ID,
+            caption=text,
+            parse_mode="HTML",
+            reply_markup=kb.as_markup()
+        )
         register_msg_for_autodelete(chat_id, msg.message_id)
 
 # ────────── Команда /badgeshop ──────────
