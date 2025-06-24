@@ -247,7 +247,7 @@ async def profile_cmd(message: types.Message):
 
     text = (
         f"👤 <b>Профиль:</b> {message.from_user.full_name}\n"
-        f"⭐ <tg-emoji emoji-id='5837208434730077905'/> <b>Уровень:</b> {lvl} (XP {xp}/{next_xp})\n"
+        f"⭐ <b>Уровень:</b> {lvl} (XP {xp}/{next_xp})\n"
         f"🔥 <b>Серия:</b> {streaks}\n" 
         f"💎 <b>Cave Pass:</b> {pass_str}\n\n"
         f"🔋 <b>Энергия:</b> {energy}/100\n"
