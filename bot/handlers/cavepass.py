@@ -9,6 +9,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.db_local import cid_uid, get_progress, add_money, add_item, db, get_money
 from bot.handlers.items import ITEM_DEFS
 from bot.assets import PASS_IMG_ID
+from bot.handlers.use import PICKAXES
 
 router = Router()
 
@@ -67,62 +68,63 @@ ADMINS = {700929765, 988127866}
 @router.message(Command("activate_pass"))
 async def activate_pass_cmd(message: types.Message):
     if message.from_user.id not in ADMINS:
-        return await message.reply("⚠️ У вас нет прав на выполнение этой команды.")
+        return await message.reply("⚠️ У вас нет прав")
 
-    parts = message.text.split()
+    parts = message.text.strip().split()
     if len(parts) != 3:
-        return await message.reply("Использование:\n/activate_pass 'user_id | @username' 'chat_id'")
+        return await message.reply("Использование: /activate_pass <user_id> <chat_id>")
 
-    target = parts[1]
     try:
-        chat_id = int(parts[2])
+        uid = int(parts[1])
+        cid = int(parts[2])
     except ValueError:
-        return await message.reply("❌ Неверный формат chat_id (ожидалось число).")
+        return await message.reply("❌ user_id и chat_id должны быть числами.")
 
-    # 🔍 Получаем user_id
-    if target.startswith("@"):
-        try:
-            member = await message.bot.get_chat_member(chat_id, target)
-            user_id = member.user.id
-        except Exception as e:
-            logging.warning(f"Не удалось получить юзера: {e}")
-            return await message.reply("❌ Пользователь не найден в этом чате.")
-    else:
-        if not target.isdigit():
-            return await message.reply("❌ Неверный формат user_id.")
-        user_id = int(target)
+    pick_key = "crystal_pickaxe"
+    if pick_key not in PICKAXES:
+        return await message.reply("❌ Кирка не найдена.")
 
-    # 🗓️ Устанавливаем даты и кирку
-    now = dt.datetime.utcnow()
-    expires = dt.datetime(2025, 7, 10, 21, 59, 59)
+    exp = dt.datetime(2025, 7, 10, 21, 59, 59)
+    pick_dur = PICKAXES[pick_key]["dur"]
+    dur_map = json.dumps({pick_key: pick_dur})
+    dur_max_map = json.dumps({pick_key: pick_dur})
 
-    # ✅ Обновляем данные в progress_local
     await db.execute(
         """
         UPDATE progress_local
            SET cave_pass = TRUE,
                pass_expires = :exp,
                current_pickaxe = :pick,
-               pick_dur = 94,
-               pick_dur_max = 95
-         WHERE chat_id = :c AND user_id = :u
+               pick_dur_map = :dmap,
+               pick_dur_max_map = :dmax
+         WHERE chat_id = :cid AND user_id = :uid
         """,
-        {"exp": expires, "pick": EX_KEY, "c": chat_id, "u": user_id}
+        {
+            "exp": exp,
+            "pick": pick_key,
+            "dmap": dur_map,
+            "dmax": dur_max_map,
+            "cid": cid,
+            "uid": uid
+        }
     )
 
-    # 🧱 Добавляем кирку в инвентарь (если ещё нет)
     await db.execute(
         """
-        INSERT INTO inventory_local(chat_id, user_id, item, qty)
-             VALUES(:c, :u, :i, 1)
+        INSERT INTO inventory_local (chat_id, user_id, item, qty)
+             VALUES (:cid, :uid, :item, 1)
            ON CONFLICT DO NOTHING
         """,
-        {"c": chat_id, "u": user_id, "i": EX_KEY}
+        {"cid": cid, "uid": uid, "item": pick_key}
     )
 
+    emoji = PICKAXES[pick_key]["emoji"]
+    name = PICKAXES[pick_key]["name"]
+
     await message.reply(
-        f"✅ Cave Pass активирован для <code>{user_id}</code> в чате <code>{chat_id}</code>\n"
-        f"Действителен до <b>{expires.strftime('%d.%m.%Y')}</b> ⛏️",
+        f"✅ Cave Pass активирован для user_id={uid} в чате {cid} до {exp.date()}\n"
+        f"{emoji} Выдана кирка: <b>{name}</b> ({pick_dur}/{pick_dur})",
         parse_mode="HTML"
     )
+
 
