@@ -761,3 +761,30 @@ async def cavebot_cmd(message: types.Message):
         "🔄 <code>fetch_update(“Eonit Awakens”)</code> → доступ запрещён.\nПричина: доступ возможен только при наличии <b>Legacy Token</b>"
     ]
     await message.reply(random.choice(replies), parse_mode="HTML")
+
+@router.message(Command("poop"))
+async def poop_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    await add_energy(cid, uid, 5)
+    energy = await update_energy(cid, uid)
+    msg = await message.reply(f"💩 Ты… сделал это.\n🔋 Энергия: {energy}/100")
+    register_msg_for_autodelete(cid, msg.message_id)
+
+# ────────── /pee ──────────
+@router.message(Command("pee"))
+async def pee_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    await add_energy(cid, uid, 5)
+    energy = await update_energy(cid, uid)
+    msg = await message.reply(f"🚽 Ну, полегчало…\n🔋 Энергия: {energy}/100")
+    register_msg_for_autodelete(cid, msg.message_id)
+
+# ────────── /intim ──────────
+@router.message(Command("intim"))
+async def intim_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    await add_energy(cid, uid, -5)
+    energy = await update_energy(cid, uid)
+    msg = await message.reply("💞 …это было интимно.\n"
+                              f"🔋 Энергия: {energy}/100")
+    register_msg_for_autodelete(cid, msg.message_id)
