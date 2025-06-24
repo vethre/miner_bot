@@ -95,11 +95,12 @@ async def badgeshop_buy(callback: CallbackQuery):
     balance = await get_money(cid, uid)
     if balance < price:
         return await callback.message.reply("Недостаточно монет 💸")
-
+    
+    
     await add_money(cid, uid, -price)
     await db.execute("""
         UPDATE progress_local
-           SET badges_owned = array_append(coalesce(badge_owned, '{}'), :b)
+           SET badges_owned = array_append(coalesce(badges_owned, '{}'), :b)
          WHERE chat_id=:c AND user_id=:u
     """, {"b": badge_id, "c": cid, "u": uid})
 
