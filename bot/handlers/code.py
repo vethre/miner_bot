@@ -22,21 +22,17 @@ async def promo_code_cmd(message: types.Message):
     used_by = row["used_by"] or "[]"
     try:
         used_by = json.loads(used_by)
-    except Exception:
+        if isinstance(used_by, list) and used_by and isinstance(used_by[0], int):
+            # старий формат (тільки user_id)
+            used_by = [{"user_id": u, "chat_id": cid} for u in used_by]
+    except:
         used_by = []
 
-    # Підтримка старого формату (тільки user_id)
-    if used_by and isinstance(used_by[0], int):
-        already_used = uid in used_by
-        if not already_used:
-            used_by.append(uid)
-    else:
-        already_used = any(u.get("chat_id") == cid and u.get("user_id") == uid for u in used_by)
-        if not already_used:
-            used_by.append({"chat_id": cid, "user_id": uid})
-
+    already_used = any(u.get("chat_id") == cid and u.get("user_id") == uid for u in used_by)
     if already_used:
         return await message.reply("🚫 Ты уже активировал этот промокод в этом чате.")
+    else:
+        used_by.append({"chat_id": cid, "user_id": uid})
 
     # 💰 выдача награды
     reward = row["reward"]

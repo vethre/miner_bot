@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import List, Dict
 from aiogram.utils.markdown import link
 import random
@@ -761,3 +762,24 @@ async def cavebot_cmd(message: types.Message):
         "🔄 <code>fetch_update(“Eonit Awakens”)</code> → доступ запрещён.\nПричина: доступ возможен только при наличии <b>Legacy Token</b>"
     ]
     await message.reply(random.choice(replies), parse_mode="HTML")
+
+@router.message(lambda msg: re.match(r"шахта\s+профиль", msg.text, re.IGNORECASE))
+async def profile_msg_cmd(message: types.Message):
+    return await profile_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+инвентарь", msg.text, re.IGNORECASE))
+async def inventory_msg_cmd(message: types.Message):
+    return await inventory_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+магазин", msg.text, re.IGNORECASE))
+async def shop_msg_cmd(message: types.Message):
+    return await shop_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(копать|копка|шахта)", msg.text, re.IGNORECASE))
+async def mine_msg_cmd(message: types.Message):
+    return await mine_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+пас(с)?", msg.text, re.IGNORECASE))
+async def pass_msg_cmd(message: types.Message):
+    return await cavepass_cmd(message)
+

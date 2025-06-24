@@ -1,6 +1,7 @@
 # bot/handlers/cavepass.py
 
 import datetime as dt
+import logging
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -66,28 +67,36 @@ ADMINS = {700929765, 988127866}
 @router.message(Command("activate_pass"))
 async def activate_pass_cmd(message: types.Message):
     if message.from_user.id not in ADMINS:
-        return await message.reply("⚠️ У вас нет прав")
+        return await message.reply("⚠️ У вас нет прав на выполнение этой команды.")
+
     parts = message.text.split()
-    if len(parts) != 2:
-        return await message.reply("Использование: /activate_pass 'user_id или @username'")
+    if len(parts) != 3:
+        return await message.reply("Использование:\n/activate_pass 'user_id | @username' 'chat_id'")
+
     target = parts[1]
-    # знайдемо uid
+    try:
+        chat_id = int(parts[2])
+    except ValueError:
+        return await message.reply("❌ Неверный формат chat_id (ожидалось число).")
+
+    # 🔍 Получаем user_id
     if target.startswith("@"):
         try:
-            member = await message.bot.get_chat_member(message.chat.id, target)
-            uid = member.user.id
-        except:
-            return await message.reply("Пользователь не найден")
+            member = await message.bot.get_chat_member(chat_id, target)
+            user_id = member.user.id
+        except Exception as e:
+            logging.warning(f"Не удалось получить юзера: {e}")
+            return await message.reply("❌ Пользователь не найден в этом чате.")
     else:
         if not target.isdigit():
-            return await message.reply("Неверный формат")
-        uid = int(target)
+            return await message.reply("❌ Неверный формат user_id.")
+        user_id = int(target)
 
-    cid = message.chat.id if message.chat.type in ("group","supergroup") else 0
+    # 🗓️ Устанавливаем даты и кирку
     now = dt.datetime.utcnow()
-    exp = dt.datetime(2025, 7, 10, 21, 59, 59)
+    expires = dt.datetime(2025, 7, 10, 21, 59, 59)
 
-    # списувати внутрішню валюту не будемо, тільки активуємо
+    # ✅ Обновляем данные в progress_local
     await db.execute(
         """
         UPDATE progress_local
@@ -96,21 +105,24 @@ async def activate_pass_cmd(message: types.Message):
                current_pickaxe = :pick,
                pick_dur = 94,
                pick_dur_max = 95
-         WHERE chat_id=:c AND user_id=:u
+         WHERE chat_id = :c AND user_id = :u
         """,
-        {"exp": exp, "pick": EX_KEY, "c": cid, "u": uid}
+        {"exp": expires, "pick": EX_KEY, "c": chat_id, "u": user_id}
     )
-    # на всякий випадок гарантовано додамо кирку
+
+    # 🧱 Добавляем кирку в инвентарь (если ещё нет)
     await db.execute(
         """
-        INSERT INTO inventory_local(chat_id,user_id,item,qty)
-             VALUES(:c,:u,:pick,1)
+        INSERT INTO inventory_local(chat_id, user_id, item, qty)
+             VALUES(:c, :u, :i, 1)
            ON CONFLICT DO NOTHING
         """,
-        {"c": cid, "u": uid, "pick": EX_KEY}
+        {"c": chat_id, "u": user_id, "i": EX_KEY}
     )
 
     await message.reply(
-        f"✅ Cave Pass активирован для user_id={uid} до {exp.date()}",
+        f"✅ Cave Pass активирован для <code>{user_id}</code> в чате <code>{chat_id}</code>\n"
+        f"Действителен до <b>{expires.strftime('%d.%m.%Y')}</b> ⛏️",
         parse_mode="HTML"
     )
+
