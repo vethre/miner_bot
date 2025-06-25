@@ -55,7 +55,7 @@ async def main():
     )
 
     aiocron.crontab(
-        '0 * * * *',  # кожну годину на 00 хв
+        '30 */1 * * *',  # кожну годину на 00 хв
         func=reduce_hunger,
         start=True
     )
