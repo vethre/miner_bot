@@ -379,8 +379,21 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     if energy <= 15:
         return await message.reply(f"😴 Недостаточно энергии {energy} (15 - минимум). Отдохни.")
     if hunger <= 0:
-        return await message.reply(f"🍽️ Ты слишком голоден {hunger} (20 - минимум), сперва /eat!")
+    money = await get_money(cid, uid)
+        if money <= 0:
+        # Аварійна допомога
+            await add_item(cid, uid, "bread", 2)
+            await add_item(cid, uid, "meat", 1)
+            await add_money(cid, uid, 100)
 
+            return await message.reply(
+                "🥖 Ты слишком голоден и у тебя нет денег... \n"
+                "🤝 Выдан аварийный паёк: хлеб ×2, мясо ×1 и 100 монет. Теперь /eat и в бой!"
+            )
+        else:
+            return await message.reply(
+                f"🍽️ Ты слишком голоден {hunger}, сперва /eat!"
+            )
     prog = await get_progress(cid, uid)
 
     raw_map = prog.get("pick_dur_map") or "{}"
@@ -395,10 +408,13 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
         delta = prog["mining_end"] - dt.datetime.utcnow()
         left = max(1, round(delta.total_seconds() / 60))
-        if hunger <= 30:
-            return await message.reply(f"🍽️ Ты немного голоден, и получишь вдвое меньше руды ({hunger}/100)\n⛏️ Осталось {left} мин.")
-        return await message.reply(f"⛏️ Ты еще в шахте. Осталось {left} мин.")
-    
+        txt = f"⛏️ Ты ещё в шахте, осталось {left} мин."
+        if hunger == 0:
+            txt += "\n🍽️ Ты голоден и не сможешь копать снова без еды!"
+        elif hunger <= 30:
+            txt += "\n⚠️ Ты устал. Следующая копка принесёт вдвое меньше руды."
+        return await message.reply(txt)
+        
     tier = get_tier(prog["level"])
     bonus_tier = BONUS_BY_TIER[tier]
     ores = TIER_TABLE[tier - 1]["ores"]
