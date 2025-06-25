@@ -378,8 +378,6 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     hunger = await update_hunger(cid, uid)
     if energy <= 15:
         return await message.reply(f"😴 Недостаточно энергии {energy} (15 - минимум). Отдохни.")
-    if hunger <= 30:
-        return await message.reply(f"🍽️ Ты немного голоден, и получишь вдвое меньше руды. ({hunger}/100)")
     if hunger <= 0:
         return await message.reply(f"🍽️ Ты слишком голоден {hunger} (20 - минимум), сперва /eat!")
 
@@ -397,8 +395,10 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
         delta = prog["mining_end"] - dt.datetime.utcnow()
         left = max(1, round(delta.total_seconds() / 60))
-        return await message.reply(f"⛏️ Ты ещё в шахте, осталось {left} мин.")
-
+        if hunger <= 30:
+            return await message.reply(f"🍽️ Ты немного голоден, и получишь вдвое меньше руды ({hunger}/100)\n⛏️ Осталось {left} мин.")
+        return await message.reply(f"⛏️ Ты еще в шахте. Осталось {left} мин."
+    
     tier = get_tier(prog["level"])
     bonus_tier = BONUS_BY_TIER[tier]
     ores = TIER_TABLE[tier - 1]["ores"]
