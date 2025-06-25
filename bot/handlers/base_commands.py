@@ -397,7 +397,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         left = max(1, round(delta.total_seconds() / 60))
         if hunger <= 30:
             return await message.reply(f"🍽️ Ты немного голоден, и получишь вдвое меньше руды ({hunger}/100)\n⛏️ Осталось {left} мин.")
-        return await message.reply(f"⛏️ Ты еще в шахте. Осталось {left} мин."
+        return await message.reply(f"⛏️ Ты еще в шахте. Осталось {left} мин.")
     
     tier = get_tier(prog["level"])
     bonus_tier = BONUS_BY_TIER[tier]
