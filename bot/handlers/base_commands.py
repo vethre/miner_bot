@@ -603,7 +603,7 @@ async def craft_cmd(message: types.Message):
     for k, need in recipe["in"].items():
         await add_item(cid, uid, k, -need)
     await add_item(cid, uid, recipe["out_key"], 1)
-    if craft_name == "roundstone_pickaxe":
+    if recipe["out_key"] == "roundstone_pickaxe":
         await unlock_achievement(cid, uid, "cobble_player")
     msg = await message.reply(f"🎉 Создано: {recipe['out_name']}!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
