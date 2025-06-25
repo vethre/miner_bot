@@ -154,7 +154,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     ore = ORE_ITEMS[ore_id]
     amount = random.randint(*ore["drop_range"])
     # 💡 Зниження нагороди при голоді < 40
-    if prog.get("hunger", 100) < 30:
+    if prog.get("hunger", 100) <= 30:
         amount = int(amount * 0.5)
 
     amount = int(amount * total_bonus)
@@ -379,7 +379,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     if energy <= 15:
         return await message.reply(f"😴 Недостаточно энергии {energy} (15 - минимум). Отдохни.")
     if hunger <= 0:
-    money = await get_money(cid, uid)
+        money = await get_money(cid, uid)
         if money <= 0:
         # Аварійна допомога
             await add_item(cid, uid, "bread", 2)
