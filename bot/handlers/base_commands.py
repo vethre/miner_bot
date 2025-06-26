@@ -160,7 +160,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     amount = int(amount * total_bonus)
 
     xp_gain=amount
-    if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():
+    if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.now(tz=UTC):
         xp_gain=int(xp_gain*1.5)
 
     # 🎯 Прототип Эонита — шанс на двойную копку
