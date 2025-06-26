@@ -8,6 +8,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.db_local import db, get_progress, add_item, add_money, add_xp
 from bot.utils.unlockachievement import unlock_achievement
 from bot.handlers.badge_defs import BADGES
+from bot.main import UTC
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.handlers.pass_rewards import PASS_REWARDS
 
@@ -48,7 +49,7 @@ async def trackpass_cmd(message: types.Message):
     if isinstance(claimed, str):
         claimed = json.loads(claimed)
 
-    premium = prog.get("cave_pass") and prog["pass_expires"] and prog["pass_expires"] > dt.datetime.utcnow()
+    premium = prog.get("cave_pass") and prog["pass_expires"] and prog["pass_expires"] > dt.datetime.now(tz=UTC)
     max_level = max(PASS_REWARDS.keys())
     progress_bar = generate_progress_bar(current_xp, (level + 1) * 100)
 
