@@ -51,7 +51,7 @@ router = Router()
 
 # ────────── Константи ──────────
 BASE_MINE_SEC   = 1200          # Tier-1
-MINE_SEC_STEP   = -20          # -20 с за кожен Tier вище
+MINE_SEC_STEP   = -60          # -20 с за кожен Tier вище
 MINE_SEC_MIN    = 60
 
 BASE_SMELT_SEC  = 600          # за 1 інгот
