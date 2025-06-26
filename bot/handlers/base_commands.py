@@ -225,7 +225,8 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
          f"XP +<b>{xp_gain}</b> | Streak {streak} дн. | Tier ×{bonus:.1f}\n"
          f"Бонус кирки +<b>{int(pick_bonus*100)} %</b>"
          + ("\n⚠️ Кирка сломалась! /repair" if broken else "")
-         + extra_txt)
+         + (extra_txt)
+         + proto_txt)
 
     await bot.send_message(cid,txt,parse_mode="HTML")
     logging.info("Mining result sent: chat=%s uid=%s", cid, uid)
