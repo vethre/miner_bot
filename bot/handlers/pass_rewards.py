@@ -1,25 +1,88 @@
 PASS_REWARDS = {
-    1: {"free": {"gold": 3}, "premium": {"achievement": "eonite_owner"}},
-    2: {"free": {"coal": 10}, "premium": {"money": 300}},
-    3: {"free": {"roundstone": 5}, "premium": {"gold": 15}},
-    4: {"free": {"iron": 3}, "premium": {"coal": 30}},
-    5: {"free": {"iron_ingot": 3}, "premium": {"money": 500}},
-    6: {"free": {"money": 150}, "premium": {"iron": 10}},
-    7: {"free": {"coal": 30}, "premium": {"amethyst": 2}},
-    8: {"free": {"wood_handle": 3}, "premium": {"badge": "eonite_beacon"}},
-    9: {"free": {"gold": 5}, "premium": {"lapis": 3}},
-    10: {"free": {"pickaxe": "iron_pickaxe"}, "premium": {"money": 700}},
-    11: {"free": {"money": 300}, "premium": {"cave_cases": 1}},
-    12: {"free": {"coal": 50}, "premium": {"gold_ingot": 2}},
-    13: {"free": {"lapis": 5}, "premium": {"amethyst": 5}},
-    14: {"free": {"money": 400}, "premium": {"iron": 15}},
-    15: {"free": {"xp": 120}, "premium": {"pickaxe": "proto_eonite_pickaxe"}},
-    16: {"free": {"roundstone": 10}, "premium": {"money": 600}},
-    17: {"free": {"cave_cases": 1}, "premium": {"cave_cases": 2}},
-    18: {"free": {"money": 200}, "premium": {"lapis": 10}},
-    19: {"free": {"coal": 60}, "premium": {"iron_ingot": 5}},
-    20: {"free": {"cave_cases": 3}, "premium": {"cave_cases": 3, "lapis": 3}},
+    1: {
+        "free": {"type": "money", "data": 300},
+        "premium": {"type": "achievement", "data": "eonite_owner"}
+    },
+    2: {
+        "free": {"type": "item", "data": "coal", "qty": 10},
+        "premium": {"type": "money", "data": 500}
+    },
+    3: {
+        "free": {"type": "item", "data": "iron", "qty": 3},
+        "premium": {"type": "xp", "data": 100}
+    },
+    4: {
+        "free": {"type": "item", "data": "roundstone", "qty": 15},
+        "premium": {"type": "item", "data": "coal", "qty": 30}
+    },
+    5: {
+        "free": {"type": "item", "data": "iron_ingot", "qty": 5},
+        "premium": {"type": "money", "data": 50}
+    },
+    6: {
+        "free": {"type": "money", "data": 200},
+        "premium": {"type": "item", "data": "iron", "qty": 10}
+    },
+    7: {
+        "free": {"type": "item", "data": "coal", "qty": 30},
+        "premium": {"type": "item", "data": "amethyst", "qty": 2}
+    },
+    8: {
+        "free": {"type": "item", "data": "wood_handle", "qty": 3},
+        "premium": {"type": "badge", "data": "eonite_beacon"}
+    },
+    9: {
+        "free": {"type": "item", "data": "gold", "qty": 5},
+        "premium": {"type": "item", "data": "lapis", "qty": 3}
+    },
+    10: {
+        "free": {"type": "pickaxe", "data": "iron_pickaxe", "qty": 1},
+        "premium": {"type": "money", "data": 500}
+    },
+    11: {
+        "free": {"type": "money", "data": 300},
+        "premium": {"type": "cave_cases", "data": 1}
+    },
+    12: {
+        "free": {"type": "item", "data": "coal", "qty": 50},
+        "premium": {"type": "item", "data": "gold_ingot", "qty": 5}
+    },
+    13: {
+        "free": {"type": "item", "data": "lapis", "qty": 3},
+        "premium": {"type": "item", "data": "amethyst", "qty": 5}
+    },
+    14: {
+        "free": {"type": "money", "data": 400},
+        "premium": {"type": "item", "data": "iron", "qty": 15}
+    },
+    15: {
+        "free": {"type": "xp", "data": 150},
+        "premium": {"type": "pickaxe", "data": "proto_eonite_pickaxe", "qty": 1}
+    },
+    16: {
+        "free": {"type": "xp", "data": 200},
+        "premium": {"type": "xp", "data": 250}
+    },
+    17: {
+        "free": {"type": "cave_cases", "data": 1},
+        "premium": {"type": "cave_cases", "data": 2}
+    },
+    18: {
+        "free": {"type": "xp", "data": 220},
+        "premium": {"type": "item", "data": "lapis", "qty": 7}
+    },
+    19: {
+        "free": {"type": "item", "data": "coal", "qty": 70},
+        "premium": {"type": "item", "data": "emerald", "qty": 2}
+    },
+    20: {
+        "free": {"type": "cave_cases", "data": 3},
+        "premium": {"type": "cave_cases", "data": 5}
+    },
+
+    
 }
+
 
 
 REWARD_DISPLAY = {

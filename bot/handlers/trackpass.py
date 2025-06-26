@@ -14,6 +14,7 @@ from bot.utils.unlockachievement import unlock_achievement
 from bot.handlers.badge_defs import BADGES
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.handlers.pass_rewards import PASS_REWARDS
+from bot.handlers.cases import give_case_to_user
 
 router = Router()
 UTC = ZoneInfo("UTC")
@@ -41,32 +42,32 @@ def format_reward(data: dict) -> str:
             parts.append(f"{v}× {k}")
     return " + ".join(parts)
 
-def display_reward(code: str) -> str:
-    if code.startswith("badge:"):
-        badge_id = code.split(":", 1)[1]
-        badge = BADGES.get(badge_id)
-        return f"🏅 {badge['name']}" if badge else f"🏅 {badge_id}"
+def display_reward(reward: dict) -> str:
+    t = reward["type"]
+    d = reward["data"]
 
-    if code.startswith("ach:"):
-        ach_id = code.split(":", 1)[1]
-        ach = ACHIEVEMENTS.get(ach_id)
-        return f"🏆 {ach['name']}" if ach else f"🏆 {ach_id}"
+    if t == "money":
+        return f"💰 {d} монет"
+    if t == "xp":
+        return f"📘 {d} XP"
+    if t == "badge":
+        badge = BADGES.get(d)
+        return f"🏅 {badge['name']}" if badge else f"🏅 {d}"
+    if t == "achievement":
+        ach = ACHIEVEMENTS.get(d)
+        return f"🏆 {ach['name']}" if ach else f"🏆 {d}"
+    if t == "pickaxe":
+        pick = PICKAXES.get(d)
+        return f"🛠️ {pick['name']}" if pick else f"🛠️ {d}"
+    if t == "item":
+        item = ITEM_DEFS.get(d)
+        qty = reward.get("qty", 1)
+        return f"{item['emoji']} {item['name']} ×{qty}" if item else f"{d} ×{qty}"
+    if t == "cave_cases":
+        return f"📦 {d} Cave Case"
 
-    if code.endswith("_pickaxe"):
-        pick = PICKAXES.get(code)
-        return f"🛠️ {pick['name']}" if pick else f"🛠️ {code}"
+    return "❓ Неизвестная награда"
 
-    if code.endswith("XP"):
-        return f"📘 {code.replace('XP', '')} XP"
-
-    if code.endswith("gold"):
-        return f"💰 {code.replace('gold', '')} монет"
-
-    item = ITEM_DEFS.get(code)
-    if item:
-        return f"{item['emoji']} {item['name']}"
-
-    return f"🎁 {code}"
 
 @router.message(Command("trackpass"))
 async def trackpass_cmd(message: types.Message):
@@ -171,6 +172,9 @@ async def claim_pass_reward(call: types.CallbackQuery):
         elif key == "pickaxe":
             await add_item(cid, uid, val, 1)
             msg.append(f"🪓 кирка: {val}")
+        elif key == "cave_cases":
+            await give_case_to_user(cid, uid, val)
+            msg.append(f"📦 case: {val}")
         else:
             await add_item(cid, uid, key, val)
             msg.append(f"{val}× {key}")
