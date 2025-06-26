@@ -66,6 +66,8 @@ async def trackpass_cmd(message: types.Message):
 
     kb = InlineKeyboardBuilder()
     for lvl in range(1, max_level + 1):
+        if lvl > level:
+            continue  # <-- не показуємо кнопки, якщо ще не досягнутий рівень
         if not claimed.get(str(lvl), {}).get("free"):
             kb.button(text=f"🎁 Lv{lvl}", callback_data=f"passreward:free:{lvl}")
         if premium and not claimed.get(str(lvl), {}).get("premium"):
@@ -86,7 +88,7 @@ async def claim_pass_reward(call: types.CallbackQuery):
     if isinstance(claimed, str):
         claimed = json.loads(claimed)
 
-    if str(lvl) not in PASS_REWARDS:
+    if lvl not in PASS_REWARDS:
         return await call.answer("Такого уровня не существует.")
 
     if lvl > prog.get("pass_level", 0):
