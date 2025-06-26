@@ -1,6 +1,7 @@
 import json
 import datetime as dt
 from aiogram import types, Router
+from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.db_local import db, get_progress, add_item
 from bot.utils.autodelete import register_msg_for_autodelete
@@ -15,7 +16,7 @@ def generate_progress_bar(current: int, total: int, size: int = 10) -> str:
     empty = size - filled
     return f"{'▰' * filled}{'▱' * empty} {min(current, total)}/{total}"
 
-@router.message(commands="trackpass")
+@router.message(Command("trackpass"))
 async def trackpass_cmd(message: types.Message):
     cid = message.chat.id
     uid = message.from_user.id
