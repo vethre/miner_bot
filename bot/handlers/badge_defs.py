@@ -14,4 +14,10 @@ BADGES = {
         "effect": "money_return",  # +30% money назад
         "emoji": "💸"
     },
+    "eonite_beacon": {
+        "name": "Маячок Эонита",
+        "effect": "consumables_block",  # +30% money назад
+        "emoji": "🔮"
+    },
 }
+

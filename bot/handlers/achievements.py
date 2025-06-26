@@ -37,6 +37,11 @@ ACHIEVEMENTS = {
         "emoji": "🪨",
         "desc": "Скрафти булыжниковую кирку"
     },
+    "eonite_owner": {
+        "name": "Обладатель Эонита",
+        "emoji": "🔮",
+        "desc": "Получи/купи Cave Pass S1"
+    },
 }
 
 async def achievements_menu(message: types.Message, uid: int):

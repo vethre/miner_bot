@@ -16,7 +16,9 @@ PICKAXES = {
     "crystal_pickaxe":  {"bonus":.80, "name": "хрустальная кирка",  "emoji": "💎", "dur": 75},
     "amethyst_pickaxe": {"bonus": .50, "name": "аметистовая кирка",  "emoji": "🔮", "dur":100},
     "diamond_pickaxe": {"bonus": .75, "name": "алмазная кирка",  "emoji": "💎", "dur":65},
+    "proto_eonite_pickaxe": {"bonus": 1.3, "name": "прототип эонитовой кирки",  "emoji": "🔮", "dur":50},
 }
+
 
 ALIAS = {
     "деревяная кирка":"wooden_pickaxe","деревяная кирка":"wooden_pickaxe",
@@ -25,6 +27,8 @@ ALIAS = {
     "хрустальная кирка":"crystal_pickaxe",
     "аметистовая кирка":"amethyst_pickaxe",
     "алмазная кирка": "diamond_pickaxe",
+    "прототип эонитовой кирки": "proto_eonite_pickaxe",
+    "пэк": "proto_eonite_pickaxe",
 }
 
 def _json2dict(raw):

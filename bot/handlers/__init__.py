@@ -9,6 +9,7 @@ from .cavepass import router as pass_router
 from .devutils import router as dev_router
 from .badgeshop import router as badgeshop_router
 from .code import router as code_router
+from .trackpass import router as trackpass_router
 
 def register_handlers(dp):
     dp.include_router(base_router)
@@ -22,3 +23,4 @@ def register_handlers(dp):
     dp.include_router(dev_router)
     dp.include_router(code_router)
     dp.include_router(badgeshop_router)
+    dp.include_router(trackpass_router)
