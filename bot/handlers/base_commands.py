@@ -51,7 +51,7 @@ router = Router()
 
 # ────────── Константи ──────────
 BASE_MINE_SEC   = 1200          # Tier-1
-MINE_SEC_STEP   = -20          # -20 с за кожен Tier вище
+MINE_SEC_STEP   = -80          # -80 с за кожен Tier вище
 MINE_SEC_MIN    = 60
 
 BASE_SMELT_SEC  = 600          # за 1 інгот
@@ -462,34 +462,45 @@ async def badge_use_cb(cb: types.CallbackQuery):
 
 # ────────── /inventory ──────────
 @router.message(Command("inventory"))
-async def inventory_cmd(message: types.Message, user_id: int | None = None):
+async def inventory_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
-    if user_id:
-        uid = user_id
     inv = await get_inventory(cid, uid)
     balance = await get_money(cid, uid)
 
-    lines = [f"🧾 Баланс: {balance} монет\n", "<b>📦 Инвентарь:</b>"]
-    current_pick = (await get_progress(cid, uid)).get("current_pickaxe")
+    ores = []
+    ingots = []
+    misc = []
+
     for row in inv:
-        if row["item"] == current_pick:
-            continue
-        meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": ""})
-        pre = f"{meta['emoji']} " if meta.get("emoji") else ""
-        lines.append(f"{pre}{meta['name']}: {row['qty']}")
+        meta = ITEM_DEFS.get(row["item"])
+        if not meta:
+            misc.append(row)
+        elif row["item"].endswith("_ingot") or row["item"] == "roundstone":
+            ingots.append((meta, row["qty"]))
+        else:
+            ores.append((meta, row["qty"]))
 
-    msg = await message.answer_photo(
-        photo=INV_IMG_ID,
-        caption="\n".join(lines),
-        parse_mode="HTML",
-        reply_to_message_id=message.message_id
-    )
+    lines = [f"🧾 Баланс: {balance} монет", "<b>📦 Инвентарь:</b>"]
 
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
-    #await message.reply("\n".join(lines), parse_mode="HTML")
+    if ores:
+        lines.append("\n<em>⛏️ Руды:</em>")
+        for meta, qty in ores:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
+    if ingots:
+        lines.append("\n<em>🔥 Слитки:</em>")
+        for meta, qty in ingots:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
+    if misc:
+        lines.append("\n<em>📦 Другое:</em>")
+        for row in misc:
+            lines.append(f"{row['item']}: {row['qty']}")
+
+    msg = await message.answer("\n".join(lines), parse_mode="HTML")
+    register_msg_for_autodelete(cid, msg.message_id)
+
 
 # ────────── /sell (локальний) ──────────
-ALIASES = {k: k for k in ORE_ITEMS}
+ALIASES = {k: k for k in ITEM_DEFS}
 ALIASES.update({
     "камень": "stone",
     "уголь": "coal",
@@ -501,34 +512,84 @@ ALIASES.update({
     "изумруд": "emerald",
     "лазурит": "lapis",
     "рубин": "ruby",
+    "булыжник": "roundstone",
+    "железный слиток": "iron_ingot",
+    "золотой слиток": "gold_ingot",
+    "аметистовый слиток": "amethyst_ingot",
 })
 
 @router.message(Command("sell"))
-async def sell_cmd(message: types.Message):
+async def sell_start(message: types.Message):
     cid, uid = await cid_uid(message)
-    text = message.text or ""
-    parts = text.split(maxsplit=1)
-    if len(parts) < 2:
-        return await message.reply("Как продать: /sell 'ресурс' 'кол-во'")
-    try:
-        item_part, qty_str = parts[1].rsplit(maxsplit=1)
-    except ValueError:
-        return await message.reply("Как продать: /sell 'ресурс' 'кол-во'")
-    if not qty_str.isdigit():
-        return await message.reply("Кол-во должно быть числом!")
-    qty = int(qty_str)
-    item_key = ALIASES.get(item_part.lower(), item_part.lower())
-    if item_key not in ITEM_DEFS or "price" not in ITEM_DEFS[item_key]:
-        return await message.reply("Не принимается 😕")
+    inv_raw = await get_inventory(cid, uid)
+    inv = {r["item"]: r["qty"] for r in inv_raw if r["qty"] > 0}
+
+    items = [
+        (k, v) for k, v in inv.items()
+        if k in ITEM_DEFS and "price" in ITEM_DEFS[k]
+    ]
+
+    if not items:
+        return await message.reply("У тебя нет ничего на продажу 😅")
+
+    builder = InlineKeyboardBuilder()
+    for k, qty in items:
+        emoji = ITEM_DEFS[k].get("emoji", "")
+        name = ITEM_DEFS[k]["name"]
+        builder.button(text=f"{emoji} {name} ({qty})", callback_data=f"sell_choose:{k}")
+
+    msg = await message.answer(
+        "Что хочешь продать?",
+        reply_markup=builder.adjust(2).as_markup()
+    )
+    register_msg_for_autodelete(cid, msg.message_id)
+
+@router.callback_query(F.data.startswith("sell_choose:"))
+async def choose_amount(call: types.CallbackQuery):
+    cid, uid = call.message.chat.id, call.from_user.id
+    item_key = call.data.split(":")[1]
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
-    have = inv.get(item_key, 0)
-    if have < qty:
-        return await message.reply(f"У тебя только {have}×{item_part}")
+    qty = inv.get(item_key, 0)
+    if qty <= 0:
+        return await call.answer("У тебя нет этого предмета.")
+
+    builder = InlineKeyboardBuilder()
+    for amount in [1, 5, 10, qty]:
+        if amount > qty:
+            continue
+        builder.button(
+            text=f"Продать {amount}×",
+            callback_data=f"sell_confirm:{item_key}:{amount}"
+        )
+    builder.button(text="❌ Отмена", callback_data="sell_cancel")
+
+    meta = ITEM_DEFS[item_key]
+    msg = await call.message.edit_text(
+        f"{meta.get('emoji','')} {meta['name']}\nСколько хочешь продать?",
+        reply_markup=builder.adjust(2).as_markup()
+    )
+
+@router.callback_query(F.data.startswith("sell_confirm:"))
+async def confirm_sell(call: types.CallbackQuery):
+    cid, uid = call.message.chat.id, call.from_user.id
+    _, item_key, qty_str = call.data.split(":")
+    qty = int(qty_str)
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    if inv.get(item_key, 0) < qty:
+        return await call.answer("Недостаточно предметов!")
+
+    price = ITEM_DEFS[item_key]["price"]
+    earned = price * qty
     await add_item(cid, uid, item_key, -qty)
-    earned = ITEM_DEFS[item_key]["price"] * qty
     await add_money(cid, uid, earned)
-    msg = await message.reply(f"Продано {qty}×{item_part} за {earned} монет 💰")
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
+
+    meta = ITEM_DEFS[item_key]
+    await call.message.edit_text(f"✅ Продано {qty}×{meta['emoji']} {meta['name']} за {earned} монет 💰")
+    register_msg_for_autodelete(cid, call.message.message_id)
+
+@router.callback_query(F.data == "sell_cancel")
+async def cancel_sell(call: types.CallbackQuery):
+    await call.message.edit_text("Продажа отменена ❌")
 
 # ────────── /smelt (async) ──────────
 @router.message(Command("smelt"))
@@ -756,6 +817,10 @@ async def repair_cmd(message: types.Message):
         await change_dur(cid, uid, pick_key, restore)
         await db.execute(
             "UPDATE progress_local SET crystal_repaired=TRUE WHERE chat_id=:c AND user_id=:u",
+            {"c": cid, "u": uid}
+        )
+        await db.execute(
+            "UPDATE progress_local SET repair_count = COALESCE(repair_count, 0) + 1 WHERE chat_id=:c AND user_id=:u",
             {"c": cid, "u": uid}
         )
         return await message.reply(
