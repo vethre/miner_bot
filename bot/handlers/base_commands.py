@@ -163,6 +163,23 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():
         xp_gain=int(xp_gain*1.5)
 
+    # 🎯 Прототип Эонита — шанс на двойную копку
+    if pick_key == "proto_eonite_pickaxe" and random.random() < 1.0:
+        ore2 = random.choice(ores)
+        ore_def = ORE_ITEMS[ore2]
+        amount2 = random.randint(*ore_def["drop_range"])
+        
+        if prog.get("hunger", 100) <= 30:
+            amount2 = int(amount2 * 0.5)
+        amount2 = int(amount2 * total_bonus)
+
+        await add_item(cid, uid, ore2, amount2)
+        await add_xp(cid, uid, amount2)
+
+        # Дополнительный текст
+        extra_txt += f"\n🔮 Прототип эонита активировался!\n" \
+                    f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
+
     await add_item(cid,uid,ore_id,amount)
     await add_xp  (cid,uid,xp_gain)
     streak=await update_streak(cid,uid)
