@@ -171,7 +171,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         
         if prog.get("hunger", 100) <= 30:
             amount2 = int(amount2 * 0.5)
-        amount2 = int(amount2 * total_bonus)
+        amount2 = max(1, int(amount2 * total_bonus))
 
         await add_item(cid, uid, ore2, amount2)
         await add_xp(cid, uid, amount2)
