@@ -128,7 +128,7 @@ async def claim_pass_reward(call: types.CallbackQuery):
                 owned.append(val)
                 await db.execute(
                     "UPDATE progress_local SET badges_owned = :val WHERE chat_id=:c AND user_id=:u",
-                    {"val": json.dumps(owned), "c": cid, "u": uid}
+                    {"val": owned, "c": cid, "u": uid}
                 )
                 msg.append("🏅 новый бейдж!")
             else:
