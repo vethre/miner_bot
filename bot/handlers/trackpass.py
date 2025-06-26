@@ -7,6 +7,9 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.db_local import db, get_progress, add_item, add_money, add_xp
+from bot.handlers.achievements import ACHIEVEMENTS
+from bot.handlers.items import ITEM_DEFS
+from bot.handlers.use import PICKAXES
 from bot.utils.unlockachievement import unlock_achievement
 from bot.handlers.badge_defs import BADGES
 from bot.utils.autodelete import register_msg_for_autodelete
@@ -38,6 +41,33 @@ def format_reward(data: dict) -> str:
             parts.append(f"{v}× {k}")
     return " + ".join(parts)
 
+def display_reward(code: str) -> str:
+    if code.startswith("badge:"):
+        badge_id = code.split(":", 1)[1]
+        badge = BADGES.get(badge_id)
+        return f"🏅 {badge['name']}" if badge else f"🏅 {badge_id}"
+
+    if code.startswith("ach:"):
+        ach_id = code.split(":", 1)[1]
+        ach = ACHIEVEMENTS.get(ach_id)
+        return f"🏆 {ach['name']}" if ach else f"🏆 {ach_id}"
+
+    if code.endswith("_pickaxe"):
+        pick = PICKAXES.get(code)
+        return f"🛠️ {pick['name']}" if pick else f"🛠️ {code}"
+
+    if code.endswith("XP"):
+        return f"📘 {code.replace('XP', '')} XP"
+
+    if code.endswith("gold"):
+        return f"💰 {code.replace('gold', '')} монет"
+
+    item = ITEM_DEFS.get(code)
+    if item:
+        return f"{item['emoji']} {item['name']}"
+
+    return f"🎁 {code}"
+
 @router.message(Command("trackpass"))
 async def trackpass_cmd(message: types.Message):
     cid = message.chat.id
@@ -63,7 +93,9 @@ async def trackpass_cmd(message: types.Message):
         cl = claimed.get(str(lvl), {})
 
         status = "✅" if cl.get("free") and (not prem or cl.get("premium")) else "🔓"
-        row = f"{status} Lv.{lvl:>2} | Free: {format_reward(free) if free else '—'} | Premium: {format_reward(prem) if prem else '—'}"
+        free_disp = display_reward(free) if free else "—"
+        prem_disp = display_reward(prem) if prem else "—"
+        row = f"{status} Lv.{lvl:>2} | Free: {free_disp} | Premium: {prem_disp}"
         lines.append(row)
 
     kb = InlineKeyboardBuilder()

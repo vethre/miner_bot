@@ -7,18 +7,18 @@ PASS_REWARDS = {
     6: {"free": {"money": 150}, "premium": {"iron": 10}},
     7: {"free": {"coal": 30}, "premium": {"amethyst": 2}},
     8: {"free": {"wood_handle": 3}, "premium": {"badge": "eonite_beacon"}},
-    9: {"free": {"gold": 5}, "premium": {"lapis": 10}},
+    9: {"free": {"gold": 5}, "premium": {"lapis": 3}},
     10: {"free": {"pickaxe": "iron_pickaxe"}, "premium": {"money": 700}},
-    11: {"free": {"money": 300}, "premium": {"cave_case": 1}},
+    11: {"free": {"money": 300}, "premium": {"cave_cases": 1}},
     12: {"free": {"coal": 50}, "premium": {"gold_ingot": 2}},
     13: {"free": {"lapis": 5}, "premium": {"amethyst": 5}},
     14: {"free": {"money": 400}, "premium": {"iron": 15}},
     15: {"free": {"xp": 120}, "premium": {"pickaxe": "proto_eonite_pickaxe"}},
     16: {"free": {"roundstone": 10}, "premium": {"money": 600}},
-    17: {"free": {"cave_case": 1}, "premium": {"cave_case": 2}},
-    18: {"free": {"money": 200}, "premium": {"lapis": 15}},
+    17: {"free": {"cave_cases": 1}, "premium": {"cave_cases": 2}},
+    18: {"free": {"money": 200}, "premium": {"lapis": 10}},
     19: {"free": {"coal": 60}, "premium": {"iron_ingot": 5}},
-    20: {"free": {"cave_case": 3}, "premium": {"cave_case": 3, "lapis": 3}},
+    20: {"free": {"cave_cases": 3}, "premium": {"cave_cases": 3, "lapis": 3}},
 }
 
 
