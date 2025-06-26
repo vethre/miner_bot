@@ -136,7 +136,7 @@ async def apply_chance_event(ev: ChanceEvent, cid: int, uid: int) -> str:
 # ────────── Mining Task ──────────
 async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus:float):
     await asyncio.sleep(get_mine_duration(tier))
-
+    extra_txt = ""
     prog = await get_progress(cid,uid)
     level = prog.get("level", 1)
     pick_key = prog.get("current_pickaxe")
