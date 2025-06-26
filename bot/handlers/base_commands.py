@@ -38,9 +38,10 @@ from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.achievements import achievements_menu
 from bot.handlers.badge_defs import BADGES
 from bot.handlers.badges import badges_menu
+from bot.handlers.eat import eat_cmd
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
-from bot.handlers.use import PICKAXES
+from bot.handlers.use import PICKAXES, use_cmd
 from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
 from bot.utils.autodelete import register_msg_for_autodelete
@@ -334,7 +335,7 @@ async def profile_callback(callback: types.CallbackQuery):
 
     # передаємо виконання команді
     if action == "inventory":
-        await inventory_cmd(callback.message, user_id=orig_uid)
+        await inventory_cmd(callback.message)
     elif action == "shop":
         await shop_cmd(callback.message)
     elif action == "mine":
@@ -352,7 +353,7 @@ async def profile_callback(cb: types.CallbackQuery):
     await cb.answer()
     act = cb.data.split(":", 1)[1]
     if act == "inventory":
-        await inventory_cmd(cb.message, cb.from_user.id)
+        await inventory_cmd(cb.message)
     elif act == "shop":
         await shop_cmd(cb.message, cb.from_user.id)
     elif act == "mine":
@@ -466,36 +467,74 @@ async def inventory_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     inv = await get_inventory(cid, uid)
     balance = await get_money(cid, uid)
+    progress = await get_progress(cid, uid)
+    current_pick = progress.get("current_pickaxe")
 
-    ores = []
-    ingots = []
-    misc = []
+    # Категорії
+    categories = {
+        "ores": [],
+        "ingots": [],
+        "pickaxes": [],
+        "food": [],
+        "torch": [],
+        "misc": []
+    }
 
+    # Визначення категорії по item_key
+    def get_category(item_key):
+        if item_key.endswith("_ingot") or item_key == "roundstone":
+            return "ingots"
+        elif item_key.endswith("_pickaxe"):
+            return "pickaxes"
+        elif item_key in ("meat", "bread", "coffee", "borsch", "energy_drink"):
+            return "food"
+        elif item_key in ("torch", "torch_bundle", "lapis_torch"):
+            return "torch"
+        elif item_key in ORE_ITEMS:
+            return "ores"
+        return "misc"
+
+    # Розкид по категоріях
     for row in inv:
-        meta = ITEM_DEFS.get(row["item"])
-        if not meta:
-            misc.append(row)
-        elif row["item"].endswith("_ingot") or row["item"] == "roundstone":
-            ingots.append((meta, row["qty"]))
-        else:
-            ores.append((meta, row["qty"]))
+        if row["item"] == current_pick:
+            continue
+        meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": "❔"})
+        cat = get_category(row["item"])
+        categories[cat].append((meta, row["qty"]))
 
-    lines = [f"🧾 Баланс: {balance} монет", "<b>📦 Инвентарь:</b>"]
+    lines = [f"🧾 Баланс: {balance} монет", ""]
 
-    if ores:
-        lines.append("\n<em>⛏️ Руды:</em>")
-        for meta, qty in ores:
+    if categories["ores"]:
+        lines.append("<b>⛏️ Руды:</b>")
+        for meta, qty in categories["ores"]:
             lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
-    if ingots:
-        lines.append("\n<em>🔥 Слитки:</em>")
-        for meta, qty in ingots:
+    if categories["pickaxes"]:
+        lines.append("\n<b>🪓 Кирки:</b>")
+        for meta, qty in categories["pickaxes"]:
             lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
-    if misc:
-        lines.append("\n<em>📦 Другое:</em>")
-        for row in misc:
-            lines.append(f"{row['item']}: {row['qty']}")
+    if categories["ingots"]:
+        lines.append("\n<b>🔥 Слитки:</b>")
+        for meta, qty in categories["ingots"]:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
+    if categories["food"]:
+        lines.append("\n<b>🍖 Еда:</b>")
+        for meta, qty in categories["food"]:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
+    if categories["torch"]:
+        lines.append("\n<b>🕯️ Факелы:</b>")
+        for meta, qty in categories["torch"]:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
+    if categories["misc"]:
+        lines.append("\n<b>🎒 Прочее:</b>")
+        for meta, qty in categories["misc"]:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
 
-    msg = await message.answer("\n".join(lines), parse_mode="HTML")
+    msg = await message.answer_photo(
+        INV_IMG_ID,
+        caption="\n".join(lines),
+        parse_mode="HTML",
+        reply_to_message_id=message.message_id
+    )
     register_msg_for_autodelete(cid, msg.message_id)
 
 
@@ -982,4 +1021,16 @@ async def pass_msg_cmd(message: types.Message):
 @router.message(lambda msg: re.match(r"шахта\s+(крафты|кирки)", msg.text, re.IGNORECASE))
 async def picks_msg_cmd(message: types.Message):
     return await pickaxes_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(кушать|есть|пить)", msg.text, re.IGNORECASE))
+async def eat_msg_cmd(message: types.Message):
+    return await eat_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(юз|исп)", msg.text, re.IGNORECASE))
+async def use_msg_cmd(message: types.Message):
+    return await use_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(продать|продажа|торг)", msg.text, re.IGNORECASE))
+async def sell_msg_cmd(message: types.Message):
+    return await sell_start(message)
 
