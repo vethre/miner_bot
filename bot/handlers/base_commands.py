@@ -335,7 +335,7 @@ async def profile_callback(callback: types.CallbackQuery):
 
     # передаємо виконання команді
     if action == "inventory":
-        await inventory_cmd(callback.message)
+        await inventory_cmd(callback.message, user_id=orig_uid)
     elif action == "shop":
         await shop_cmd(callback.message)
     elif action == "mine":
@@ -353,7 +353,7 @@ async def profile_callback(cb: types.CallbackQuery):
     await cb.answer()
     act = cb.data.split(":", 1)[1]
     if act == "inventory":
-        await inventory_cmd(cb.message)
+        await inventory_cmd(cb.message, cb.from_user.id)
     elif act == "shop":
         await shop_cmd(cb.message, cb.from_user.id)
     elif act == "mine":
@@ -463,8 +463,10 @@ async def badge_use_cb(cb: types.CallbackQuery):
 
 # ────────── /inventory ──────────
 @router.message(Command("inventory"))
-async def inventory_cmd(message: types.Message):
+async def inventory_cmd(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
+    if user_id:
+        uid = user_id
     inv = await get_inventory(cid, uid)
     balance = await get_money(cid, uid)
     progress = await get_progress(cid, uid)
