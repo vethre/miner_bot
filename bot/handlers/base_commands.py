@@ -422,8 +422,8 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     cur_pick = prog.get("current_pickaxe")
     if cur_pick and dur_map.get(cur_pick, 0) == 0:
             return await message.reply("⚠️ Кирка сломана! /repair")
-    if prog["mining_end"] and prog["mining_end"] > dt.datetime.utcnow():
-        delta = prog["mining_end"] - dt.datetime.utcnow()
+    if prog["mining_end"] and prog["mining_end"] > dt.datetime.now(tz=UTC):
+        delta = prog["mining_end"] - dt.datetime.now(tz=UTC)
         left = max(1, round(delta.total_seconds() / 60))
         txt = f"⛏️ Ты ещё в шахте, осталось {left} мин."
         if hunger == 0:
