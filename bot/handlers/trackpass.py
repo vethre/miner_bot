@@ -1,12 +1,14 @@
+# trackpass.py
 import json
 import datetime as dt
 from aiogram import types, Router
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from bot.db_local import db, get_progress, add_item
-from bot.utils.autodelete import register_msg_for_autodelete
+
+from bot.db_local import db, get_progress, add_item, add_money, add_xp
 from bot.utils.unlockachievement import unlock_achievement
 from bot.handlers.badge_defs import BADGES
+from bot.utils.autodelete import register_msg_for_autodelete
 from bot.handlers.pass_rewards import PASS_REWARDS
 
 router = Router()
@@ -16,6 +18,24 @@ def generate_progress_bar(current: int, total: int, size: int = 10) -> str:
     empty = size - filled
     return f"{'▰' * filled}{'▱' * empty} {min(current, total)}/{total}"
 
+def format_reward(data: dict) -> str:
+    parts = []
+    for k, v in data.items():
+        if k == "money":
+            parts.append(f"💰 {v}")
+        elif k == "xp":
+            parts.append(f"📘 {v} XP")
+        elif k == "badge":
+            badge = BADGES.get(v, {}).get("emoji", "🏅") + " " + BADGES.get(v, {}).get("name", v)
+            parts.append(f"🏅 {badge}")
+        elif k == "achievement":
+            parts.append(f"🏆 ачивка")
+        elif k == "pickaxe":
+            parts.append(f"🪓 {v}")
+        else:
+            parts.append(f"{v}× {k}")
+    return " + ".join(parts)
+
 @router.message(Command("trackpass"))
 async def trackpass_cmd(message: types.Message):
     cid = message.chat.id
@@ -24,7 +44,7 @@ async def trackpass_cmd(message: types.Message):
 
     current_xp = prog.get("pass_xp", 0)
     level = prog.get("pass_level", 0)
-    claimed = prog.get("pass_claimed", {}) or {}
+    claimed = prog.get("pass_claimed") or {}
     if isinstance(claimed, str):
         claimed = json.loads(claimed)
 
@@ -36,12 +56,12 @@ async def trackpass_cmd(message: types.Message):
     
     for lvl in range(1, max_level + 1):
         rewards = PASS_REWARDS.get(lvl, {})
-        free = rewards.get("free", "")
-        prem = rewards.get("premium", "")
+        free = rewards.get("free")
+        prem = rewards.get("premium")
         cl = claimed.get(str(lvl), {})
 
         status = "✅" if cl.get("free") and (not prem or cl.get("premium")) else "🔓"
-        row = f"{status} Lv.{lvl:>2} | Free: {free or '—'} | Premium: {prem or '—'}"
+        row = f"{status} Lv.{lvl:>2} | Free: {format_reward(free) if free else '—'} | Premium: {format_reward(prem) if prem else '—'}"
         lines.append(row)
 
     kb = InlineKeyboardBuilder()
@@ -50,6 +70,7 @@ async def trackpass_cmd(message: types.Message):
             kb.button(text=f"🎁 Lv{lvl}", callback_data=f"passreward:free:{lvl}")
         if premium and not claimed.get(str(lvl), {}).get("premium"):
             kb.button(text=f"💎 Lv{lvl}", callback_data=f"passreward:prem:{lvl}")
+
     msg = await message.answer("\n".join(lines), reply_markup=kb.as_markup(), parse_mode="HTML")
     register_msg_for_autodelete(cid, msg.message_id)
 
@@ -75,56 +96,48 @@ async def claim_pass_reward(call: types.CallbackQuery):
         return await call.answer("Уже получено!")
 
     reward = PASS_REWARDS[lvl][typ]
-    text = f"🎁 Получено с Lv.{lvl}: "
+    msg = []
 
-    if reward.endswith("_ingot") or reward in ("torch_bundle", "cave_case"):
-        await add_item(cid, uid, reward, 1)
-        text += f"{reward}"
-    elif reward.startswith("badge:"):
-        badge_id = reward.split(":", 1)[1]
-        row = await db.fetch_one(
-            "SELECT badges_owned FROM progress_local WHERE chat_id=:c AND user_id=:u",
-            {"c": cid, "u": uid}
-        )
-        owned = row["badges_owned"] or []
-        if isinstance(owned, str):
-            try:
-                owned = json.loads(owned)
-            except:
-                owned = []
-
-        if badge_id not in owned:
-            owned.append(badge_id)
-            await db.execute(
-                "UPDATE progress_local SET badges_owned = :val WHERE chat_id=:c AND user_id=:u",
-                {"val": json.dumps(owned), "c": cid, "u": uid}
+    for key, val in reward.items():
+        if key == "money":
+            await add_money(cid, uid, val)
+            msg.append(f"💰 {val} монет")
+        elif key == "xp":
+            await add_xp(cid, uid, val)
+            msg.append(f"📘 {val} XP")
+        elif key == "badge":
+            row = await db.fetch_one(
+                "SELECT badges_owned FROM progress_local WHERE chat_id=:c AND user_id=:u",
+                {"c": cid, "u": uid}
             )
-            text += "🆕 новый бейдж!"
+            owned = row["badges_owned"] or []
+            if isinstance(owned, str):
+                try:
+                    owned = json.loads(owned)
+                except:
+                    owned = []
+            if val not in owned:
+                owned.append(val)
+                await db.execute(
+                    "UPDATE progress_local SET badges_owned = :val WHERE chat_id=:c AND user_id=:u",
+                    {"val": json.dumps(owned), "c": cid, "u": uid}
+                )
+                msg.append("🏅 новый бейдж!")
+            else:
+                msg.append("🏅 бейдж уже есть")
+        elif key == "achievement":
+            await unlock_achievement(cid, uid, val)
+            msg.append("🏆 ачивка")
+        elif key == "pickaxe":
+            await add_item(cid, uid, val, 1)
+            msg.append(f"🪓 кирка: {val}")
         else:
-            text += "🟢 бейдж уже получен"
-    elif reward.startswith("ach:"):
-        ach_code = reward.split(":", 1)[1]
-        await unlock_achievement(cid, uid, ach_code)
-        text += "новая ачивка!"
-    elif reward == "iron_pickaxe":
-        await add_item(cid, uid, reward, 1)
-        text += "Железная кирка!"
-    elif reward.endswith("XP"):
-        xp_gain = int(reward.replace("XP", ""))
-        from bot.db_local import add_xp
-        await add_xp(cid, uid, xp_gain)
-        text += f"{xp_gain} XP"
-    elif reward.endswith("gold"):
-        gold = int(reward.replace("gold", ""))
-        from bot.db_local import add_money
-        await add_money(cid, uid, gold)
-        text += f"{gold} монет"
+            await add_item(cid, uid, key, val)
+            msg.append(f"{val}× {key}")
 
-    # Сохраняем прогресс
     claimed.setdefault(str(lvl), {})[typ] = True
     await db.execute(
         "UPDATE progress_local SET pass_claimed=:cl WHERE chat_id=:c AND user_id=:u",
         {"cl": json.dumps(claimed), "c": cid, "u": uid}
     )
-
-    await call.answer(text, show_alert=True)
+    await call.answer("🎁 " + ", ".join(msg), show_alert=True)
