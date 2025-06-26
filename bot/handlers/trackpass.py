@@ -100,7 +100,10 @@ async def claim_pass_reward(call: types.CallbackQuery):
     if claimed.get(str(lvl), {}).get(typ):
         return await call.answer("Уже получено!")
 
-    reward = PASS_REWARDS[lvl][typ]
+    real_key = {"free": "free", "prem": "premium"}.get(typ)
+    if not real_key:
+        return await call.answer("Некорректный тип награды.")
+    reward = PASS_REWARDS[lvl][real_key]
     msg = []
 
     for key, val in reward.items():
