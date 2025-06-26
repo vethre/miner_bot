@@ -69,12 +69,13 @@ async def trackpass_cmd(message: types.Message):
         if lvl > level:
             continue  # <-- не показуємо кнопки, якщо ще не досягнутий рівень
         if not claimed.get(str(lvl), {}).get("free"):
-            kb.button(text=f"🎁 Lv{lvl}", callback_data=f"passreward:free:{lvl}")
+            kb.button(text=f"🎁 L{lvl}", callback_data=f"passreward:free:{lvl}")
         if premium and not claimed.get(str(lvl), {}).get("premium"):
-            kb.button(text=f"💎 Lv{lvl}", callback_data=f"passreward:prem:{lvl}")
-
+            kb.button(text=f"💎 L{lvl}", callback_data=f"passreward:prem:{lvl}")
+    kb.adjust(4)
     msg = await message.answer("\n".join(lines), reply_markup=kb.as_markup(), parse_mode="HTML")
     register_msg_for_autodelete(cid, msg.message_id)
+
 
 @router.callback_query(lambda c: c.data.startswith("passreward:"))
 async def claim_pass_reward(call: types.CallbackQuery):
