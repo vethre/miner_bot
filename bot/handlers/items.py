@@ -111,6 +111,13 @@ ITEM_DEFS["roundstone_pickaxe"]["emoji"] = "🪨"
 ITEM_DEFS["wooden_pickaxe"]["emoji"] = "🪵"
 ITEM_DEFS["diamond_pickaxe"]["emoji"] = "💎"
 
+for ore, v in SMELT_RECIPES.items():
+    base_price = ORE_ITEMS.get(ore, {"price": 20})["price"]
+    ITEM_DEFS[v["out_key"]] = {
+        "name": v["out_name"],
+        "emoji": "🔥",
+        "price": int(base_price * 1.8)
+    }
 
 EXTRA_ORES = {
     "amethyst": {"name": "Аметистовая руда",  "emoji": "💜", "drop_range": (1,2), "price": 40},

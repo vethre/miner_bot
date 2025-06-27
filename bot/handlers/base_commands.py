@@ -34,13 +34,15 @@ from bot.db_local import (
     change_dur,
     _jsonb_to_dict,
 )
+from bot.handlers.badgeshop import badgeshop_cmd
 from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.achievements import achievements_menu
 from bot.handlers.badge_defs import BADGES
 from bot.handlers.badges import badges_menu
+from bot.handlers.eat import eat_cmd
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
-from bot.handlers.use import PICKAXES
+from bot.handlers.use import PICKAXES, use_cmd
 from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
 from bot.utils.autodelete import register_msg_for_autodelete
@@ -51,7 +53,11 @@ router = Router()
 
 # ────────── Константи ──────────
 BASE_MINE_SEC   = 1200          # Tier-1
+<<<<<<< HEAD
 MINE_SEC_STEP   = -60          # -20 с за кожен Tier вище
+=======
+MINE_SEC_STEP   = -80          # -80 с за кожен Tier вище
+>>>>>>> main
 MINE_SEC_MIN    = 60
 
 BASE_SMELT_SEC  = 600          # за 1 інгот
@@ -133,6 +139,13 @@ async def apply_chance_event(ev: ChanceEvent, cid: int, uid: int) -> str:
 
     return ev[1].format(n=abs(delta))
 
+def get_weekend_coin_bonus() -> int:
+    weekday = dt.datetime.utcnow().weekday()
+    if weekday == 4: return 30
+    if weekday == 5: return 40
+    if weekday == 6: return 50
+    return 0
+
 # ────────── Mining Task ──────────
 async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus:float):
     await asyncio.sleep(get_mine_duration(tier))
@@ -203,6 +216,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     if prog.get("mine_count", 0) >= 20:
         await unlock_achievement(cid, uid, "bear_miner")
 
+<<<<<<< HEAD
     # 🎯 Прототип Эонита — шанс на двойную копку
     if pick_key == "proto_eonite_pickaxe" and random.random() < 1.0:
         ore2 = random.choice(ores)
@@ -219,6 +233,12 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         # Дополнительный текст
         proto_txt += f"\n🔮 Прототип эонита активировался!\n" \
                     f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
+=======
+    coin_bonus = get_weekend_coin_bonus()
+    if coin_bonus:
+        await add_money(cid, uid, coin_bonus)
+        extra_txt += f"\n💰 Лавина монет! +{coin_bonus} монет"
+>>>>>>> main
 
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
@@ -274,6 +294,21 @@ async def profile_cmd(message: types.Message):
         if b:
             badge_str = f"{b['emoji']} {b['name']}"
 
+    tier = max([i + 1 for i, t in enumerate(TIER_TABLE) if lvl >= t["level_min"]], default=1)
+    tier_bonus = BONUS_BY_TIER.get(tier, 1.0)
+    tier_str = f"🔷 Tier {tier} (бонус ×{tier_bonus:.1f})"
+
+    mine_end = prog.get("mining_end")
+    if isinstance(mine_end, dt.datetime):
+        remaining = mine_end.astimezone(UTC) - dt.datetime.now(tz=UTC)
+        if remaining.total_seconds() > 0:
+            minutes = max(1, int(remaining.total_seconds() // 60))
+            status = f"🕳️ Копает (ещё {minutes} мин.)"
+        else:
+            status = "🛌 Отдыхает"
+    else:
+        status = "🛌 Отдыхает"
+
 
     # Кирка та її міцність
     current         = prog.get("current_pickaxe") or "wooden_pickaxe"
@@ -309,8 +344,10 @@ async def profile_cmd(message: types.Message):
     text = (
         f"👤 <b>Профиль:</b> {message.from_user.full_name}\n"
         f"⭐ <b>Уровень:</b> {lvl} (XP {xp}/{next_xp})\n"
+        f"{tier_str}\n"
         f"🔥 <b>Серия:</b> {streaks}\n" 
         f"💎 <b>Cave Pass:</b> {pass_str}\n\n"
+        f"{status}\n"
         f"🔋 <b>Энергия:</b> {energy}/100\n"
         f"🍗 <b>Голод:</b> {hunger}/100\n\n"
         f"📦 <b>Cave Cases:</b> {cave_cases}\n"
@@ -486,28 +523,79 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         uid = user_id
     inv = await get_inventory(cid, uid)
     balance = await get_money(cid, uid)
+    progress = await get_progress(cid, uid)
+    current_pick = progress.get("current_pickaxe")
 
-    lines = [f"🧾 Баланс: {balance} монет\n", "<b>📦 Инвентарь:</b>"]
-    current_pick = (await get_progress(cid, uid)).get("current_pickaxe")
+    # Категорії
+    categories = {
+        "ores": [],
+        "ingots": [],
+        "pickaxes": [],
+        "food": [],
+        "torch": [],
+        "misc": []
+    }
+
+    # Визначення категорії по item_key
+    def get_category(item_key):
+        if item_key.endswith("_ingot") or item_key == "roundstone":
+            return "ingots"
+        elif item_key.endswith("_pickaxe"):
+            return "pickaxes"
+        elif item_key in ("meat", "bread", "coffee", "borsch", "energy_drink"):
+            return "food"
+        elif item_key in ("torch", "torch_bundle", "lapis_torch"):
+            return "torch"
+        elif item_key in ORE_ITEMS:
+            return "ores"
+        return "misc"
+
+    # Розкид по категоріях
     for row in inv:
         if row["item"] == current_pick:
             continue
-        meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": ""})
-        pre = f"{meta['emoji']} " if meta.get("emoji") else ""
-        lines.append(f"{pre}{meta['name']}: {row['qty']}")
+        meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": "❔"})
+        cat = get_category(row["item"])
+        categories[cat].append((meta, row["qty"]))
+
+    lines = [f"🧾 Баланс: {balance} монет", ""]
+
+    if categories["ores"]:
+        lines.append("<b>⛏️ Руды:</b>")
+        for meta, qty in categories["ores"]:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
+    if categories["pickaxes"]:
+        lines.append("\n<b>🪓 Кирки:</b>")
+        for meta, qty in categories["pickaxes"]:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
+    if categories["ingots"]:
+        lines.append("\n<b>🔥 Слитки:</b>")
+        for meta, qty in categories["ingots"]:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
+    if categories["food"]:
+        lines.append("\n<b>🍖 Еда:</b>")
+        for meta, qty in categories["food"]:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
+    if categories["torch"]:
+        lines.append("\n<b>🕯️ Факелы:</b>")
+        for meta, qty in categories["torch"]:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
+    if categories["misc"]:
+        lines.append("\n<b>🎒 Прочее:</b>")
+        for meta, qty in categories["misc"]:
+            lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
 
     msg = await message.answer_photo(
-        photo=INV_IMG_ID,
+        INV_IMG_ID,
         caption="\n".join(lines),
         parse_mode="HTML",
         reply_to_message_id=message.message_id
     )
+    register_msg_for_autodelete(cid, msg.message_id)
 
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
-    #await message.reply("\n".join(lines), parse_mode="HTML")
 
 # ────────── /sell (локальний) ──────────
-ALIASES = {k: k for k in ORE_ITEMS}
+ALIASES = {k: k for k in ITEM_DEFS}
 ALIASES.update({
     "камень": "stone",
     "уголь": "coal",
@@ -519,34 +607,84 @@ ALIASES.update({
     "изумруд": "emerald",
     "лазурит": "lapis",
     "рубин": "ruby",
+    "булыжник": "roundstone",
+    "железный слиток": "iron_ingot",
+    "золотой слиток": "gold_ingot",
+    "аметистовый слиток": "amethyst_ingot",
 })
 
 @router.message(Command("sell"))
-async def sell_cmd(message: types.Message):
+async def sell_start(message: types.Message):
     cid, uid = await cid_uid(message)
-    text = message.text or ""
-    parts = text.split(maxsplit=1)
-    if len(parts) < 2:
-        return await message.reply("Как продать: /sell 'ресурс' 'кол-во'")
-    try:
-        item_part, qty_str = parts[1].rsplit(maxsplit=1)
-    except ValueError:
-        return await message.reply("Как продать: /sell 'ресурс' 'кол-во'")
-    if not qty_str.isdigit():
-        return await message.reply("Кол-во должно быть числом!")
-    qty = int(qty_str)
-    item_key = ALIASES.get(item_part.lower(), item_part.lower())
-    if item_key not in ITEM_DEFS or "price" not in ITEM_DEFS[item_key]:
-        return await message.reply("Не принимается 😕")
+    inv_raw = await get_inventory(cid, uid)
+    inv = {r["item"]: r["qty"] for r in inv_raw if r["qty"] > 0}
+
+    items = [
+        (k, v) for k, v in inv.items()
+        if k in ITEM_DEFS and "price" in ITEM_DEFS[k]
+    ]
+
+    if not items:
+        return await message.reply("У тебя нет ничего на продажу 😅")
+
+    builder = InlineKeyboardBuilder()
+    for k, qty in items:
+        emoji = ITEM_DEFS[k].get("emoji", "")
+        name = ITEM_DEFS[k]["name"]
+        builder.button(text=f"{emoji} {name} ({qty})", callback_data=f"sell_choose:{k}")
+
+    msg = await message.answer(
+        "Что хочешь продать?",
+        reply_markup=builder.adjust(2).as_markup()
+    )
+    register_msg_for_autodelete(cid, msg.message_id)
+
+@router.callback_query(F.data.startswith("sell_choose:"))
+async def choose_amount(call: types.CallbackQuery):
+    cid, uid = call.message.chat.id, call.from_user.id
+    item_key = call.data.split(":")[1]
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
-    have = inv.get(item_key, 0)
-    if have < qty:
-        return await message.reply(f"У тебя только {have}×{item_part}")
+    qty = inv.get(item_key, 0)
+    if qty <= 0:
+        return await call.answer("У тебя нет этого предмета.")
+
+    builder = InlineKeyboardBuilder()
+    for amount in [1, 5, 10, qty]:
+        if amount > qty:
+            continue
+        builder.button(
+            text=f"Продать {amount}×",
+            callback_data=f"sell_confirm:{item_key}:{amount}"
+        )
+    builder.button(text="❌ Отмена", callback_data="sell_cancel")
+
+    meta = ITEM_DEFS[item_key]
+    msg = await call.message.edit_text(
+        f"{meta.get('emoji','')} {meta['name']}\nСколько хочешь продать?",
+        reply_markup=builder.adjust(2).as_markup()
+    )
+
+@router.callback_query(F.data.startswith("sell_confirm:"))
+async def confirm_sell(call: types.CallbackQuery):
+    cid, uid = call.message.chat.id, call.from_user.id
+    _, item_key, qty_str = call.data.split(":")
+    qty = int(qty_str)
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    if inv.get(item_key, 0) < qty:
+        return await call.answer("Недостаточно предметов!")
+
+    price = ITEM_DEFS[item_key]["price"]
+    earned = price * qty
     await add_item(cid, uid, item_key, -qty)
-    earned = ITEM_DEFS[item_key]["price"] * qty
     await add_money(cid, uid, earned)
-    msg = await message.reply(f"Продано {qty}×{item_part} за {earned} монет 💰")
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
+
+    meta = ITEM_DEFS[item_key]
+    await call.message.edit_text(f"✅ Продано {qty}×{meta['emoji']} {meta['name']} за {earned} монет 💰")
+    register_msg_for_autodelete(cid, call.message.message_id)
+
+@router.callback_query(F.data == "sell_cancel")
+async def cancel_sell(call: types.CallbackQuery):
+    await call.message.edit_text("Продажа отменена ❌")
 
 # ────────── /smelt (async) ──────────
 @router.message(Command("smelt"))
@@ -776,6 +914,10 @@ async def repair_cmd(message: types.Message):
             "UPDATE progress_local SET crystal_repaired=TRUE WHERE chat_id=:c AND user_id=:u",
             {"c": cid, "u": uid}
         )
+        await db.execute(
+            "UPDATE progress_local SET repair_count = COALESCE(repair_count, 0) + 1 WHERE chat_id=:c AND user_id=:u",
+            {"c": cid, "u": uid}
+        )
         return await message.reply(
             f"💎 {pick_data['name']} восстановлена до {restore}/{dur_max} за {cost} монет!"
         )
@@ -936,3 +1078,18 @@ async def pass_msg_cmd(message: types.Message):
 async def picks_msg_cmd(message: types.Message):
     return await pickaxes_cmd(message)
 
+@router.message(lambda msg: re.match(r"шахта\s+(кушать|есть|пить)", msg.text, re.IGNORECASE))
+async def eat_msg_cmd(message: types.Message):
+    return await eat_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(юз|исп)", msg.text, re.IGNORECASE))
+async def use_msg_cmd(message: types.Message):
+    return await use_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(продать|продажа|торг)", msg.text, re.IGNORECASE))
+async def sell_msg_cmd(message: types.Message):
+    return await sell_start(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(бейджшоп|бейджи|купитьбейдж)", msg.text, re.IGNORECASE))
+async def sell_msg_cmd(message: types.Message):
+    return await badgeshop_cmd(message)
