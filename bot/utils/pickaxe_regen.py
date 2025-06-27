@@ -13,8 +13,8 @@ async def apply_pickaxe_regen(cid: int, uid: int, pick_key: str):
 
     # Отримаємо час останньої регенерації
     row = await db.fetch_one(
-        "SELECT last_regen, pick_dur_map, pick_dur_max_map FROM progress_local WHERE chat_id=$1 AND user_id=$2",
-        cid, uid
+        "SELECT last_regen, pick_dur_map, pick_dur_max_map FROM progress_local WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
     )
 
     if not row:
@@ -38,6 +38,6 @@ async def apply_pickaxe_regen(cid: int, uid: int, pick_key: str):
     dur_map[pick_key] = int(new_dur)
 
     await db.execute(
-        "UPDATE progress_local SET pick_dur_map=$1, last_regen=$2 WHERE chat_id=$3 AND user_id=$4",
-        dur_map, now, cid, uid
+        "UPDATE progress_local SET pick_dur_map=:dur, last_regen=:r WHERE chat_id=:c AND user_id=:u",
+        {"dur": dur_map, "r": now, "c": cid, "u": uid}
     )
