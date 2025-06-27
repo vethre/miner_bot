@@ -275,9 +275,8 @@ async def profile_cmd(message: types.Message):
     tier_str = f"🔷 Tier {tier} (бонус ×{tier_bonus:.1f})"
 
     mine_end = prog.get("mining_end")
-    if mine_end:
-        end_time = dt.datetime.fromisoformat(mine_end).replace(tzinfo=UTC)
-        remaining = end_time - dt.datetime.now(tz=UTC)
+    if isinstance(mine_end, dt.datetime):
+        remaining = mine_end.astimezone(UTC) - dt.datetime.now(tz=UTC)
         if remaining.total_seconds() > 0:
             minutes = max(1, int(remaining.total_seconds() // 60))
             status = f"🕳️ Копает (ещё {minutes} мин.)"
