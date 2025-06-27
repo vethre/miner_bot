@@ -237,10 +237,18 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         extra_txt += f"\n💰 Лавина монет! +{coin_bonus} монет"
 
     GOOD_PICKAXES = {"gold_pickaxe", "amethyst_pickaxe", "diamond_pickaxe", "crystal_pickaxe", "proto_eonite_pickaxe", "greater_eonite_pickaxe"}
-    if pick_key in GOOD_PICKAXES and random.random() < 0.125:
-        eonite_qty = random.randint(1, 2)
-        await add_item(cid, uid, "eonite_shard", eonite_qty)
-        extra_txt += f"\n🧿 <b>Ты нашёл {eonite_qty}× Эонитовых осколков!</b>"
+    if pick_key in GOOD_PICKAXES:
+        if random.random() < 0.125:
+            eonite_qty = random.randint(1, 2)
+            await add_item(cid, uid, "eonite_shard", eonite_qty)
+            extra_txt += f"\n🧿 <b>Ты нашёл {eonite_qty}× Эонитовых осколков!</b>"
+
+        if random.random() < 0.01:  # 1% шанс
+            await add_item(cid, uid, "eonite_ore", 1)
+            extra_txt += "\n🌑 <b>Ты выдолбил саму руду Эонита! Что за удача…</b>"
+
+    if "eonite_shard" in [ore_id, ore2] or "eonite_ore" in [ore_id, ore2]:
+        await unlock_achievement(cid, uid, "eonite_pioneer")
 
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
