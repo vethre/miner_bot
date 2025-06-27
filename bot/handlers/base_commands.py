@@ -1078,7 +1078,7 @@ async def pickaxes_cmd(message: types.Message):
 
 @router.message(Command("event"))
 async def event_info(message: types.Message):
-    row = await db.fetchrow("""
+    row = await db.fetch_one("""
         SELECT name, description, start_at, end_at FROM events
         WHERE start_at < now() AND end_at > now() AND is_active
         ORDER BY start_at DESC LIMIT 1
