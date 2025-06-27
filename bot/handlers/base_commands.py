@@ -34,6 +34,7 @@ from bot.db_local import (
     change_dur,
     _jsonb_to_dict,
 )
+from bot.handlers.badgeshop import badgeshop_cmd
 from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.achievements import achievements_menu
 from bot.handlers.badge_defs import BADGES
@@ -1036,3 +1037,6 @@ async def use_msg_cmd(message: types.Message):
 async def sell_msg_cmd(message: types.Message):
     return await sell_start(message)
 
+@router.message(lambda msg: re.match(r"шахта\s+(бейджшоп|бейджи|купитьбейдж)", msg.text, re.IGNORECASE))
+async def sell_msg_cmd(message: types.Message):
+    return await badgeshop_cmd(message)

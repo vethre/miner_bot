@@ -6,10 +6,12 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from itertools import islice
 # Добавлено в imports:
 from typing import Optional
+from datetime import datetime
 
 from bot.db_local import cid_uid, get_money, add_money, add_item, get_progress
 from bot.handlers.cases import give_case_to_user
 from bot.handlers.items import ITEM_DEFS
+from bot.handlers.use import PICKAXES
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.assets import SHOP_IMG_ID # Ensure this path is correct for your project
 
@@ -43,6 +45,23 @@ def max_page() -> int:
     """Returns the index of the last page."""
     return len(PAGES) - 1
 
+def get_discount_multiplier():
+    weekday = datetime.utcnow().weekday()
+    if weekday == 4:
+        return 0.80
+    elif weekday == 6:
+        return 0.60
+    return 1.0
+
+def get_item_price(item_id: str, base_price: int) -> tuple[int, str]:
+    discount = get_discount_multiplier()
+    if item_id in PICKAXES:
+        return base_price, f"{base_price} мон."
+    if discount < 1.0:
+        discounted = int(base_price * discount)
+        return discounted, f"{discounted} мон. (−{int((1 - discount) * 100)}%)"
+    return base_price, f"{base_price} мон."
+
 # 🛍 Покращена версія _send_shop_page:
 async def _send_shop_page(
     chat_id: int,
@@ -60,8 +79,9 @@ async def _send_shop_page(
 
     for iid in items:
         meta = SHOP_ITEMS[iid]
+        price_val, price_str = get_item_price(iid, meta['price'])
         kb.button(
-            text=f"{meta['emoji']} {meta['name']} — {meta['price']} мон.",
+            text=f"{meta['emoji']} {meta['name']} — {price_str}",
             callback_data=f"buy:{iid}:{uid}"
         )
     kb.adjust(1)
@@ -137,10 +157,11 @@ async def shop_buy_callback(callback: CallbackQuery):
         return await callback.message.reply("Товар не найден 😕")
 
     balance = await get_money(cid, uid)
-    if balance < item["price"]:
+    price_val, _ = get_item_price(item_id, item["price"])
+    if balance < price_val:
         return await callback.message.reply("Недостаточно монет 💸")
 
-    await add_money(cid, uid, -item["price"]) # Deduct price
+    await add_money(cid, uid, -price_val) # Deduct price
     if item_id == "cave_cases":
         await give_case_to_user(cid, uid, 1) # Specific logic for "cave_cases"
     else:
