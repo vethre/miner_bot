@@ -135,6 +135,13 @@ async def apply_chance_event(ev: ChanceEvent, cid: int, uid: int) -> str:
 
     return ev[1].format(n=abs(delta))
 
+def get_weekend_coin_bonus() -> int:
+    weekday = dt.datetime.utcnow().weekday()
+    if weekday == 4: return 30
+    if weekday == 5: return 40
+    if weekday == 6: return 50
+    return 0
+
 # ────────── Mining Task ──────────
 async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus:float):
     await asyncio.sleep(get_mine_duration(tier))
@@ -204,6 +211,11 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
 
     if prog.get("mine_count", 0) >= 20:
         await unlock_achievement(cid, uid, "bear_miner")
+
+    coin_bonus = get_weekend_coin_bonus()
+    if coin_bonus:
+        await add_money(cid, uid, coin_bonus)
+        extra_txt += f"\n💰 Лавина монет! +{coin_bonus} монет"
 
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
