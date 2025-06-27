@@ -270,6 +270,22 @@ async def profile_cmd(message: types.Message):
         if b:
             badge_str = f"{b['emoji']} {b['name']}"
 
+    tier = max([i + 1 for i, t in enumerate(TIER_TABLE) if lvl >= t["level_min"]], default=1)
+    tier_bonus = BONUS_BY_TIER.get(tier, 1.0)
+    tier_str = f"🔷 Tier {tier} (бонус ×{tier_bonus:.1f})"
+
+    mine_end = prog.get("mining_end")
+    if mine_end:
+        end_time = dt.datetime.fromisoformat(mine_end).replace(tzinfo=UTC)
+        remaining = end_time - dt.datetime.now(tz=UTC)
+        if remaining.total_seconds() > 0:
+            minutes = max(1, int(remaining.total_seconds() // 60))
+            status = f"🕳️ Копает (ещё {minutes} мин.)"
+        else:
+            status = "🛌 Отдыхает"
+    else:
+        status = "🛌 Отдыхает"
+
 
     # Кирка та її міцність
     current         = prog.get("current_pickaxe") or "wooden_pickaxe"
@@ -305,8 +321,10 @@ async def profile_cmd(message: types.Message):
     text = (
         f"👤 <b>Профиль:</b> {message.from_user.full_name}\n"
         f"⭐ <b>Уровень:</b> {lvl} (XP {xp}/{next_xp})\n"
+        f"{tier_str}\n"
         f"🔥 <b>Серия:</b> {streaks}\n" 
         f"💎 <b>Cave Pass:</b> {pass_str}\n\n"
+        f"{status}\n"
         f"🔋 <b>Энергия:</b> {energy}/100\n"
         f"🍗 <b>Голод:</b> {hunger}/100\n\n"
         f"📦 <b>Cave Cases:</b> {cave_cases}\n"
