@@ -137,6 +137,13 @@ async def apply_chance_event(ev: ChanceEvent, cid: int, uid: int) -> str:
 
     return ev[1].format(n=abs(delta))
 
+async def is_event_active(code: str) -> bool:
+    row = await db.fetchrow("""
+        SELECT 1 FROM events
+        WHERE code = :c AND start_at < now() AND end_at > now() AND is_active
+    """, {"c": code})
+    return row is not None
+
 def get_weekend_coin_bonus() -> int:
     weekday = dt.datetime.utcnow().weekday()
     if weekday == 4: return 30
@@ -237,7 +244,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         extra_txt += f"\n💰 Лавина монет! +{coin_bonus} монет"
 
     GOOD_PICKAXES = {"gold_pickaxe", "amethyst_pickaxe", "diamond_pickaxe", "crystal_pickaxe", "proto_eonite_pickaxe", "greater_eonite_pickaxe"}
-    if pick_key in GOOD_PICKAXES:
+    if pick_key in GOOD_PICKAXES and is_event_active("eonite"):
         if random.random() < 0.125:
             eonite_qty = random.randint(1, 2)
             await add_item(cid, uid, "eonite_shard", eonite_qty)
@@ -247,7 +254,12 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
             await add_item(cid, uid, "eonite_ore", 1)
             extra_txt += "\n🌑 <b>Ты выдолбил саму руду Эонита! Что за удача…</b>"
 
-    if "eonite_shard" in [ore_id, ore2] or "eonite_ore" in [ore_id, ore2]:
+    if await is_event_active("eonite"):
+        await db.execute("""
+            INSERT INTO event_participation (event_id, chat_id, user_id, got_achievement)
+            SELECT id, :c, :u, TRUE FROM events WHERE code = 'eonite'
+            ON CONFLICT DO NOTHING
+        """, {"c": cid, "u": uid})
         await unlock_achievement(cid, uid, "eonite_pioneer")
 
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
@@ -1064,9 +1076,32 @@ async def pickaxes_cmd(message: types.Message):
     msg = await message.answer("\n".join(lines), parse_mode="HTML")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
+@router.message(Command("event"))
+async def event_info(message: types.Message):
+    row = await db.fetchrow("""
+        SELECT name, description, start_at, end_at FROM events
+        WHERE start_at < now() AND end_at > now() AND is_active
+        ORDER BY start_at DESC LIMIT 1
+    """)
+    if not row:
+        return await message.reply("Сегодня нет активных событий 💤")
+
+    start = row["start_at"].strftime("%d.%m %H:%M")
+    end   = row["end_at"].strftime("%d.%m %H:%M")
+    await message.reply(
+        f"🎉 <b>{row['name']}</b>\n\n"
+        f"{row['description']}\n\n"
+        f"<b>Длится:</b> от {start} до {end}",
+        parse_mode="HTML"
+    )
+
 @router.message(lambda msg: re.match(r"шахта\s+профиль", msg.text, re.IGNORECASE))
 async def profile_msg_cmd(message: types.Message):
     return await profile_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+ивент|событие", msg.text, re.IGNORECASE))
+async def event_msg_cmd(message: types.Message):
+    return await event_info(message)
 
 @router.message(lambda msg: re.match(r"шахта\s+инвентарь", msg.text, re.IGNORECASE))
 async def inventory_msg_cmd(message: types.Message):
