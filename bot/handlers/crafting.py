@@ -61,6 +61,16 @@ CRAFT_RECIPES = {
         "out_key": "eonite_ore",
         "out_name": "🔮 Руда Эонита",
     },
+    "железная рукоять": {
+        "in": {"wood_handle": 5, "iron_ingot": 5},
+        "out_key": "iron_handle",
+        "out_name": "🧲 Железная рукоять",
+    },
+    "старшая эонитовая кирка": {
+        "in": {"iron_handle": 1, "eonite_ingot": 3, "eonite_ore": 1},
+        "out_key": "greater_eonite_pickaxe",
+        "out_name": "🔮 Старшая эонитовая кирка",
+    },
 }
 
 PICKAXE_UPGRADES = {

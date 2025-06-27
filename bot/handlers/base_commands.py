@@ -48,6 +48,7 @@ from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.handlers.use import _json2dict
+from bot.utils.pickaxe_regen import apply_pickaxe_regen
 from bot.utils.unlockachievement import unlock_achievement
 
 router = Router()
@@ -201,6 +202,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     if cur := prog.get("current_pickaxe"):
         dur, dur_max = await change_dur(cid, uid, cur, -1)
         broken = dur == 0
+    await apply_pickaxe_regen(cid, uid, cur)
 
     # ---- випадкова подія ----
     extra_txt=""
@@ -336,12 +338,31 @@ async def profile_cmd(message: types.Message):
     current         = prog.get("current_pickaxe") or "wooden_pickaxe"
     if current == "wood_pickaxe":
         current = "wooden_pickaxe"
+
     dur_map         = _json2dict(prog.get("pick_dur_map"))
     dur_max_map     = _json2dict(prog.get("pick_dur_max_map"))
     pick = PICKAXES.get(current, {"name":"–"})
     pick_name       = pick["name"]
     dur             = dur_map.get(current,      PICKAXES[current]["dur"])
     dur_max         = dur_max_map.get(current,  PICKAXES[current]["dur"])
+    regen_timer_str = ""
+    if pick.get("regen"):
+        row = await db.fetch_one(
+            "SELECT last_regen FROM progress_local WHERE chat_id=$1 AND user_id=$2",
+            cid, uid
+        )
+        if row and row["last_regen"]:
+            now = dt.datetime.now(tz=UTC)
+            last = row["last_regen"]
+            if isinstance(last, str):
+                last = dt.datetime.fromisoformat(last).replace(tzinfo=UTC)
+
+            delta = (last + dt.timedelta(hours=1)) - now
+            if delta.total_seconds() > 0:
+                mins, secs = divmod(int(delta.total_seconds()), 60)
+                hours, mins = divmod(mins, 60)
+                time_str = f"{hours:02}:{mins:02}:{secs:02}"
+                regen_timer_str = f"\n⏳ <b>До регенерации:</b> {time_str}"
 
     # Pass
     has_pass    = prog.get("cave_pass", False)
@@ -375,7 +396,7 @@ async def profile_cmd(message: types.Message):
         f"📦 <b>Cave Cases:</b> {cave_cases}\n"
         f"💰 <b>Баланс:</b> {balance} монет\n\n"
         f"🏅 <b>Бейдж:</b> {badge_str}\n"
-        f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})"
+        f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})" + regen_timer_str
     )
 
     inventory = await get_inventory(cid, uid)
@@ -482,6 +503,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     cur_pick = prog.get("current_pickaxe")
     if cur_pick and dur_map.get(cur_pick, 0) == 0:
             return await message.reply("⚠️ Кирка сломана! /repair")
+    await apply_pickaxe_regen(cid, uid, cur_pick)
     if prog["mining_end"] and prog["mining_end"] > dt.datetime.now(tz=UTC):
         delta = prog["mining_end"] - dt.datetime.now(tz=UTC)
         left = max(1, round(delta.total_seconds() / 60))
