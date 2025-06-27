@@ -347,7 +347,7 @@ async def profile_cmd(message: types.Message):
     dur_max         = dur_max_map.get(current,  PICKAXES[current]["dur"])
     regen_timer_str = ""
     if pick.get("regen"):
-        row = await db.fetch_one(
+        row = await db.fetch_row(
             "SELECT last_regen FROM progress_local WHERE chat_id=$1 AND user_id=$2",
             cid, uid
         )
