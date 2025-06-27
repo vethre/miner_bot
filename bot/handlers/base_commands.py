@@ -53,11 +53,7 @@ router = Router()
 
 # ────────── Константи ──────────
 BASE_MINE_SEC   = 1200          # Tier-1
-<<<<<<< HEAD
-MINE_SEC_STEP   = -60          # -20 с за кожен Tier вище
-=======
 MINE_SEC_STEP   = -80          # -80 с за кожен Tier вище
->>>>>>> main
 MINE_SEC_MIN    = 60
 
 BASE_SMELT_SEC  = 600          # за 1 інгот
@@ -216,7 +212,6 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     if prog.get("mine_count", 0) >= 20:
         await unlock_achievement(cid, uid, "bear_miner")
 
-<<<<<<< HEAD
     # 🎯 Прототип Эонита — шанс на двойную копку
     if pick_key == "proto_eonite_pickaxe" and random.random() < 1.0:
         ore2 = random.choice(ores)
@@ -233,12 +228,11 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         # Дополнительный текст
         proto_txt += f"\n🔮 Прототип эонита активировался!\n" \
                     f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
-=======
+        
     coin_bonus = get_weekend_coin_bonus()
     if coin_bonus:
         await add_money(cid, uid, coin_bonus)
         extra_txt += f"\n💰 Лавина монет! +{coin_bonus} монет"
->>>>>>> main
 
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
