@@ -19,6 +19,7 @@ SMELT_INPUT_MAP: dict[str, str] = {
     "аметист":        "amethyst",
     "аметистовая руда":"amethyst",
     "amethyst":       "amethyst",
+    "руда эонита":"eonite_ore",
 }
 
 SMELT_RECIPES = {
@@ -26,6 +27,7 @@ SMELT_RECIPES = {
     "stone": {"in_qty": 6, "out_key": "roundstone",   "out_name": "Булыжник"},
     "gold":  {"in_qty": 2,  "out_key": "gold_ingot",   "out_name": "Золотой слиток"},
     "amethyst":  {"in_qty": 2,  "out_key": "amethyst_ingot",  "out_name": "Аметистовый слиток"},
+    "eonite_ore":  {"in_qty": 2,  "out_key": "eonite_ingot",  "out_name": "Слиток Эонита"},
 }
 
 CRAFT_RECIPES = {
@@ -53,6 +55,11 @@ CRAFT_RECIPES = {
         "in": {"diamond": 3, "wood_handle": 4},
         "out_key": "diamond_pickaxe",
         "out_name": "💎 Аметистовая кирка",
+    },
+    "руда эонита": {
+        "in": {"eonite_shard": 2},
+        "out_key": "eonite_ore",
+        "out_name": "🔮 Руда Эонита",
     },
 }
 

@@ -42,6 +42,7 @@ from bot.handlers.badges import badges_menu
 from bot.handlers.eat import eat_cmd
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
+from bot.handlers.trackpass import trackpass_cmd
 from bot.handlers.use import PICKAXES, use_cmd
 from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
@@ -53,7 +54,7 @@ router = Router()
 
 # ────────── Константи ──────────
 BASE_MINE_SEC   = 1200          # Tier-1
-MINE_SEC_STEP   = -80          # -80 с за кожен Tier вище
+MINE_SEC_STEP   = -300          # -80 с за кожен Tier вище
 MINE_SEC_MIN    = 60
 
 BASE_SMELT_SEC  = 600          # за 1 інгот
@@ -73,6 +74,7 @@ ORE_ITEMS = {
     "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1, 3),  "price": 38},
     "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 30},
     "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (1, 4),  "price": 45},
+    "eonite_shard":     {"name": "Осколок Эонита",    "emoji": "🧿", "drop_range": (1, 2),  "price": 100},
 }
 
 TIER_TABLE = [
@@ -234,6 +236,12 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         await add_money(cid, uid, coin_bonus)
         extra_txt += f"\n💰 Лавина монет! +{coin_bonus} монет"
 
+    GOOD_PICKAXES = {"gold_pickaxe", "amethyst_pickaxe", "diamond_pickaxe", "crystal_pickaxe", "proto_eonite_pickaxe", "greater_eonite_pickaxe"}
+    if pick_key in GOOD_PICKAXES and random.randint() < 0.125:
+        eonite_qty = random.randint(1, 2)
+        await add_item(cid, uid, "eonite_shard", eonite_qty)
+        extra_txt += f"\n🧿 <b>Ты нашёл {eonite_qty}× Эонитовых осколков!</b>"
+
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
          f"XP +<b>{xp_gain}</b> | Streak {streak} дн. | Tier ×{bonus:.1f}\n"
@@ -389,7 +397,7 @@ async def profile_callback(callback: types.CallbackQuery):
     elif action == "mine":
         await mine_cmd(callback.message, user_id=orig_uid)
     elif action == "cavepass":
-        await cavepass_cmd(callback.message)
+        await trackpass_cmd(callback.message)
     elif action == "achievements":
         await achievements_menu(callback.message, orig_uid)
     elif action == "badges":
@@ -407,7 +415,7 @@ async def profile_callback(cb: types.CallbackQuery):
     elif act == "mine":
         await mine_cmd(cb.message, cb.from_user.id)
     elif act == "cavepass":
-        await cavepass_cmd(cb.message)
+        await trackpass_cmd(cb.message)
     elif act == "achievements":
         await achievements_menu(cb.message, cb.from_user.id)
     elif act == "badges":

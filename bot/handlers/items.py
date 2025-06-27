@@ -89,6 +89,10 @@ ITEM_DEFS.update({
     },
     "proto_eonite_pickaxe": {
         "name": "Прототип эонитовой кирки",
+        "emoji": "🧿",
+    },
+    "greater_eonite_pickaxe": {
+        "name": "Сатршая эонитовая кирка",
         "emoji": "🔮",
     },
 
@@ -102,6 +106,9 @@ ITEM_DEFS["roundstone"]       = {"name": "Булыжник",        "emoji": "�
 ITEM_DEFS["iron_ingot"]       = {"name": "Железный слиток", "emoji": "⛏️"}
 ITEM_DEFS["gold_ingot"]       = {"name": "Золотой слиток",  "emoji": "🪙"}
 ITEM_DEFS["amethyst_ingot"]   = {"name": "Аметистовый слиток", "emoji": "💜"}
+ITEM_DEFS["eonite_shard"]   = {"name": "Осколок Эонита", "emoji": "🧿"}
+ITEM_DEFS["eonite_ore"]   = {"name": "Руда Эонита", "emoji": "🔮"}
+ITEM_DEFS["eonite_ingot"]   = {"name": "Слиток Эонита", "emoji": "🧿"}
 
 # кирки-готовые
 ITEM_DEFS["iron_pickaxe"]["emoji"]    = "⛏️"
@@ -142,8 +149,12 @@ ALIASES = {
     "изумруд": "emerald",
     "лазурит": "lapis",
     "рубин":   "ruby",
+    "руда эонита":   "eonite_ore",
+    "осколок эонита":   "eonite_shard",
+    "слиток эонита":   "eonite_ingot",
 
     "💎": "diamond",
     "💚": "emerald",
     "💜": "amethyst",
+    "🧿":   "eonite_shard",
 }
