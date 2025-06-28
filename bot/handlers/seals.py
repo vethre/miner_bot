@@ -1,3 +1,4 @@
+import json
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -89,7 +90,10 @@ async def choose_seal(message: types.Message):
         "SELECT seals_owned, seal_active FROM progress_local WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
     )
-    owned = list(prog["seals_owned"].keys()) if prog and prog["seals_owned"] else []
+    raw_owned = prog.get("seals_owned", {})
+    if isinstance(raw_owned, str):
+        raw_owned = json.loads(raw_owned)
+    owned = list(raw_owned.keys())
     active = prog["seal_active"] if prog else None
 
     if not owned:
