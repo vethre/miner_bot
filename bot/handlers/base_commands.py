@@ -374,6 +374,7 @@ async def profile_cmd(message: types.Message):
     has_pass    = prog.get("cave_pass", False)
     expires     = prog.get("pass_expires")
     cave_cases  = prog.get("cave_cases", 0)
+    clash_cases = prog.get("clash_cases", 0)
     if has_pass and expires:
         pass_str = expires.strftime("%d.%m.%Y")
     else:
@@ -400,7 +401,7 @@ async def profile_cmd(message: types.Message):
         f"{status}\n"
         f"🔋 <b>Энергия:</b> {energy}/100\n"
         f"🍗 <b>Голод:</b> {hunger}/100\n\n"
-        f"📦 <b>Cave Cases:</b> {cave_cases}\n"
+        f"📦 <b>Cave | Clash Cases:</b> {cave_cases} | {clash_cases}\n"
         f"💰 <b>Баланс:</b> {balance} монет\n\n"
         f"🏅 <b>Бейдж:</b> {badge_str}\n"
         f"🪬 <b>Печать:</b> {seal_str}\n"

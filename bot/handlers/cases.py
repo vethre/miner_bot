@@ -105,7 +105,7 @@ async def pick_case_reward(case_type: CaseType) -> Dict[str, str | dict]:
     }
 
 
-async def _give_case_to_user(chat_id: int, user_id: int, case_type: CaseType, count: int) -> None:
+async def give_case_to_user(chat_id: int, user_id: int, case_type: CaseType, count: int) -> None:
     column = "cave_cases" if case_type == "cave_case" else "clash_cases"
     await db.execute(
         f"UPDATE progress_local SET {column} = {column} + :cnt WHERE chat_id = :c AND user_id = :u",
@@ -206,7 +206,7 @@ async def give_case_cmd(message: Message):
 
     parts = message.text.split()
     if len(parts) not in {3, 4}:
-        await message.reply("Использование: /give_case <user_id|@username> <кол-во> [cave|clash]")
+        await message.reply("Использование: /give_case 'user_id|@username' 'кол-во' [cave|clash]")
         return
 
     target, cnt_str = parts[1], parts[2]
@@ -233,7 +233,7 @@ async def give_case_cmd(message: Message):
         uid = int(target)
 
     # Нарахування кейсів ------------------------------------------------------
-    await _give_case_to_user(cid, uid, case_type, count)
+    await give_case_to_user(cid, uid, case_type, count)
 
     mention = f'<a href="tg://user?id={uid}">{uid}</a>'
     await message.reply(
