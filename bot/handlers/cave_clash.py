@@ -118,13 +118,17 @@ async def _season_job(bot: Bot):
 def setup_weekly_reset(bot: Bot):
     """Cron: каждый понедельник 10:00 по Киеву."""
     kyiv = ZoneInfo("Europe/Kyiv")
-    scheduler.add_job(
-        _season_job,
-        CronTrigger(day_of_week="mon", hour=10, minute=0, timezone=kyiv),
-        kwargs={"bot": bot},
-        id="cave_clash_reset",
-        replace_existing=False,
-    )
+    try:
+        scheduler.add_job(
+            _season_job,
+            CronTrigger(day_of_week="mon", hour=10, minute=0, timezone=kyiv),
+            kwargs={"bot": bot},
+            id="cave_clash_reset",
+            replace_existing=False,
+        )
+    except Exception:  # ConflictingIdError
+        pass  # job уже существует
+
     if not scheduler.running:
         scheduler.start()
 
