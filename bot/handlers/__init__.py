@@ -1,3 +1,4 @@
+import bot
 from .base_commands import router as base_router
 from .shop import router as shop_router
 from .crafting import router as crafting_router
@@ -10,6 +11,7 @@ from .devutils import router as dev_router
 from .badgeshop import router as badgeshop_router
 from .code import router as code_router
 from .seals import router as seals_router
+from .cave_clash import router as clash_router, setup_weekly_reset
 
 def register_handlers(dp):
     dp.include_router(base_router)
@@ -24,3 +26,6 @@ def register_handlers(dp):
     dp.include_router(code_router)
     dp.include_router(badgeshop_router)
     dp.include_router(seals_router)
+    dp.include_router(clash_router)
+
+    setup_weekly_reset(bot)

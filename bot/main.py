@@ -9,6 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 
+from bot.handlers.cave_clash import setup_weekly_reset
 from bot.utils.config import BOT_TOKEN, DB_DSN
 from bot.db import init_db, db
 from bot.db_local import add_xp, init_local
@@ -35,6 +36,7 @@ async def main():
     await init_local()
 
     register_handlers(dp)
+    setup_weekly_reset(BOT)
 
     aiocron.crontab(
         '0 7 * * *',          # 07:00 UTC ≈ 09:00 CEST

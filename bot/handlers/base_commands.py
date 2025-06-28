@@ -49,6 +49,7 @@ from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.handlers.use import _json2dict
+from bot.handlers.cave_clash import add_clash_points
 from bot.utils.unlockachievement import unlock_achievement
 
 router = Router()
@@ -264,6 +265,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         await add_money(cid, uid, coin_bonus)
         extra_txt += f"\n💰 Лавина монет! +{coin_bonus} монет"
 
+    await add_clash_points(cid, uid, 1)
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
          f"XP +<b>{xp_gain}</b> | Streak {streak} дн. | Tier ×{bonus:.1f}\n"
@@ -281,6 +283,7 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     await add_item(cid,uid,rec["out_key"],cnt)
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
                      {"c":cid,"u":uid})
+    await add_clash_points(cid, uid, 3)
     member = await bot.get_chat_member(cid, uid)
     nick = member.user.full_name
     await bot.send_message(cid,f"🔥 {nick}! Переплавка закончена: {cnt}×{rec['out_name']}", parse_mode="HTML")
@@ -756,6 +759,7 @@ async def confirm_sell(call: types.CallbackQuery):
     await add_money(cid, uid, earned)
 
     meta = ITEM_DEFS[item_key]
+    await add_clash_points(cid, uid, 2)
     await call.message.edit_text(f"✅ Продано {qty}×{meta['emoji']} {meta['name']} за {earned} монет 💰")
     register_msg_for_autodelete(cid, call.message.message_id)
 
@@ -898,6 +902,7 @@ async def craft_cmd(message: types.Message):
     await add_item(cid, uid, recipe["out_key"], 1)
     if recipe["out_key"] == "roundstone_pickaxe":
         await unlock_achievement(cid, uid, "cobble_player")
+    await add_clash_points(cid, uid, 4)
     msg = await message.reply(f"🎉 Создано: {recipe['out_name']}!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
@@ -1051,6 +1056,7 @@ async def repair_cmd(message: types.Message):
     )
     if prog.get("repair_count", 0) >= 10:
         await unlock_achievement(cid, uid, "repair_master")
+    await add_clash_points(cid, uid, 2)
     return await message.reply(
         f"🛠️ {pick_data['name']} отремонтирована до {dur_max}/{dur_max} за {cost} монет!"
     )
