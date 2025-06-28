@@ -43,6 +43,7 @@ from bot.handlers.badges import badges_menu
 from bot.handlers.eat import eat_cmd
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
+from bot.handlers.seals import choose_seal, show_seals
 from bot.handlers.use import PICKAXES, use_cmd
 from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
@@ -145,9 +146,15 @@ def get_weekend_coin_bonus() -> int:
 
 # ────────── Mining Task ──────────
 async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus:float):
-    await asyncio.sleep(get_mine_duration(tier))
-
     prog = await get_progress(cid,uid)
+    mine_count = prog.get("mine_count", 0)
+    seal = prog.get("seals_active")
+
+    mine_duration = get_mine_duration(tier)
+    if seal == "seal_energy":
+        mine_duration = max(0, mine_duration - 300)
+
+    await asyncio.sleep(mine_duration)
     level = prog.get("level", 1)
     pick_key = prog.get("current_pickaxe")
     pick_bonus = PICKAXES.get(pick_key, {}).get("bonus", 0)
@@ -195,10 +202,14 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     xp_gain=amount
     if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():
         xp_gain=int(xp_gain*1.5)
+    if seal == "seal_sacrifice":
+        amount = int(amount * 1.2)
+        xp_gain = max(0, xp_gain - 20)
 
     await add_item(cid,uid,ore_id,amount)
     await add_xp  (cid,uid,xp_gain)
     streak=await update_streak(cid,uid)
+    mine_count = prog.get("mine_count", 0)
 
     if prog.get("badge_active") == "recruit":
         await add_money(cid, uid, 30)
@@ -216,13 +227,16 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
             "UPDATE progress_local SET hunger=LEAST(100, energy + 5) "
             "WHERE chat_id=:c AND user_id=:u",
             {"c": cid, "u": uid}
-        )
+        )    
 
     # ---- прочність конкретної кирки (JSON-мапа) ----
     broken = False
     if cur := prog.get("current_pickaxe"):
-        dur, dur_max = await change_dur(cid, uid, cur, -1)
-        broken = dur == 0
+        if seal == "seal_durability" and mine_count % 3 == 0:
+            pass 
+        else:
+            dur, dur_max = await change_dur(cid, uid, cur, -1)
+            broken = dur == 0
 
     # ---- випадкова подія ----
     extra_txt=""
@@ -240,8 +254,10 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         {"c": cid, "u": uid}
     )
 
-    if prog.get("mine_count", 0) >= 20:
+    if mine_count >= 20:
         await unlock_achievement(cid, uid, "bear_miner")
+    if mine_count >= 300:
+        await unlock_achievement(cid, uid, "grizzly_miner")
 
     coin_bonus = get_weekend_coin_bonus()
     if coin_bonus:
@@ -1193,3 +1209,11 @@ async def stats_msg_cmd(message: types.Message):
 @router.message(lambda msg: re.match(r"шахта\s+(плавка|плавить|печка)", msg.text, re.IGNORECASE))
 async def smelt_msg_cmd(message: types.Message):
     return await smelt_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(печатьшоп|силс)", msg.text, re.IGNORECASE))
+async def seals_msg_cmd(message: types.Message):
+    return await show_seals(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(печати|печать)", msg.text, re.IGNORECASE))
+async def choose_seals_msg_cmd(message: types.Message):
+    return await choose_seal(message)

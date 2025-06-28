@@ -15,9 +15,9 @@ ACHIEVEMENT_REQUIREMENTS = {
         "count_field": "streak",
         "goal": 10
     },
-    "grizzly_bear": {
+    "grizzly_miner": {
         "count_field": "mine_count",
-        "goal": 100
+        "goal": 300
     },
 }
 
