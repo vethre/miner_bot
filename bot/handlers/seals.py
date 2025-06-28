@@ -83,6 +83,16 @@ async def seal_craft(callback: types.CallbackQuery):
 
     await callback.message.edit_text(f"🎉 {seal['emoji']} {seal['name']} скрафчена и добавлена в вашу коллекцию печатей!")
 
+def parse_json_or_empty(raw):
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
 @router.message(Command("sealset"))
 async def choose_seal(message: types.Message):
     cid, uid = await cid_uid(message)
@@ -90,10 +100,7 @@ async def choose_seal(message: types.Message):
         "SELECT seals_owned, seal_active FROM progress_local WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
     )
-    raw_owned = prog.get("seals_owned", {})
-    if isinstance(raw_owned, str):
-        raw_owned = json.loads(raw_owned)
-    owned = list(raw_owned.keys())
+    owned = list(parse_json_or_empty(prog.get("seals_owned")).keys())
     active = prog["seal_active"] if prog else None
 
     if not owned:
