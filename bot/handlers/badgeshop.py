@@ -11,9 +11,10 @@ from bot.utils.autodelete import register_msg_for_autodelete
 router = Router()
 
 BADGE_PRICES = {
-    "recruit": 1750,
-    "cashback": 2300,
-    "moneyback": 4500,
+    "recruit": 1500,
+    "cashback": 2150,
+    "hungrycave": 2800,
+    "moneyback": 3500,
 }
 
 BADGES_PER_PAGE = 3

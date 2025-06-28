@@ -15,6 +15,10 @@ ACHIEVEMENT_REQUIREMENTS = {
         "count_field": "streak",
         "goal": 10
     },
+    "grizzly_bear": {
+        "count_field": "mine_count",
+        "goal": 100
+    },
 }
 
 # 🔳 Прогрес-бар у стилі ▰▱

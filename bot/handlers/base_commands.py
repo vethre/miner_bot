@@ -29,6 +29,7 @@ from bot.db_local import (
     update_energy,
     update_hunger,
     get_progress,
+    update_nickname,
     update_streak,
     add_energy,
     change_dur,
@@ -151,6 +152,29 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     pick_key = prog.get("current_pickaxe")
     pick_bonus = PICKAXES.get(pick_key, {}).get("bonus", 0)
 
+    if random.random() < 0.1:
+        fail_messages = [
+            "Ты пошёл копать в новую шахту, но она оказалась пустой. Даже пауки сбежали.",
+            "Ты копал с энтузиазмом, но нашёл только старые носки и сырость.",
+            "Тебя облапошили! Это была учебная шахта для стажёров.",
+            "Ты спустился в шахту, но шахта спустилась в депрессию и ничего не дала.",
+            "Ты вернулся домой с пустыми руками. Кирка смотрит на тебя с разочарованием.",
+            "Тебе грустно, передохни, ты устал."
+            "FATAL ERROR",
+            "Шахту затопил ливень, подожди немного."
+        ]
+        fail_msg = random.choice(fail_messages)
+
+        await db.execute("UPDATE progress_local SET mining_end = NULL "
+                         "WHERE chat_id=:c AND user_id=:u",
+                         {"c": cid, "u": uid})
+        
+        member = await bot.get_chat_member(cid, uid)
+        mention = f"@{member.user.username}" if member.user.username \
+                    else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
+        await bot.send_message(cid, f"💀 {mention}, {fail_msg}", parse_mode="HTML")
+        return
+
     # Обчислення Tier
     tier = max([i + 1 for i, t in enumerate(TIER_TABLE) if level >= t["level_min"]], default=1)
     tier_bonus = BONUS_BY_TIER.get(tier, 1.0)
@@ -183,6 +207,13 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     if prog.get("badge_active") == "cashback":
         await db.execute(
             "UPDATE progress_local SET energy=LEAST(100, energy + 6) "
+            "WHERE chat_id=:c AND user_id=:u",
+            {"c": cid, "u": uid}
+        )
+
+    if prog.get("badge_active") == "hungercave":
+        await db.execute(
+            "UPDATE progress_local SET hunger=LEAST(100, energy + 5) "
             "WHERE chat_id=:c AND user_id=:u",
             {"c": cid, "u": uid}
         )
@@ -247,6 +278,19 @@ async def start_cmd(message: types.Message):
     )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
+WEATHERS = [
+    ("☀️", "солнечно"),
+    ("⛅", "переменная облачность"),
+    ("🌧️", "дождь"),
+    ("⛈️", "гроза"),
+    ("🌨️", "снег"),
+    ("🌫️", "туман"),
+    ("💨", "ветрено"),
+    ("🌙", "ясная ночь"),
+    ("☁️", "пасмурно"),
+    ("🔥", "жарко"),
+]
+
 # ────────── /profile ──────────
 @router.message(Command("profile"))
 async def profile_cmd(message: types.Message):
@@ -263,12 +307,15 @@ async def profile_cmd(message: types.Message):
     xp      = prog.get("xp", 0)
     next_xp = lvl * 80
     streaks = prog.get("streak", 0)
+    mine_count = prog.get("mine_count", 0)
     badge = prog.get("badge_active")
     badge_str = "–"
     if badge:
         b = BADGES.get(badge)
         if b:
             badge_str = f"{b['emoji']} {b['name']}"
+    nickname_str = prog.get("nickname") or message.from_user.full_name
+    emoji, weather = random.choice(WEATHERS)
 
     tier = max([i + 1 for i, t in enumerate(TIER_TABLE) if lvl >= t["level_min"]], default=1)
     tier_bonus = BONUS_BY_TIER.get(tier, 1.0)
@@ -318,7 +365,8 @@ async def profile_cmd(message: types.Message):
     builder.adjust(1)
 
     text = (
-        f"👤 <b>Профиль:</b> {message.from_user.full_name}\n"
+        f"👤 <b>Профиль:</b> {nickname_str}\n"
+        f"☁️ <b>Погода сейчас:</b> {weather}\n"
         f"⭐ <b>Уровень:</b> {lvl} (XP {xp}/{next_xp})\n"
         f"{tier_str}\n"
         f"🔥 <b>Серия:</b> {streaks}\n" 
@@ -329,7 +377,8 @@ async def profile_cmd(message: types.Message):
         f"📦 <b>Cave Cases:</b> {cave_cases}\n"
         f"💰 <b>Баланс:</b> {balance} монет\n\n"
         f"🏅 <b>Бейдж:</b> {badge_str}\n"
-        f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})"
+        f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})\n"
+        f"📊 <b>Всего копок:</b> {mine_count}"
     )
 
     inventory = await get_inventory(cid, uid)
@@ -394,6 +443,34 @@ async def profile_callback(cb: types.CallbackQuery):
         await achievements_menu(cb.message, cb.from_user.id)
     elif act == "badges":
         await badges_menu(cb.message, cb.from_user.id)
+
+RENAME_PRICE = 100
+@router.message(Command("rename"))
+async def rename_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    args = message.text.split(maxsplit=1)
+
+    if len(args) < 2:
+        return await message.answer("❗ Используй команду так: <code>/rename НовыйНик</code>", parse_mode="HTML")
+
+    new_nick = args[1].strip()
+
+    if len(new_nick) > 25:
+        return await message.answer("❗ Никнейм слишком длинный (максимум 25 символов).")
+
+    balance = await get_money(cid, uid)
+    if balance < RENAME_PRICE:
+        return await message.answer(f"❌ Нужно {RENAME_PRICE} монет для смены ника. У тебя всего {balance}.")
+
+    # Обновление ника
+    await db.execute(
+        "UPDATE progress_local SET nickname = $nickname WHERE chat_id = $cid AND user_id = $uid",
+        {"cid": cid, "uid": uid, "nickname": new_nick}
+    )
+
+    await add_money(cid, uid, -RENAME_PRICE)
+
+    await message.answer(f"✅ Ник обновлён на <b>{new_nick}</b>!\n💸 Списано {RENAME_PRICE} монет.", parse_mode="HTML")
 
 # ────────── /mine ──────────
 @router.message(Command("mine"))
@@ -666,62 +743,100 @@ async def cancel_sell(call: types.CallbackQuery):
 @router.message(Command("smelt"))
 async def smelt_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
+    inventory = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
 
-    try:
-        _, args = message.text.split(maxsplit=1)
-        ore_part, qty_str = args.rsplit(maxsplit=1)
-    except ValueError:
-        return await message.reply("Как переплавить: /smelt 'руда' 'кол-во'")
+    # Список доступних руд
+    smeltables = [ore for ore in SMELT_RECIPES if inventory.get(ore, 0) >= SMELT_RECIPES[ore]["in_qty"]]
+    if not smeltables:
+        return await message.reply("❌ Недостаточно руды для плавки.")
 
-    if not qty_str.isdigit():
-        return await message.reply("Кол-во должно быть числом!")
-    qty = int(qty_str)
+    # Генерація кнопок
+    builder = InlineKeyboardBuilder()
+    for ore in smeltables:
+        emoji = ITEM_DEFS.get(ore, {}).get("emoji", "⛏️")
+        name = ITEM_DEFS.get(ore, {}).get("name", ore)
+        builder.button(
+            text=f"{emoji} {name} ({inventory[ore]} шт)",
+            callback_data=f"smelt_{ore}"
+        )
+    builder.adjust(1)
+    msg = await message.answer("Выбери руду для плавки:", reply_markup=builder.as_markup())
+    register_msg_for_autodelete(cid, msg.message_id)
 
-    ore_key = SMELT_INPUT_MAP.get(ore_part.lower().strip())
-    if not ore_key:
-        return await message.reply("Не знаю такой руды 🙁")
+@router.callback_query(F.data.startswith("smelt_"))
+async def smelt_choose_ore(callback: types.CallbackQuery):
+    cid, uid = await cid_uid(callback)
+    ore_key = callback.data.split("_", 1)[1]
+    recipe = SMELT_RECIPES.get(ore_key)
 
-    recipe = SMELT_RECIPES[ore_key]
-    need_for_one = recipe["in_qty"]
+    if not recipe:
+        return await callback.answer("Неизвестный рецепт.")
+
+    builder = InlineKeyboardBuilder()
+    for coal in [5, 15, 30]:
+        builder.button(
+            text=f"🪨 Уголь ×{coal}",
+            callback_data=f"smeltgo_{ore_key}_{coal}"
+        )
+    builder.adjust(1)
+    await callback.message.edit_text(
+        f"Сколько угля хочешь использовать для переплавки {ITEM_DEFS.get(ore_key, {}).get('name', ore_key)}?",
+        reply_markup=builder.as_markup()
+    )
+
+@router.callback_query(F.data.startswith("smeltgo_"))
+async def smelt_execute(callback: types.CallbackQuery):
+    cid, uid = await cid_uid(callback)
+    _, ore_key, coal_str = callback.data.split("_")
+    coal = int(coal_str)
+
+    recipe = SMELT_RECIPES.get(ore_key)
+    if not recipe:
+        return await callback.answer("❌ Неизвестный рецепт.")
+
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
-    have_ore = inv.get(ore_key, 0)
+    ore_have = inv.get(ore_key, 0)
+    coal_have = inv.get("coal", 0)
 
-    # Якщо нема — виводимо
-    if have_ore < qty:
-        name = ITEM_DEFS.get(ore_key, {}).get("name", ore_key)
-        emoji = ITEM_DEFS.get(ore_key, {}).get("emoji", "⛏️")
-        return await message.reply(f"❌ Не хватает руды: {emoji} {name} ×{qty - have_ore}")
+    # Проверка руды
+    need_per_ingot = recipe["in_qty"]
+    max_ingots = ore_have // need_per_ingot
+    if max_ingots < 1:
+        return await callback.answer("❌ Недостаточно руды для переплавки.")
 
-    cnt = qty // need_for_one
-    if cnt < 1:
-        return await message.reply(f"Нужно минимум {need_for_one}× для одного слитка")
+    if coal_have < coal:
+        return await callback.answer("❌ Недостаточно угля.")
 
-    # Списуємо
-    used = cnt * need_for_one
-    await add_item(cid, uid, ore_key, -used)
+    # Удаляем руду и уголь
+    await add_item(cid, uid, ore_key, -max_ingots * need_per_ingot)
+    await add_item(cid, uid, "coal", -coal)
 
-    torch_mult = 1.0
-    torch_msg = ""
-    if inv.get("torch_bundle", 0) > 0:
-        torch_mult = TORCH_SPEEDUP
-        await add_item(cid, uid, "torch_bundle", -1)
-        torch_msg = "🕯️ Факел использован — плавка ускорена на 30%!\n"
+    # Вычисляем длительность
+    duration_map = {5: 540, 15: 360, 30: 180}
+    duration = duration_map.get(coal, 540)
 
-    duration = get_smelt_duration(cnt, torch_mult)
+    # Записываем время окончания плавки
     await db.execute(
         "UPDATE progress_local SET smelt_end = :e "
         "WHERE chat_id = :c AND user_id = :u",
-        {"e": dt.datetime.utcnow() + dt.timedelta(seconds=duration),
-         "c": cid, "u": uid}
+        {
+            "e": dt.datetime.utcnow() + dt.timedelta(seconds=duration),
+            "c": cid,
+            "u": uid
+        }
     )
-    asyncio.create_task(smelt_timer(message.bot, cid, uid, recipe, cnt, torch_mult))
 
-    minutes = max(1, round(duration / 60))
-    msg = await message.reply(
-        f"{torch_msg}🔥 Забрасываем {cnt} руды в печь.\n"
-        f"(⏲️ Через <b>{minutes}</b> минут получим {recipe['out_name']}×{cnt}.)"
-    )
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
+    # Запускаем таймер
+    asyncio.create_task(smelt_timer(callback.bot, cid, uid, recipe, max_ingots, 1.0))
+
+    # Сообщение
+    name = ITEM_DEFS.get(ore_key, {}).get("name", ore_key)
+    emoji = ITEM_DEFS.get(ore_key, {}).get("emoji", "⛏️")
+    txt = (f"🔥 В печь отправлено {max_ingots * need_per_ingot}× {emoji} {name}\n"
+           f"🪨 Уголь: {coal} шт\n"
+           f"⏳ Готово через <b>{round(duration / 60)}</b> минут.")
+    await callback.message.edit_text(txt)
+
 
 
 # ────────── /craft ──────────
@@ -1067,5 +1182,9 @@ async def sell_msg_cmd(message: types.Message):
     return await sell_start(message)
 
 @router.message(lambda msg: re.match(r"шахта\s+(бейджшоп|бейджи|купитьбейдж)", msg.text, re.IGNORECASE))
-async def sell_msg_cmd(message: types.Message):
+async def badgeshop_msg_cmd(message: types.Message):
     return await badgeshop_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(стата|статистика|статс)", msg.text, re.IGNORECASE))
+async def stats_msg_cmd(message: types.Message):
+    return await stats_cmd(message)

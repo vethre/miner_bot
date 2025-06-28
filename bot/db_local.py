@@ -159,6 +159,15 @@ async def get_inventory(cid: int, uid: int) -> List[Dict[str, Any]]:
         {"c": cid, "u": uid}
     )
 
+async def update_nickname(cid: int, uid: int, nickname: str):
+    await db.execute(
+        """
+        UPDATE progress_local SET nickname = COALESCE(:nickname, nickname)
+        WHERE chat_id = :c AND user_id = :u
+        """,
+        {"c": cid, "u": uid, "nickname": nickname}
+    )
+
 async def get_item(chat_id: int, user_id: int, item_id: str) -> int:
     row = await db.fetch_one(
         "SELECT qty FROM inventory_local WHERE chat_id=:c AND user_id=:u AND item=:i",
