@@ -85,7 +85,7 @@ async def seal_craft(callback: types.CallbackQuery):
 @router.message(Command("sealset"))
 async def choose_seal(message: types.Message):
     cid, uid = await cid_uid(message)
-    prog = await db.fetchrow(
+    prog = await db.fetch_one(
         "SELECT seals_owned, seal_active FROM progress_local WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
     )
