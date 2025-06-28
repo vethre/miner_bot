@@ -3,6 +3,7 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.db_local import db, add_item, get_inventory, cid_uid
+from bot.handlers.cave_clash import add_clash_points
 from bot.handlers.items import ITEM_DEFS
 from bot.utils.autodelete import register_msg_for_autodelete
 
@@ -80,6 +81,7 @@ async def seal_craft(callback: types.CallbackQuery):
         "WHERE chat_id=:c AND user_id=:u",
         {"key": [seal_key], "c": cid, "u": uid}
     )
+    await add_clash_points(cid, uid, 2)
 
     await callback.message.edit_text(f"🎉 {seal['emoji']} {seal['name']} скрафчена и добавлена в вашу коллекцию печатей!")
 

@@ -10,6 +10,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.handlers.cave_clash import setup_weekly_reset
+from bot.utils.check_afk_ping import check_afk_and_warn
 from bot.utils.config import BOT_TOKEN, DB_DSN
 from bot.db import init_db, db
 from bot.db_local import add_xp, init_local
@@ -51,6 +52,12 @@ async def main():
     )
 
     aiocron.crontab(
+        '35 11 * * *',          # 07:05 UTC  ≈ 09:05 CEST
+        func=daily_afk_ping,
+        start=True
+    )
+
+    aiocron.crontab(
         '*/45 * * * *',  # кожні 45 хвилин
         func=restore_energy,
         start=True
@@ -73,6 +80,9 @@ async def main():
     # По завершенню (якщо кине SIGTERM чи Exception)
     await db.disconnect()
     logger.info("📴 Polling завершено")
+
+async def daily_afk_ping():
+    await check_afk_and_warn(BOT)
 
 async def restore_energy():
     logger.debug("[CRON] Відновлення енергії")

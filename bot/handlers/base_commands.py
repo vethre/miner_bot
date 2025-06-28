@@ -160,7 +160,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     pick_key = prog.get("current_pickaxe")
     pick_bonus = PICKAXES.get(pick_key, {}).get("bonus", 0)
 
-    if random.random() < 0.1:
+    if random.random() < 0.05:
         fail_messages = [
             "Ты пошёл копать в новую шахту, но она оказалась пустой. Даже пауки сбежали.",
             "Ты копал с энтузиазмом, но нашёл только старые носки и сырость.",
@@ -265,7 +265,6 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
         await add_money(cid, uid, coin_bonus)
         extra_txt += f"\n💰 Лавина монет! +{coin_bonus} монет"
 
-    await add_clash_points(cid, uid, 1)
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
          f"XP +<b>{xp_gain}</b> | Streak {streak} дн. | Tier ×{bonus:.1f}\n"
@@ -548,7 +547,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         if hunger == 0:
             txt += "\n🍽️ Ты голоден и не сможешь копать снова без еды!"
         elif hunger <= 30:
-            txt += "\n⚠️ Ты устал. Следующая копка принесёт вдвое меньше руды."
+            txt += "\n⚠️ Ты проголодался. Следующая копка принесёт вдвое меньше руды."
         return await message.reply(txt)
         
     tier = get_tier(prog["level"])
@@ -574,6 +573,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         "UPDATE progress_local SET mine_count = COALESCE(mine_count, 0) + 1 WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
     )
+    await add_clash_points(cid, uid, 1)
     sec      = get_mine_duration(tier)
     minutes  = max(1, round(sec / 60))
     msg = await message.reply(f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин.\n🔋 Энергия −12 / Голод −10. Удачи!")

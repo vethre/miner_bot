@@ -10,6 +10,7 @@ from datetime import datetime
 
 from bot.db_local import cid_uid, get_money, add_money, add_item, get_progress
 from bot.handlers.cases import give_case_to_user
+from bot.handlers.cave_clash import add_clash_points
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.use import PICKAXES
 from bot.utils.autodelete import register_msg_for_autodelete
@@ -174,7 +175,7 @@ async def shop_buy_callback(callback: CallbackQuery):
         cashback = int(item["price"] * 0.3)
         await add_money(cid, uid, cashback)
         await callback.message.reply(f"💸 Бейдж Монобанк активен: возвращено {cashback} монет!")
-
+    await add_clash_points(cid, uid, 1)
     msg = await callback.message.reply(
         f"Покупка: {item['emoji']}<b>{item['name']}</b> за {item['price']} монет ✔️",
         parse_mode="HTML")
