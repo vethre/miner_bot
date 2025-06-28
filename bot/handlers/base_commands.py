@@ -464,8 +464,8 @@ async def rename_cmd(message: types.Message):
 
     # Обновление ника
     await db.execute(
-        "UPDATE progress_local SET nickname = $nickname WHERE chat_id = $cid AND user_id = $uid",
-        {"cid": cid, "uid": uid, "nickname": new_nick}
+        "UPDATE progress_local SET nickname =:nickname WHERE chat_id =:c AND user_id =:u",
+        {"c": cid, "u": uid, "nickname": new_nick}
     )
 
     await add_money(cid, uid, -RENAME_PRICE)
@@ -787,8 +787,11 @@ async def smelt_choose_ore(callback: types.CallbackQuery):
 @router.callback_query(F.data.startswith("smeltgo_"))
 async def smelt_execute(callback: types.CallbackQuery):
     cid, uid = await cid_uid(callback)
-    _, ore_key, coal_str = callback.data.split("_")
-    coal = int(coal_str)
+    try:
+        _, ore_key, coal_str = callback.data.split("_")
+        coal = int(coal_str)
+    except Exception:
+        return await callback.answer("❌ Ошибка данных. Попробуй ещё раз.")
 
     recipe = SMELT_RECIPES.get(ore_key)
     if not recipe:
@@ -798,27 +801,24 @@ async def smelt_execute(callback: types.CallbackQuery):
     ore_have = inv.get(ore_key, 0)
     coal_have = inv.get("coal", 0)
 
-    # Проверка руды
     need_per_ingot = recipe["in_qty"]
     max_ingots = ore_have // need_per_ingot
     if max_ingots < 1:
-        return await callback.answer("❌ Недостаточно руды для переплавки.")
+        return await callback.answer("❌ Недостаточно руды.")
 
     if coal_have < coal:
         return await callback.answer("❌ Недостаточно угля.")
 
-    # Удаляем руду и уголь
+    # Удаление ресурсов
     await add_item(cid, uid, ore_key, -max_ingots * need_per_ingot)
     await add_item(cid, uid, "coal", -coal)
 
-    # Вычисляем длительность
-    duration_map = {5: 540, 15: 360, 30: 180}
-    duration = duration_map.get(coal, 540)
+    # Длительность
+    duration_map = {5: 1500, 15: 900, 30: 600}
+    duration = duration_map.get(coal, 1500)  # дефолт — 5 угля
 
-    # Записываем время окончания плавки
     await db.execute(
-        "UPDATE progress_local SET smelt_end = :e "
-        "WHERE chat_id = :c AND user_id = :u",
+        "UPDATE progress_local SET smelt_end = :e WHERE chat_id = :c AND user_id = :u",
         {
             "e": dt.datetime.utcnow() + dt.timedelta(seconds=duration),
             "c": cid,
@@ -826,18 +826,18 @@ async def smelt_execute(callback: types.CallbackQuery):
         }
     )
 
-    # Запускаем таймер
+    # Запуск таймера
     asyncio.create_task(smelt_timer(callback.bot, cid, uid, recipe, max_ingots, 1.0))
 
-    # Сообщение
+    # Ответ
     name = ITEM_DEFS.get(ore_key, {}).get("name", ore_key)
     emoji = ITEM_DEFS.get(ore_key, {}).get("emoji", "⛏️")
-    txt = (f"🔥 В печь отправлено {max_ingots * need_per_ingot}× {emoji} {name}\n"
-           f"🪨 Уголь: {coal} шт\n"
-           f"⏳ Готово через <b>{round(duration / 60)}</b> минут.")
-    await callback.message.edit_text(txt)
-
-
+    txt = (
+        f"🔥 В печь отправлено {max_ingots * need_per_ingot}× {emoji} {name}\n"
+        f"🪨 Уголь: {coal} шт\n"
+        f"⏳ Готово через <b>{round(duration / 60)}</b> минут."
+    )
+    await callback.message.edit_text(txt, parse_mode="HTML")
 
 # ────────── /craft ──────────
 @router.message(Command("craft"))

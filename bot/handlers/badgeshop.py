@@ -60,7 +60,7 @@ async def _send_badgeshop(chat_id: int, user_id: int, page: int, bot_message: ty
 
     text = "\n".join(lines)
     if edit:
-        await bot_message.edit_text(text, parse_mode="HTML", reply_markup=kb.as_markup())
+        await bot_message.edit_caption(BADGESHOP_IMG_ID, caption=text, parse_mode="HTML", reply_markup=kb.as_markup())
     else:
         msg = await bot_message.answer_photo(
             BADGESHOP_IMG_ID,
