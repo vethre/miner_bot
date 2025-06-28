@@ -152,9 +152,6 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     seal = prog.get("seals_active")
 
     mine_duration = get_mine_duration(tier)
-    if seal == "seal_energy":
-        mine_duration = max(0, mine_duration - 300)
-
     await asyncio.sleep(mine_duration)
     level = prog.get("level", 1)
     pick_key = prog.get("current_pickaxe")
@@ -554,6 +551,12 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     bonus_tier = BONUS_BY_TIER[tier]
     ores = TIER_TABLE[tier - 1]["ores"]
 
+    sec = get_mine_duration(tier)
+    seal_boost = False
+    if prog.get("seal_active") == "seal_energy":
+        sec = max(MINE_SEC_MIN, sec - 300)   # −5 хв, але не нижче мінімуму
+        seal_boost = True
+
     # списуємо енергію/голод + ставимо таймер
     await db.execute(
         """UPDATE progress_local
@@ -563,7 +566,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
              WHERE chat_id=:c AND user_id=:u""",
         {
             "hc": HUNGER_COST,
-            "end": dt.datetime.utcnow() + dt.timedelta(seconds=get_mine_duration(tier)),
+            "end": dt.datetime.utcnow() + dt.timedelta(seconds=sec),
             "c": cid,
             "u": uid,
         },
@@ -574,9 +577,14 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         {"c": cid, "u": uid}
     )
     await add_clash_points(cid, uid, 1)
-    sec      = get_mine_duration(tier)
     minutes  = max(1, round(sec / 60))
-    msg = await message.reply(f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин.\n🔋 Энергия −12 / Голод −10. Удачи!")
+    orig_min = round(get_mine_duration(tier) / 60)
+    if seal_boost:
+        msg_text = (f"⛏️ Ты спускаешься в шахту на <s>{orig_min}</s> → "
+                    f"<b>{minutes}</b> мин. ⚡ Печать активна!")
+    else:
+        msg_text = f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин."
+    msg = await message.reply(msg_text + "\n🔋 Энергия −12 / Голод −10. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
 
@@ -730,13 +738,18 @@ async def choose_amount(call: types.CallbackQuery):
         return await call.answer("У тебя нет этого предмета.")
 
     builder = InlineKeyboardBuilder()
-    for amount in [1, 5, 10, qty]:
-        if amount > qty:
-            continue
+    buttons = {1, 5, 10, qty}  # базові
+    half = qty // 2
+    if 2 <= half < qty:
+        buttons.add(half)
+
+    for amount in sorted(buttons):
+        label = f"½ ({amount})" if amount == half else f"Продать {amount}×"
         builder.button(
-            text=f"Продать {amount}×",
+            text=label,
             callback_data=f"sell_confirm:{item_key}:{amount}"
         )
+
     builder.button(text="❌ Отмена", callback_data="sell_cancel")
 
     meta = ITEM_DEFS[item_key]
@@ -755,6 +768,17 @@ async def confirm_sell(call: types.CallbackQuery):
         return await call.answer("Недостаточно предметов!")
 
     price = ITEM_DEFS[item_key]["price"]
+    if item_key.endswith("_ingot") or item_key == "roundstone":
+    # находим исходную руду и её кол-во по рецепту
+        if item_key == "roundstone":
+            ore_key, in_qty = "stone", 6           # твой рецепт
+        else:
+            ore_key = item_key.replace("_ingot", "")
+            in_qty = SMELT_RECIPES[ore_key]["in_qty"]
+
+        ore_price = ITEM_DEFS[ore_key]["price"] * in_qty
+        price = int(ore_price * 1.25)              # +25 % профита
+
     earned = price * qty
     await add_item(cid, uid, item_key, -qty)
     await add_money(cid, uid, earned)
