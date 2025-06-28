@@ -77,7 +77,7 @@ async def seal_craft(callback: types.CallbackQuery):
     await db.execute(
         "UPDATE progress_local SET seals_owned = jsonb_set(COALESCE(seals_owned, '{}'::jsonb), :key, 'true'::jsonb, true) "
         "WHERE chat_id=:c AND user_id=:u",
-        {"key": "[seal_key]", "c": cid, "u": uid}
+        {"key": [seal_key], "c": cid, "u": uid}
     )
 
     await callback.message.edit_text(f"🎉 {seal['emoji']} {seal['name']} скрафчена и добавлена в вашу коллекцию печатей!")
