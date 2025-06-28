@@ -63,9 +63,9 @@ CASE_POOLS: dict[CaseType, List[Dict[str, int | str]]] = {
     ],
 }
 
-# -----------------------------------------------------
+# ────────────────────────────────────────────────
 # Helpers
-# -----------------------------------------------------
+# ────────────────────────────────────────────────
 
 def _weighted_choice(pool: List[Dict[str, int | str]]) -> str:
     total = sum(p["weight"] for p in pool)
@@ -79,44 +79,40 @@ def _weighted_choice(pool: List[Dict[str, int | str]]) -> str:
 
 
 async def pick_case_reward(case_type: CaseType) -> Dict[str, str | dict]:
-    """Возвращает запись из таблицы case_rewards по ключу, либо мок."""
-    # 👉 попробуем найти в БД (позволяет live‑редактировать пул)
+    """Берём случайный ключ из пула, запрашиваем БД, fallback — мок."""
+    pool_keys = [p["key"] for p in CASE_POOLS[case_type]]
+    chosen_key = random.choice(pool_keys)
+
     row = await db.fetch_one(
         """
         SELECT reward_key, reward_type, reward_data
           FROM case_rewards
-         WHERE reward_key = (
-              SELECT key FROM (
-                SELECT unnest(array[:keys]) AS key
-               ) AS keys
-               ORDER BY random() LIMIT 1
-          )
+         WHERE reward_key = :k
         """,
-        {"keys": [p["key"] for p in CASE_POOLS[case_type]]},
+        {"k": chosen_key},
     )
     if row:
         return row
-    # fallback — берём моковые данные
-    key = _weighted_choice(CASE_POOLS[case_type])
+
     return {
-        "reward_key": key,
+        "reward_key": chosen_key,
         "reward_type": "item",
-        "reward_data": json.dumps({"item": key, "qty": 1}),
+        "reward_data": json.dumps({"item": chosen_key, "qty": 1}),
     }
 
 
-async def give_case_to_user(chat_id: int, user_id: int, case_type: CaseType, count: int) -> None:
+async def _give_case_counter(chat_id: int, user_id: int, case_type: CaseType, qty: int):
     column = "cave_cases" if case_type == "cave_case" else "clash_cases"
     await db.execute(
-        f"UPDATE progress_local SET {column} = {column} + :cnt WHERE chat_id = :c AND user_id = :u",
-        {"cnt": count, "c": chat_id, "u": user_id},
+        f"UPDATE progress_local SET {column} = {column} + :q WHERE chat_id=:c AND user_id=:u",
+        {"q": qty, "c": chat_id, "u": user_id},
     )
 
 
-# -----------------------------------------------------
-# Main command logic
-# -----------------------------------------------------
-async def _open_case(message: Message, case_type: CaseType) -> None:
+# ────────────────────────────────────────────────
+# Main open logic
+# ────────────────────────────────────────────────
+async def _open_case(message: Message, case_type: CaseType):
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)
     column = "cave_cases" if case_type == "cave_case" else "clash_cases"
@@ -125,64 +121,56 @@ async def _open_case(message: Message, case_type: CaseType) -> None:
         await message.reply("У тебя нет " + ("Cave Case 😕" if case_type == "cave_case" else "Clash Case 😕"))
         return
 
-    # отнимаем кейс
     await db.execute(
         f"UPDATE progress_local SET {column} = {column} - 1 WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid},
     )
 
     reward = await pick_case_reward(case_type)
-    rtype = reward["reward_type"]
-    raw = reward["reward_data"]
+    rtype, raw = reward["reward_type"], reward["reward_data"]
     data = raw if isinstance(raw, dict) else json.loads(raw)
 
-    descr_parts: List[str] = []
+    parts: List[str] = []
 
-    # Раздача в зависимости от типа награды ---------------------------------
     if rtype == "item" and "items" in data:
-        # список айтемов
         for it in data["items"]:
             if "item" in it and "qty" in it:
                 await add_item(cid, uid, it["item"], it["qty"])
                 meta = ITEM_DEFS[it["item"]]
-                descr_parts.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
+                parts.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
             elif "coins" in it:
                 await add_money(cid, uid, it["coins"])
-                descr_parts.append(f"{it['coins']} монет")
+                parts.append(f"{it['coins']} монет")
             elif "xp" in it:
                 await add_xp(cid, uid, it["xp"])
-                descr_parts.append(f"{it['xp']} XP")
+                parts.append(f"{it['xp']} XP")
 
-    elif rtype == "item":  # единичный айтем
+    elif rtype == "item":
         it = data
         await add_item(cid, uid, it["item"], it["qty"])
         meta = ITEM_DEFS[it["item"]]
-        descr_parts.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
+        parts.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
 
     elif rtype == "coins":
         await add_money(cid, uid, data["coins"])
-        descr_parts.append(f"{data['coins']} монет")
+        parts.append(f"{data['coins']} монет")
 
     elif rtype == "xp":
         await add_xp(cid, uid, data["xp"])
-        descr_parts.append(f"{data['xp']} XP")
-    # -----------------------------------------------------------------------
+        parts.append(f"{data['xp']} XP")
 
-    descr = " + ".join(descr_parts)
+    descr = " + ".join(parts)
     msg = await message.reply("📦 Открываем кейс...")
-
-    # Мини‑анимация распаковки ----------------------------------------------
     for frame in ["▓▓░░░░░░░", "▓▓▓▓░░░░", "▓▓▓▓▓▓░░"]:
         await asyncio.sleep(0.35)
         await msg.edit_text(f"📦 {frame}")
-
     await asyncio.sleep(0.25)
     await msg.edit_text(f"🎉 Тебе выпало: {descr}!")
 
 
-# -----------------------------------------------------
-# Public commands
-# -----------------------------------------------------
+# ────────────────────────────────────────────────
+# Commands
+# ────────────────────────────────────────────────
 @router.message(Command("case"))
 async def cave_case_cmd(message: Message):
     await _open_case(message, "cave_case")
@@ -193,50 +181,43 @@ async def clash_case_cmd(message: Message):
     await _open_case(message, "clash_case")
 
 
-# -----------------------------------------------------
-# Admin give command
-# -----------------------------------------------------
 @router.message(Command("give_case"))
 async def give_case_cmd(message: Message):
     cid, _ = await cid_uid(message)
-
     if message.from_user.id not in ADMINS:
         await message.reply("⚠️ У вас нет прав на эту команду")
         return
 
     parts = message.text.split()
     if len(parts) not in {3, 4}:
-        await message.reply("Использование: /give_case 'user_id|@username' 'кол-во' [cave|clash]")
+        await message.reply("Использование: /give_case <user_id|@username> <кол-во> [cave|clash]")
         return
 
     target, cnt_str = parts[1], parts[2]
     if not cnt_str.isdigit():
         await message.reply("Кол-во должно быть числом")
         return
-    count = int(cnt_str)
+    qty = int(cnt_str)
 
-    case_arg = parts[3] if len(parts) == 4 else "cave"
-    case_type: CaseType = "clash_case" if case_arg.lower().startswith("clash") else "cave_case"
+    ctype: CaseType = "clash_case" if len(parts) == 4 and parts[3].lower().startswith("clash") else "cave_case"
 
-    # Разбор user id ---------------------------------------------------------
-    if target.startswith("@"):
+    if target.startswith("@"):  # mention
         try:
             member = await message.bot.get_chat_member(cid, target)
             uid = member.user.id
         except Exception:
-            await message.reply("Пользователь не найден в чате")
+            await message.reply("Пользователь не найден")
             return
     else:
         if not target.isdigit():
-            await message.reply("Неверный формат user_id или @username")
+            await message.reply("Неверный id")
             return
         uid = int(target)
 
-    # Нарахування кейсів ------------------------------------------------------
-    await give_case_to_user(cid, uid, case_type, count)
-
+    await _give_case_counter(cid, uid, ctype, qty)
     mention = f'<a href="tg://user?id={uid}">{uid}</a>'
     await message.reply(
-        f"✅ Выдано {count} {( 'Clash' if case_type=='clash_case' else 'Cave' )} Case(ов) пользователю {mention}",
+        f"✅ Выдано {qty} {( 'Clash' if ctype=='clash_case' else 'Cave' )} Case(ов) пользователю {mention}",
         parse_mode="HTML",
     )
+
