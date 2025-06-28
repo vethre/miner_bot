@@ -289,7 +289,7 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
                      {"c":cid,"u":uid})
     await add_clash_points(cid, uid, 3)
-    member_name = await get_display_name(Bot, cid, uid)
+    member_name = await get_display_name(bot, cid, uid)
     await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}", parse_mode="HTML")
 
 # ────────── /start ──────────
@@ -973,7 +973,7 @@ async def stats_callback(callback: CallbackQuery):
         for i, r in enumerate(rows, start=1):
             uid = r["user_id"]
             coins = r["coins"]
-            member_name = await get_display_name(Bot, cid, uid)
+            member_name = await get_display_name(callback.bot, cid, uid)
             lines.append(f"{i}. {member_name} — {coins} монет")
 
     elif typ == "level":
@@ -986,7 +986,7 @@ async def stats_callback(callback: CallbackQuery):
             uid = r["user_id"]
             lvl = r["level"]
             xp = r["xp"]
-            member_name = await get_display_name(Bot, cid, uid)
+            member_name = await get_display_name(callback.bot, cid, uid)
             lines.append(f"{i}. {member_name} — уровень {lvl} (XP {xp})")
 
     elif typ == "resources":
@@ -998,7 +998,7 @@ async def stats_callback(callback: CallbackQuery):
         for i, r in enumerate(rows, start=1):
             uid = r["user_id"]
             total = r["total"]
-            member_name = await get_display_name(Bot, cid, uid)
+            member_name = await get_display_name(callback.bot, cid, uid)
             lines.append(f"{i}. {member_name} — {total} ресурсов")
 
     else:
