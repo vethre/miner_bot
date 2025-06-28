@@ -260,6 +260,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     
 # ────────── Smelt Task ──────────
 async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,torch_mult:float):
+    logging.warning(f"[SMELT] Timer started: {cnt}x{rec['out_key']} for {cid}:{uid}")
     await asyncio.sleep(get_smelt_duration(cnt,torch_mult))
     await add_item(cid,uid,rec["out_key"],cnt)
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
@@ -1188,3 +1189,7 @@ async def badgeshop_msg_cmd(message: types.Message):
 @router.message(lambda msg: re.match(r"шахта\s+(стата|статистика|статс)", msg.text, re.IGNORECASE))
 async def stats_msg_cmd(message: types.Message):
     return await stats_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+(плавка|плавить|печка)", msg.text, re.IGNORECASE))
+async def smelt_msg_cmd(message: types.Message):
+    return await smelt_cmd(message)
