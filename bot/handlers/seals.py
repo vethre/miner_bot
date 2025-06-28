@@ -22,7 +22,7 @@ SEALS = {
         "desc": "-20 XP, но +20% руды при копке.",
         "emoji": "🩸",
         "recipe": {
-            "cobblestone": 15,
+            "roundstone": 15,
             "gold_ingot": 5,
             "coal": 20
         }
