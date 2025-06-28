@@ -43,7 +43,7 @@ from bot.handlers.badges import badges_menu
 from bot.handlers.eat import eat_cmd
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
-from bot.handlers.seals import choose_seal, show_seals
+from bot.handlers.seals import SEALS, choose_seal, show_seals
 from bot.handlers.use import PICKAXES, use_cmd
 from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
@@ -332,6 +332,12 @@ async def profile_cmd(message: types.Message):
         if b:
             badge_str = f"{b['emoji']} {b['name']}"
     nickname_str = prog.get("nickname") or message.from_user.full_name
+    seal = prog.get("seal_active")
+    seal_str = "–"
+    if seal:
+        s = SEALS.get(seal)
+        if s:
+            seal_str = f"{s['emoji']} {s['name']}"
     emoji, weather = random.choice(WEATHERS)
 
     tier = max([i + 1 for i, t in enumerate(TIER_TABLE) if lvl >= t["level_min"]], default=1)
@@ -394,6 +400,7 @@ async def profile_cmd(message: types.Message):
         f"📦 <b>Cave Cases:</b> {cave_cases}\n"
         f"💰 <b>Баланс:</b> {balance} монет\n\n"
         f"🏅 <b>Бейдж:</b> {badge_str}\n"
+        f"🪬 <b>Печать</b> {seal_str}\n"
         f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})\n"
         f"📊 <b>Всего копок:</b> {mine_count}"
     )
