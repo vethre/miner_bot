@@ -145,14 +145,23 @@ def get_weekend_coin_bonus() -> int:
     if weekday == 6: return 50
     return 0
 
+async def get_display_name(bot: Bot, chat_id: int, user_id: int) -> str:
+    """Ник из профиля; если нет — full_name из Telegram."""
+    prog = await get_progress(chat_id, user_id)
+    nick = prog.get("nickname")
+    if nick:
+        return nick
+    member = await bot.get_chat_member(chat_id, user_id)
+    return member.user.full_name
+
 # ────────── Mining Task ──────────
-async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus:float):
+async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
+                      ores: List[str], bonus: float, duration: int):
     prog = await get_progress(cid,uid)
     mine_count = prog.get("mine_count", 0)
     seal = prog.get("seals_active")
 
-    mine_duration = get_mine_duration(tier)
-    await asyncio.sleep(mine_duration)
+    await asyncio.sleep(duration)
     level = prog.get("level", 1)
     pick_key = prog.get("current_pickaxe")
     pick_bonus = PICKAXES.get(pick_key, {}).get("bonus", 0)
@@ -264,7 +273,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
 
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
-         f"XP +<b>{xp_gain}</b> | Streak {streak} дн. | Tier ×{bonus:.1f}\n"
+         f"XP +<b>{xp_gain}</b> | Серия {streak} дн. | Tier ×{bonus:.1f}\n"
          f"Бонус кирки +<b>{int(pick_bonus*100)} %</b>"
          + ("\n⚠️ Кирка сломалась! /repair" if broken else "")
          + extra_txt)
@@ -280,9 +289,8 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
                      {"c":cid,"u":uid})
     await add_clash_points(cid, uid, 3)
-    member = await bot.get_chat_member(cid, uid)
-    nick = member.user.full_name
-    await bot.send_message(cid,f"🔥 {nick}! Переплавка закончена: {cnt}×{rec['out_name']}", parse_mode="HTML")
+    member_name = await get_display_name(Bot, cid, uid)
+    await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}", parse_mode="HTML")
 
 # ────────── /start ──────────
 @router.message(CommandStart())
@@ -586,7 +594,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         msg_text = f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин."
     msg = await message.reply(msg_text + "\n🔋 Энергия −12 / Голод −10. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
-    asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier))
+    asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier, sec))
 
 @router.callback_query(F.data.startswith("badge:use:"))
 async def badge_use_cb(cb: types.CallbackQuery):
@@ -965,13 +973,8 @@ async def stats_callback(callback: CallbackQuery):
         for i, r in enumerate(rows, start=1):
             uid = r["user_id"]
             coins = r["coins"]
-            member = await callback.bot.get_chat_member(cid, uid)
-            user = member.user
-            if user.username:
-                mention = f"{user.username}"
-            else:
-                mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
-            lines.append(f"{i}. {mention} — {coins} монет")
+            member_name = await get_display_name(Bot, cid, uid)
+            lines.append(f"{i}. {member_name} — {coins} монет")
 
     elif typ == "level":
         rows = await db.fetch_all(
@@ -983,13 +986,8 @@ async def stats_callback(callback: CallbackQuery):
             uid = r["user_id"]
             lvl = r["level"]
             xp = r["xp"]
-            member = await callback.bot.get_chat_member(cid, uid)
-            user = member.user
-            if user.username:
-                mention = f"{user.username}"
-            else:
-                mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
-            lines.append(f"{i}. {mention} — уровень {lvl} (XP {xp})")
+            member_name = await get_display_name(Bot, cid, uid)
+            lines.append(f"{i}. {member_name} — уровень {lvl} (XP {xp})")
 
     elif typ == "resources":
         rows = await db.fetch_all(
@@ -1000,14 +998,8 @@ async def stats_callback(callback: CallbackQuery):
         for i, r in enumerate(rows, start=1):
             uid = r["user_id"]
             total = r["total"]
-            member = await callback.bot.get_chat_member(cid, uid)
-            user = member.user
-            if user.username:
-                mention = f"{user.username}"
-            else:
-                mention = f'<a href="tg://user?id={uid}">{user.full_name}</a>'
-
-            lines.append(f"{i}. {mention} — {total} ресурсов")
+            member_name = await get_display_name(Bot, cid, uid)
+            lines.append(f"{i}. {member_name} — {total} ресурсов")
 
     else:
         return
