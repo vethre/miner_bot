@@ -211,7 +211,7 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
             {"c": cid, "u": uid}
         )
 
-    if prog.get("badge_active") == "hungercave":
+    if prog.get("badge_active") == "hungrycave":
         await db.execute(
             "UPDATE progress_local SET hunger=LEAST(100, energy + 5) "
             "WHERE chat_id=:c AND user_id=:u",
