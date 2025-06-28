@@ -101,7 +101,7 @@ async def pick_case_reward(case_type: CaseType) -> Dict[str, str | dict]:
     }
 
 
-async def _give_case_counter(chat_id: int, user_id: int, case_type: CaseType, qty: int):
+async def give_case_counter(chat_id: int, user_id: int, case_type: CaseType, qty: int):
     column = "cave_cases" if case_type == "cave_case" else "clash_cases"
     await db.execute(
         f"UPDATE progress_local SET {column} = {column} + :q WHERE chat_id=:c AND user_id=:u",
