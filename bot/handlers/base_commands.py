@@ -71,11 +71,12 @@ ORE_ITEMS = {
     "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (6, 12),  "price": 9},
     "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (4, 10),  "price": 13},
     "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (3, 8),  "price": 18},
-    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (1, 2),  "price": 57},
+    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (1, 3),  "price": 57},
     "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1, 3),  "price": 38},
     "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 30},
     "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (1, 4),  "price": 45},
     "eonite_shard":     {"name": "Осколок Эонита",    "emoji": "🧿", "drop_range": (1, 2),  "price": 100},
+    "obsidian_shard":     {"name": "Осколок Обсидиана",    "emoji": "🌚", "drop_range": (1, 2),  "price": 68},
 }
 
 TIER_TABLE = [
@@ -85,6 +86,7 @@ TIER_TABLE = [
     {"level_min": 13, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis"]},
     {"level_min": 18, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby"]},
     {"level_min": 23, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby", "diamond"]},
+    {"level_min": 28, "ores": ["coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby", "diamond", "obsidian_shard"]},
 ]
 BONUS_BY_TIER = {i + 1: 1.0 + i * 0.2 for i in range(len(TIER_TABLE))}
 

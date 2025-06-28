@@ -136,6 +136,7 @@ EXTRA_ORES = {
     "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1,2), "price": 55},
     "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (2,4), "price": 35},
     "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (1,2), "price": 50},
+    "obsidian_shard":     {"name": "Осколок Обсидиана",    "emoji": "🌚", "drop_range": (1, 2),  "price": 68},
 }
 
 ORE_ITEMS.update(EXTRA_ORES)
@@ -156,6 +157,7 @@ ALIASES = {
     "руда эонита":   "eonite_ore",
     "осколок эонита":   "eonite_shard",
     "слиток эонита":   "eonite_ingot",
+    "осколок обсидиана": "obsidian_shard",
 
     "💎": "diamond",
     "💚": "emerald",
