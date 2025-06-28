@@ -123,9 +123,10 @@ def setup_weekly_reset(bot: Bot):
         CronTrigger(day_of_week="mon", hour=10, minute=0, timezone=kyiv),
         kwargs={"bot": bot},
         id="cave_clash_reset",
-        replace_existing=True,
+        replace_existing=False,
     )
-    scheduler.start()
+    if not scheduler.running:
+        scheduler.start()
 
 
 # ── Live leaderboard ───────────────────────────────
