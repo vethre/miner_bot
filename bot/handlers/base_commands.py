@@ -400,7 +400,7 @@ async def profile_cmd(message: types.Message):
         f"📦 <b>Cave Cases:</b> {cave_cases}\n"
         f"💰 <b>Баланс:</b> {balance} монет\n\n"
         f"🏅 <b>Бейдж:</b> {badge_str}\n"
-        f"🪬 <b>Печать</b> {seal_str}\n"
+        f"🪬 <b>Печать:</b> {seal_str}\n"
         f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})\n"
         f"📊 <b>Всего копок:</b> {mine_count}"
     )
