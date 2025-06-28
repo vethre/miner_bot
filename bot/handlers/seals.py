@@ -75,7 +75,7 @@ async def seal_craft(callback: types.CallbackQuery):
         await add_item(cid, uid, item, -qty)
 
     await db.execute(
-        "UPDATE progress_local SET seals_owned = jsonb_set(COALESCE(seals_owned, '{}'::jsonb), :key, 'true'::jsonb, true) "
+        "UPDATE progress_local SET seals_owned = json_set(COALESCE(seals_owned, '{}'::json), :key, 'true'::json, true) "
         "WHERE chat_id=:c AND user_id=:u",
         {"key": f'{{{seal_key}}}', "c": cid, "u": uid}
     )
