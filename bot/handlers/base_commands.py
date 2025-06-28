@@ -259,9 +259,9 @@ async def mining_task(bot:Bot, cid:int, uid:int, tier:int, ores:List[str], bonus
     logging.info("Mining result sent: chat=%s uid=%s", cid, uid)
     
 # ────────── Smelt Task ──────────
-async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,torch_mult:float):
+async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     logging.warning(f"[SMELT] Timer started: {cnt}x{rec['out_key']} for {cid}:{uid}")
-    await asyncio.sleep(get_smelt_duration(cnt,torch_mult))
+    await asyncio.sleep(duration)
     await add_item(cid,uid,rec["out_key"],cnt)
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
                      {"c":cid,"u":uid})
@@ -828,7 +828,7 @@ async def smelt_execute(callback: types.CallbackQuery):
     )
 
     # Запуск таймера
-    asyncio.create_task(smelt_timer(callback.bot, cid, uid, recipe, max_ingots, 1.0))
+    asyncio.create_task(smelt_timer(callback.bot, cid, uid, recipe, max_ingots, duration))
 
     # Ответ
     name = ITEM_DEFS.get(ore_key, {}).get("name", ore_key)
