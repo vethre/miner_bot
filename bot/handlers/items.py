@@ -109,9 +109,12 @@ ITEM_DEFS["iron_pickaxe"]["emoji"]    = "⛏️"
 ITEM_DEFS["gold_pickaxe"]["emoji"]    = "✨"
 ITEM_DEFS["amethyst_pickaxe"]["emoji"]= "🔮"
 ITEM_DEFS["roundstone_pickaxe"]["emoji"] = "🪨"
+ITEM_DEFS["obsidian_pickaxe"] = {
+    "name":  "Обсидиановая кирка",
+    "emoji": "🟣"
+}
 ITEM_DEFS["wooden_pickaxe"]["emoji"] = "🪵"
 ITEM_DEFS["diamond_pickaxe"]["emoji"] = "💎"
-ITEM_DEFS["obsidian_pickaxe"]["emoji"] = "🟣"
 CRAFT_RECIPES.update({
     "iron_handle": {
         "in": {"wood_handle": 2, "iron_ingot": 5},

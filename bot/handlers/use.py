@@ -26,6 +26,7 @@ ALIAS = {
     "хрустальная кирка":"crystal_pickaxe",
     "аметистовая кирка":"amethyst_pickaxe",
     "алмазная кирка": "diamond_pickaxe",
+    "обсидиановая кирка": "obsidian_pickaxe"
 }
 
 def _json2dict(raw):
