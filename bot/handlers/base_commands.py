@@ -42,7 +42,7 @@ from bot.handlers.badge_defs import BADGES
 from bot.handlers.badges import badges_menu
 from bot.handlers.eat import eat_cmd
 from bot.handlers.items import ITEM_DEFS
-from bot.handlers.crafting import SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
+from bot.handlers.crafting import RECIPES_BY_ID, SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
 from bot.handlers.seals import SEALS, choose_seal, show_seals
 from bot.handlers.use import PICKAXES, use_cmd
 from bot.handlers.shop import shop_cmd
@@ -1009,42 +1009,45 @@ async def disasm_menu(message: types.Message):
     cid, uid = await cid_uid(message)
 
     prog = await get_progress(cid, uid)
-    cur_pick = prog.get("current_pickaxe")          # активная
-    cur_dur  = _jsonb_to_dict(prog.get("pick_dur_map")).get(cur_pick, 0)
+    cur_pick  = prog.get("current_pickaxe")            # активная
+    cur_dur   = _jsonb_to_dict(prog.get("pick_dur_map")).get(cur_pick, 0)
 
     # всё, что реально лежит на складе
-    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    inv = {row["item"]: row["qty"] for row in await get_inventory(cid, uid)}
 
     picks: list[str] = []
 
-    # 1) кирки в инвентаре (qty > 0)
-    for k, q in inv.items():
-        if k.endswith("_pickaxe") and q > 0 and k in CRAFT_RECIPES:
-            picks.append(k)
+    # 1) кирки, которые лежат в инвентаре
+    for item_id, qty in inv.items():
+        if item_id.endswith("_pickaxe") and qty > 0 and item_id in RECIPES_BY_ID:
+            picks.append(item_id)
 
-    # 2) активная кирка – если она крафтовая и ещё не совсем убита
-    if (cur_pick and cur_pick in CRAFT_RECIPES
-            and cur_dur > 10 and cur_pick not in picks):
+    # 2) активная кирка, если она крафтовая и ещё не совсем убита
+    if (cur_pick
+            and cur_pick in RECIPES_BY_ID
+            and cur_dur > 10               # >10 прочности — можно разбирать
+            and cur_pick not in picks):
         picks.append(cur_pick)
 
     if not picks:
         return await message.reply("🪓 Нет кирок, пригодных для разборки 🤷")
 
+    # --- кнопочная менюшка ---
     kb = InlineKeyboardBuilder()
     for pk in picks:
         meta = ITEM_DEFS.get(pk, {"name": pk, "emoji": "⛏️"})
-        qty_label = (
-            "(активна)" if pk == cur_pick else f"({inv.get(pk, 0)})"
-        )
+        qty_label = "(активна)" if pk == cur_pick else f"({inv.get(pk, 0)})"
         kb.button(
             text=f"{meta['emoji']} {meta['name']} {qty_label}",
             callback_data=f"disasm_pick:{pk}"
         )
     kb.adjust(2)
+
     await message.answer(
         "Что разбираем? ↓",
         reply_markup=kb.as_markup()
     )
+
 
 # ────────── выбор конкретной кирки ──────────
 @router.callback_query(F.data.startswith("disasm_pick:"))

@@ -85,6 +85,13 @@ CRAFT_RECIPES.update({
     }
 })
 
+RECIPES_BY_ID: dict[str, dict] = {r["out_key"]: r for r in CRAFT_RECIPES.values()}
+
+# если хотите принимать /disassemble "золотая кирка" и т.п.
+ALIAS_TO_ID: dict[str, str] = {
+    human.lower(): r["out_key"] for human, r in CRAFT_RECIPES.items()
+} 
+
 PICKAXE_UPGRADES = {
     "reinforced_grip": {
         "name": "🛠️ Усиленная рукоять",
