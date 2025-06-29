@@ -91,7 +91,119 @@ CHOICE_EVENTS.update({
             }
         }
     },
+
+    # ─────────────────────────────────────────────
+    "lost_miner": {
+        "text": "⛏️ В глубине шахты ты наткнулся на растерянного шахтёра-новичка. Он просит проводника.",
+        "options": {
+            "help": {
+                "label": "Показать путь ↑",
+                "outcomes": [
+                    {"field": "coins", "sign": "+", "amt_min": 100, "amt_max": 140, "weight": 70},
+                    {"field": "xp",    "sign": "+", "amt_min": 20,  "amt_max": 40,  "weight": 30},
+                ]
+            },
+            "ignore": {
+                "label": "Проигнорировать",
+                "outcomes": [
+                    {"field": "xp",    "sign": "-", "amt_min": 5,   "amt_max": 15,  "weight": 100},
+                ]
+            }
+        }
+    },
+
+    # ─────────────────────────────────────────────
+    "mysterious_altar": {
+        "text": "🔮 Ты обнаружил таинственный обсидиановый алтарь с пульсирующим кристаллом.",
+        "options": {
+            "touch": {
+                "label": "Дотронуться",
+                "outcomes": [
+                    {"field": "energy", "sign": "+", "amt_min": 20,  "amt_max": 30, "weight": 80},
+                    {"field": "xp",     "sign": "+", "amt_min": 15,  "amt_max": 25, "weight": 20},
+                ]
+            },
+            "mine": {
+                "label": "Попробовать добыть",
+                "outcomes": [
+                    {"field": "item",   "sign": "+", "item": "obsidian_shard", "amt_min": 1, "amt_max": 1, "weight": 60},
+                    {"field": "energy", "sign": "-", "amt_min": 10,  "amt_max": 15, "weight": 40},
+                ]
+            },
+            "leave": {
+                "label": "Отойти",
+                "outcomes": [
+                    {"field": "xp", "sign": "+", "amt_min": 5, "amt_max": 10, "weight": 100},
+                ]
+            }
+        }
+    },
+
+    # ─────────────────────────────────────────────
+    "cave_stream": {
+        "text": "🌊 Подземный поток преграждает путь.",
+        "options": {
+            "swim": {
+                "label": "Переплыть",
+                "outcomes": [
+                    {"field": "energy", "sign": "-", "amt_min": 8,  "amt_max": 12, "weight": 70},
+                    {"field": "xp",     "sign": "+", "amt_min": 10, "amt_max": 20, "weight": 30},
+                ]
+            },
+            "build_bridge": {
+                "label": "Соорудить мост",
+                "outcomes": [
+                    {"field": "coins", "sign": "+", "amt_min": 60, "amt_max": 100, "weight": 70},
+                    {"field": "xp",    "sign": "+", "amt_min": 5,  "amt_max": 10,  "weight": 30},
+                ]
+            },
+            "turn_back": {
+                "label": "Вернуться",
+                "outcomes": [
+                    {"field": "xp", "sign": "+", "amt_min": 3, "amt_max": 6, "weight": 100},
+                ]
+            }
+        }
+    },
+
+    # ─────────────────────────────────────────────
+    "greedy_bat": {
+        "text": "🦇 Летучая мышь вылетает из-за спины и пытается стащить твою добычу!",
+        "options": {
+            "shoo": {
+                "label": "Отмахнуться",
+                "outcomes": [
+                    {"field": "coins", "sign": "+", "amt_min": 25, "amt_max": 40, "weight": 100},
+                ]
+            },
+            "feed": {
+                "label": "Дать кусочек мяса",
+                "outcomes": [
+                    {"field": "item",  "sign": "+", "item": "amethyst", "amt_min": 1, "amt_max": 1, "weight": 70},
+                    {"field": "xp",    "sign": "+", "amt_min": 5,  "amt_max": 10, "weight": 30},
+                ]
+            },
+            "ignore": {
+                "label": "Игнорировать",
+                "outcomes": [
+                    {"field": "item", "sign": "-", "item": "stone", "amt_min": 3, "amt_max": 6, "weight": 100},
+                ]
+            }
+        }
+    },
 })
+
+async def build_mention(bot: Bot, chat_id: int, user_id: int) -> str:
+    """
+    Возвращает mention пользователя:
+        • @username   – если есть ник
+        • tg://user…  – если ника нет
+    """
+    m = await bot.get_chat_member(chat_id, user_id)
+    if m.user.username:
+        return f"@{m.user.username}"
+    # HTML-link без пробелов в id
+    return f'<a href="tg://user?id={user_id}">{m.user.full_name}</a>'
 
 
 def _choice_weighted_pick(outcomes: list[dict]) -> dict:
@@ -131,7 +243,7 @@ async def _apply_choice_effect(bot: Bot, chat_id: int, user_id: int,
     return f"{'+' if amt>0 else ''}{amt} {fld.upper()}"
 
 async def maybe_send_choice_card(bot: Bot, cid: int, uid: int):
-    if random.random() > 0.20:          # 20 % шанс что вообще появится карточка
+    if random.random() > 0.30:          # 20 % шанс что вообще появится карточка
         return
 
     ev_key, ev = random.choice(list(CHOICE_EVENTS.items()))
@@ -143,9 +255,11 @@ async def maybe_send_choice_card(bot: Bot, cid: int, uid: int):
         )
     kb.adjust(2)
 
+    mention = await build_mention(bot, cid, uid)
+
     await bot.send_message(
         cid,
-        f"{ev['text']}\n\n<i>Сделай выбор:</i>",
+        f"{mention}, {ev['text']}\n\n<i>Сделай выбор:</i>",
         parse_mode="HTML",
         reply_markup=kb.as_markup()
     )

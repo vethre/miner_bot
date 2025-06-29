@@ -14,7 +14,7 @@ from bot.handlers.cave_clash import add_clash_points
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.use import PICKAXES
 from bot.utils.autodelete import register_msg_for_autodelete
-from bot.assets import SHOP_IMG_ID # Ensure this path is correct for your project
+from bot.assets import SHOP_IMG_ID
 
 router = Router()
 
@@ -108,7 +108,6 @@ async def _send_shop_page(
             reply_markup=kb.as_markup()
         )
 
-
 # ------------------------------------------------------------------ handlers
 
 # Handler for initial /shop command
@@ -177,6 +176,7 @@ async def shop_buy_callback(callback: CallbackQuery):
         await add_money(cid, uid, cashback)
         await callback.message.reply(f"💸 Бейдж Монобанк активен: возвращено {cashback} монет!")
     await add_clash_points(cid, uid, 1)
+
     msg = await callback.message.reply(
         f"Покупка: {item['emoji']}<b>{item['name']}</b> за {item['price']} монет ✔️",
         parse_mode="HTML")

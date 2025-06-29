@@ -285,9 +285,6 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         )
         extra_txt += "\n🔵 Лазуритовый факел восполнил силы!"
 
-    if await maybe_send_choice_card(bot, cid, uid):
-        return
-
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
          f"XP +<b>{xp_gain}</b> | Серия {streak} дн. | Tier ×{bonus:.1f}\n"
@@ -295,6 +292,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
          + ("\n⚠️ Кирка сломалась! /repair" if broken else "")
          + extra_txt)
 
+    await maybe_send_choice_card(bot, cid, uid)
     await bot.send_message(cid,txt,parse_mode="HTML")
 
     logging.info("Mining result sent: chat=%s uid=%s", cid, uid)
