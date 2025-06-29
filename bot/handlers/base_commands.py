@@ -866,6 +866,7 @@ async def smelt_quantity(cb: CallbackQuery):
         )
 
     kb = InlineKeyboardBuilder()
+    kb.adjust(1)
     kb.row(make_btn("−10", -10), make_btn("−1", -1),
            types.InlineKeyboardButton(text=f"🔥 {cur} шт", callback_data="noop"),
            make_btn("+1", 1), make_btn("+10", 10))
@@ -873,7 +874,7 @@ async def smelt_quantity(cb: CallbackQuery):
         text="➡️ Уголь",
         callback_data=f"smeltcoal:{ore}:{cur}"
     ))
-    kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data="sell_cancel"))
+    kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data="smelt_cancel"))
 
     meta = ITEM_DEFS.get(ore, {})
     await cb.message.edit_text(
@@ -889,12 +890,13 @@ async def smelt_choose_coal(cb: CallbackQuery):
     cnt = int(cnt_str)
 
     kb = InlineKeyboardBuilder()
+    kb.adjust(1)
     for coal in (5, 15, 30):
         kb.button(
             text=f"🪨 Уголь ×{coal}",
             callback_data=f"smeltgo2:{ore}:{coal}:{cnt}"
         )
-    kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data="sell_cancel"))
+    kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data="smelt_cancel"))
 
     await cb.message.edit_text(
         f"Сколько угля потратить на {cnt} шт {ITEM_DEFS[ore]['name']}?",
@@ -943,6 +945,9 @@ async def smelt_execute_exact(cb: CallbackQuery):
     )
     await cb.message.edit_text(txt, parse_mode="HTML")
 
+@router.callback_query(F.data == "smelt_cancel")
+async def cancel_smelt(call: types.CallbackQuery):
+    await call.message.edit_text("Плавка отменена ❌")
 
 # ────────── /craft ──────────
 @router.message(Command("craft"))
