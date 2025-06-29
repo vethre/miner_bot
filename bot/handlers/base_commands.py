@@ -5,6 +5,7 @@ import json
 import logging
 import re
 from typing import List, Dict
+import aiogram
 from aiogram.utils.markdown import link
 import random
 import time
@@ -1048,15 +1049,13 @@ async def disasm_menu(message: types.Message):
         reply_markup=kb.as_markup()
     )
 
-
 # ────────── выбор конкретной кирки ──────────
 @router.callback_query(F.data.startswith("disasm_pick:"))
 async def disasm_confirm(cb: types.CallbackQuery):
-    await cb.answer()
     cid, uid = cb.message.chat.id, cb.from_user.id
-    pick_key = cb.data.split(":")[1]
+    pick_key = cb.data.split(":", 1)[1]
 
-    inv   = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     if inv.get(pick_key, 0) < 1:
         return await cb.answer("Кирки уже нет 😕", show_alert=True)
 
@@ -1064,11 +1063,11 @@ async def disasm_confirm(cb: types.CallbackQuery):
         return await cb.answer("Нужен Инструмент разборки 🛠️", show_alert=True)
 
     # прочность
-    prog = await get_progress(cid, uid)
+    prog        = await get_progress(cid, uid)
     dur_map     = _jsonb_to_dict(prog.get("pick_dur_map"))
     dur_max_map = _jsonb_to_dict(prog.get("pick_dur_max_map"))
-    dur     = dur_map.get(pick_key, 0)
-    dur_max = dur_max_map.get(pick_key, PICKAXES[pick_key]["dur"])
+    dur      = dur_map.get(pick_key, 0)
+    dur_max  = dur_max_map.get(pick_key, PICKAXES[pick_key]["dur"])
 
     pct = _refund_percent(dur, dur_max)
     if pct == 0:
@@ -1081,35 +1080,42 @@ async def disasm_confirm(cb: types.CallbackQuery):
 
     kb = InlineKeyboardBuilder()
     kb.button(text="✅ Разобрать", callback_data=f"disasm_ok:{pick_key}")
-    kb.button(text="❌ Отмена",     callback_data="disasm_cancel")
+    kb.button(text="❌ Отмена",    callback_data="disasm_cancel")
     kb.adjust(2)
-    await cb.message.edit_text(text, reply_markup=kb.as_markup(), parse_mode="HTML")
 
-# ────────── финальное выполнение ──────────
+    try:
+        await cb.message.edit_text(text, reply_markup=kb.as_markup(),
+                                   parse_mode="HTML")
+    except aiogram.exceptions.TelegramBadRequest as e:
+        if "message is not modified" not in str(e):
+            raise     # другие ошибки всё-таки покажем
+    await cb.answer()
+
+# ────────── выполнить разборку ──────────
 @router.callback_query(F.data.startswith("disasm_ok:"))
 async def disasm_execute(cb: types.CallbackQuery):
-    await cb.answer()
-    cid, uid = cb.message.chat.id, cb.from_user.id
-    pick_key = cb.data.split(":")[1]
+    cid, uid   = cb.message.chat.id, cb.from_user.id
+    pick_key   = cb.data.split(":", 1)[1]
 
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     if inv.get(pick_key, 0) < 1 or inv.get("disassemble_tool", 0) < 1:
         return await cb.answer("Что-то изменилось — операция отменена.", show_alert=True)
 
-    # ещё раз читаем durability (вдруг успели сломать)
-    prog = await get_progress(cid, uid)
-    dur_map = _jsonb_to_dict(prog.get("pick_dur_map"))
+    # проверка прочности ещё раз
+    prog        = await get_progress(cid, uid)
+    dur_map     = _jsonb_to_dict(prog.get("pick_dur_map"))
     dur_max_map = _jsonb_to_dict(prog.get("pick_dur_max_map"))
-    dur, dur_max = dur_map.get(pick_key, 0), dur_max_map.get(pick_key, PICKAXES[pick_key]["dur"])
+    dur, dur_max = dur_map.get(pick_key, 0), dur_max_map.get(
+        pick_key, PICKAXES[pick_key]["dur"])
     pct = _refund_percent(dur, dur_max)
     if pct == 0:
         return await cb.answer("Кирка почти сломана – не разбирается.", show_alert=True)
 
-    # списываем
+    # списываем расходники
     await add_item(cid, uid, "disassemble_tool", -1)
-    await add_item(cid, uid, pick_key, -1)
+    await add_item(cid, uid, pick_key,           -1)
 
-    recipe = CRAFT_RECIPES[pick_key]["in"]
+    recipe = RECIPES_BY_ID[pick_key]["in"]     # ← правильный словарь!
     refund_lines = []
     for itm, need_qty in recipe.items():
         back = max(1, int(need_qty * pct))
@@ -1118,19 +1124,17 @@ async def disasm_execute(cb: types.CallbackQuery):
         refund_lines.append(f"{back}×{meta['emoji']} {meta['name']}")
 
     await cb.message.edit_text(
-        f"✅ Разобрано!\n↩️ Вернулось: " + ", ".join(refund_lines) +
+        "✅ Разобрано!\n↩️ Вернулось: " + ", ".join(refund_lines) +
         f"  ({int(pct*100)} %)",
         parse_mode="HTML"
     )
+    await cb.answer()
 
 # ────────── отмена ──────────
 @router.callback_query(F.data == "disasm_cancel")
 async def disasm_cancel(cb: types.CallbackQuery):
     await cb.answer("Отменено 🚫")
     await cb.message.delete()
-
-
-
 
 # ────────── /stats ──────────
 @router.message(Command("stats"))
