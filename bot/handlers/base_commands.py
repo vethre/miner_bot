@@ -162,7 +162,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     prog = await get_progress(cid,uid)
     mine_count = prog.get("mine_count", 0)
     seal = prog.get("seals_active")
-
+    extra_txt=""
     await asyncio.sleep(duration)
     level = prog.get("level", 1)
     pick_key = prog.get("current_pickaxe")
@@ -251,7 +251,6 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
             broken = dur == 0
 
     # ---- випадкова подія ----
-    extra_txt=""
     ev = pick_chance_event()
     if ev:
         extra_txt = "\n" + await apply_chance_event(ev, cid, uid)
