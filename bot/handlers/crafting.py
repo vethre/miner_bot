@@ -57,17 +57,17 @@ CRAFT_RECIPES = {
 }
 
 CRAFT_RECIPES.update({
-    "obsidian_pickaxe": {
+    "обсидиановая кирка": {
         "in": {"obsidian_shard": 8, "iron_handle": 1},
         "out_key": "obsidian_pickaxe",
         "out_name": "🟪 Обсидиановая кирка"
     },
-    "lapis_torch": {
+    "лазуритный факел": {
         "in": {"lapis": 2, "torch": 1},
         "out_key": "lapis_torch",
         "out_name": "🔵 Лазуритовый факел"
     },
-    "iron_handle": {
+    "железная рукоять": {
         "in": {
             "wood_handle": 3,
             "iron_ingot": 5
@@ -75,7 +75,7 @@ CRAFT_RECIPES.update({
         "out_key": "iron_handle",
         "out_name": "🪚 Железная рукоять"
     },
-    "disassemble_tool": {
+    "инструмент разборки": {
         "in": {
             "wax": 2,
             "iron_ingot": 2
