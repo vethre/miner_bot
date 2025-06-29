@@ -12,6 +12,7 @@ from .badgeshop import router as badgeshop_router
 from .code import router as code_router
 from .seals import router as seals_router
 from .cave_clash import router as clash_router, setup_weekly_reset
+from .choice_events import router as choice_events_router
 
 def register_handlers(dp):
     dp.include_router(base_router)
@@ -27,5 +28,6 @@ def register_handlers(dp):
     dp.include_router(badgeshop_router)
     dp.include_router(seals_router)
     dp.include_router(clash_router)
+    dp.include_router(choice_events_router)
 
     setup_weekly_reset(bot)

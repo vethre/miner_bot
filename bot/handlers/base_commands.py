@@ -41,6 +41,7 @@ from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.achievements import achievements_menu
 from bot.handlers.badge_defs import BADGES
 from bot.handlers.badges import badges_menu
+from bot.handlers.choice_events import maybe_send_choice_card
 from bot.handlers.eat import eat_cmd
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import RECIPES_BY_ID, SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
@@ -292,6 +293,8 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
          + extra_txt)
 
     await bot.send_message(cid,txt,parse_mode="HTML")
+    await maybe_send_choice_card(bot, cid, uid)
+
     logging.info("Mining result sent: chat=%s uid=%s", cid, uid)
     
 # ────────── Smelt Task ──────────
