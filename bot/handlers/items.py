@@ -98,7 +98,11 @@ ITEM_DEFS.update({
     "iron_handle": {
         "name": "Железная рукоять",
         "emoji": "🪚"
-    }
+    },
+    "lapis_torch": {
+        "name": "Лазурный факел",
+        "emoji": "🔵"
+    },
 })
 # bot/handlers/items.py  (где собирается ITEM_DEFS)
 
@@ -128,7 +132,7 @@ CRAFT_RECIPES.update({
     "lapis_torch": {
         "in": {"lapis": 2, "torch": 1},
         "out_key": "lapis_torch",
-        "out_name": "Лазуритовый факел"
+        "out_name": "Лазурный факел"
     },
     "iron_handle": {
         "in": {

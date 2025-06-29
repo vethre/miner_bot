@@ -62,10 +62,10 @@ CRAFT_RECIPES.update({
         "out_key": "obsidian_pickaxe",
         "out_name": "🟪 Обсидиановая кирка"
     },
-    "лазуритный факел": {
-        "in": {"lapis": 2, "torch": 1},
+    "лазурный факел": {
+        "in": {"lapis": 3, "coal": 5},
         "out_key": "lapis_torch",
-        "out_name": "🔵 Лазуритовый факел"
+        "out_name": "🔵 Лазурный факел"
     },
     "железная рукоять": {
         "in": {
