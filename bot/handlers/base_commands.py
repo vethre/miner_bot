@@ -1008,10 +1008,24 @@ def _refund_percent(dur: int, dur_max: int) -> float:
 async def disasm_menu(message: types.Message):
     cid, uid = await cid_uid(message)
 
-    # кирки, которые реально есть в инвентаре
+    prog = await get_progress(cid, uid)
+    cur_pick = prog.get("current_pickaxe")          # активная
+    cur_dur  = _jsonb_to_dict(prog.get("pick_dur_map")).get(cur_pick, 0)
+
+    # всё, что реально лежит на складе
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
-    picks = [k for k, q in inv.items()
-             if k.endswith("_pickaxe") and q > 0 and k in CRAFT_RECIPES]
+
+    picks: list[str] = []
+
+    # 1) кирки в инвентаре (qty > 0)
+    for k, q in inv.items():
+        if k.endswith("_pickaxe") and q > 0 and k in CRAFT_RECIPES:
+            picks.append(k)
+
+    # 2) активная кирка – если она крафтовая и ещё не совсем убита
+    if (cur_pick and cur_pick in CRAFT_RECIPES
+            and cur_dur > 10 and cur_pick not in picks):
+        picks.append(cur_pick)
 
     if not picks:
         return await message.reply("🪓 Нет кирок, пригодных для разборки 🤷")
@@ -1019,8 +1033,11 @@ async def disasm_menu(message: types.Message):
     kb = InlineKeyboardBuilder()
     for pk in picks:
         meta = ITEM_DEFS.get(pk, {"name": pk, "emoji": "⛏️"})
+        qty_label = (
+            "(активна)" if pk == cur_pick else f"({inv.get(pk, 0)})"
+        )
         kb.button(
-            text=f"{meta['emoji']} {meta['name']} ({inv[pk]})",
+            text=f"{meta['emoji']} {meta['name']} {qty_label}",
             callback_data=f"disasm_pick:{pk}"
         )
     kb.adjust(2)
