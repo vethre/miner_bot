@@ -165,7 +165,7 @@ async def shop_buy_callback(callback: CallbackQuery):
 
     await add_money(cid, uid, -price_val) # Deduct price
     if item_id == "cave_cases":
-        await give_case_to_user(cid, uid, 1) # Specific logic for "cave_cases"
+        await give_case_to_user(cid, uid, "cave_case", 1) # Specific logic for "cave_cases"
     else:
         await add_item(cid, uid, item_id, 1) # Add other items to inventory
 
