@@ -41,18 +41,34 @@ SEALS = {
     }
 }
 
+# ─── /seals ──────────────────────────────────────────────────────────────
 @router.message(Command("seals"))
 async def show_seals(message: types.Message):
     cid, uid = await cid_uid(message)
-    builder = InlineKeyboardBuilder()
+
+    # 1) Текст-список со всеми печатями
+    lines = ["<b>🪬 Доступные печати</b>\n"]
+    for data in SEALS.values():
+        lines.append(f"{data['emoji']} <b>{data['name']}</b> — {data['desc']}")
+    text = "\n".join(lines)
+
+    # 2) Инлайн-кнопки для выбора
+    kb = InlineKeyboardBuilder()
     for key, data in SEALS.items():
-        builder.button(
+        kb.button(
             text=f"{data['emoji']} {data['name']}",
             callback_data=f"seal_{key}"
         )
-    builder.adjust(1)
-    msg = await message.answer(f"🪬 Выбери печать для крафта:\n{data['emoji']} {data['name']} - {data['desc']}", reply_markup=builder.as_markup())
+    kb.adjust(1)
+
+    # 3) Отправляем
+    msg = await message.answer(
+        text,
+        parse_mode="HTML",
+        reply_markup=kb.as_markup()
+    )
     register_msg_for_autodelete(message.chat.id, msg.message_id)
+
 
 @router.callback_query(F.data.startswith("seal_"))
 async def seal_craft(callback: types.CallbackQuery):
