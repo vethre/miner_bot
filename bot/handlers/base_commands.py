@@ -898,7 +898,7 @@ async def smelt_choose_coal(cb: CallbackQuery):
     kb.adjust(1)
     for coal in (5, 15, 30):
         kb.button(
-            text=f"🪨 Уголь ×{coal}",
+            text=f"🪨 ×{coal}",
             callback_data=f"smeltgo2:{ore}:{coal}:{cnt}"
         )
     kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data="smelt_cancel"))

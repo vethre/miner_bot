@@ -148,6 +148,26 @@ async def devinfo_cmd(message: types.Message, bot: Bot):
     msg = await message.reply(text, parse_mode="HTML")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
+@router.message(Command("flush_timers"))
+async def flush_timers_cmd(msg: types.Message):
+    if msg.from_user.id not in ADMINS:
+        return await msg.reply("⛔ Только админ.")
+
+    # чистим просроченные
+    n1 = await db.execute(
+        """UPDATE progress_local
+              SET mining_end = NULL
+            WHERE mining_end IS NOT NULL
+              AND mining_end < NOW()"""
+    )
+    n2 = await db.execute(
+        """UPDATE progress_local
+              SET smelt_end = NULL
+            WHERE smelt_end IS NOT NULL
+              AND smelt_end < NOW()"""
+    )
+    await msg.reply(f"🧹 Сброшено: копка {n1.rowcount}, плавка {n2.rowcount}")
+
 # ───────────── Команда /forcepick ─────────────
 @router.message(Command("forcepick"))
 async def forcepick_cmd(message: types.Message, command: CommandObject):

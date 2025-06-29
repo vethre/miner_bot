@@ -8,6 +8,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
+from bot.middlewares.antiflood import AntiFlood
 
 from bot.handlers.cave_clash import setup_weekly_reset
 from bot.utils.check_afk_ping import check_afk_and_warn
@@ -38,6 +39,13 @@ async def main():
 
     register_handlers(dp)
     setup_weekly_reset(BOT)
+
+    dp.message.middleware.register(
+        AntiFlood(limit=8, window=15, mute_seconds=120)     # настройки «под себя»
+    )
+    dp.callback_query.middleware.register(
+        AntiFlood(limit=5, window=12, mute_seconds=90)
+    )
 
     aiocron.crontab(
         '0 7 * * *',          # 07:00 UTC ≈ 09:00 CEST
