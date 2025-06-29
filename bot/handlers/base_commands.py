@@ -18,9 +18,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import CallbackQuery
 from aiogram.enums import ChatMemberStatus
 
+import bot
 from bot.db import db, create_user, get_user
 from bot.db_local import (
     UTC,
+    add_xp_with_notify,
     cid_uid,
     add_item,
     add_money,
@@ -136,7 +138,7 @@ async def apply_chance_event(ev: ChanceEvent, cid: int, uid: int) -> str:
     if field == "coins":
         await add_money(cid, uid, delta)
     elif field == "xp":
-        await add_xp(cid, uid, delta)
+        await add_xp_with_notify(bot, cid, uid, delta)
     elif field == "energy":
         await add_energy(cid, uid, delta)   # нова утиліта
 
@@ -221,7 +223,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         xp_gain = max(0, xp_gain - 20)
 
     await add_item(cid,uid,ore_id,amount)
-    await add_xp  (cid,uid,xp_gain)
+    await add_xp_with_notify(bot, cid, uid, xp_gain)
     streak=await update_streak(cid,uid)
     mine_count = prog.get("mine_count", 0)
 
@@ -306,7 +308,7 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
                      {"c":cid,"u":uid})
     await add_clash_points(cid, uid, 3)
     xp_gain = cnt * 5
-    await add_xp(cid, uid, xp_gain)
+    await add_xp_with_notify(bot, cid, uid, xp_gain)
     member_name = await get_display_name(bot, cid, uid)
     await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}\n🔥 +{xp_gain} XP", parse_mode="HTML")
 
@@ -988,7 +990,7 @@ async def craft_cmd(message: types.Message):
     if recipe["out_key"] == "roundstone_pickaxe":
         await unlock_achievement(cid, uid, "cobble_player")
     await add_clash_points(cid, uid, 4)
-    await add_xp(cid, uid, xp_gain)
+    await add_xp_with_notify(bot, cid, uid, xp_gain)
     msg = await message.reply(f"🎉 Создано: {recipe['out_name']}!\n🎉 +{xp_gain} XP")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 

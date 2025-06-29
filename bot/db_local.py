@@ -2,6 +2,7 @@
 import datetime as dt
 import logging
 from zoneinfo import ZoneInfo
+from aiogram import Bot
 import json, asyncpg
 from typing import Tuple, List, Dict, Any
 from aiogram.types import Message, CallbackQuery
@@ -192,37 +193,44 @@ async def get_money(cid: int, uid: int) -> int:
     return row["coins"] if row else 0
 
 # ────────── XP / LEVEL ──────────
-async def add_xp(cid: int, uid: int, delta: int):
+async def add_xp(
+    cid: int,
+    uid: int,
+    delta: int,
+    *,                     # ← все именованные после `*`
+    bot: Bot | None = None #   бот передаём, когда нужно оповещение
+):
     await _ensure_progress(cid, uid)
 
+    # ── берём текущие цифры ─────────────────────────────────────────
     row = await db.fetch_one(
-        "SELECT level, xp FROM progress_local "
+        "SELECT level, xp, nickname FROM progress_local "
         "WHERE chat_id=:c AND user_id=:u",
         {"c": cid, "u": uid}
     )
     lvl, xp = row["level"], row["xp"] + delta
-    threshold = lvl * 80
-
+    threshold = lvl * 85                    # твоя формула
     leveled = False
+
+    # ── проверяем, есть ли ап-левел (может быть +2 и больше) ───────
     while xp >= threshold:
         xp -= threshold
         lvl += 1
-        threshold = lvl * 80
+        threshold = lvl * 85
         leveled = True
 
+    # ── пишем в БД ─────────────────────────────────────────────────
     if leveled:
-        # оновлюємо XP і рівень
         await db.execute(
             """
             UPDATE progress_local
-               SET xp = :xp,
+               SET xp    = :xp,
                    level = :lvl
              WHERE chat_id = :c AND user_id = :u
             """,
             {"xp": xp, "lvl": lvl, "c": cid, "u": uid}
         )
     else:
-        # тільки XP
         await db.execute(
             """
             UPDATE progress_local
@@ -231,6 +239,23 @@ async def add_xp(cid: int, uid: int, delta: int):
             """,
             {"xp": xp, "c": cid, "u": uid}
         )
+
+    # ── если ап-левел и бот передан — шлём сообщение ───────────────
+    if leveled and bot is not None:
+        # ник из профиля > full_name из TG
+        try:
+            display_name = row["nickname"] or (await bot.get_chat_member(cid, uid)).user.full_name
+        except Exception:
+            display_name = f"Игрок {uid}"
+
+        await bot.send_message(
+            cid,
+            f"✨ <b>{display_name}</b> достигает <b>{lvl}-го</b> уровня!",
+            parse_mode="HTML"
+        )
+
+async def add_xp_with_notify(bot: Bot, cid: int, uid: int, delta: int):
+    await add_xp(cid, uid, delta, bot=bot)
 
 async def get_progress(cid: int, uid: int) -> Dict[str, Any]:
     row = await db.fetch_one(
