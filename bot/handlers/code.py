@@ -68,7 +68,7 @@ async def promo_code_cmd(message: types.Message):
     for item_id, qty in items.items():
         # Випадок для Cave Case
         if item_id == "cave_cases":
-            await give_case_to_user(cid, uid, qty)
+            await give_case_to_user(cid, uid, "cave_case", qty)
             msg.append(f"+📦 Cave Case ×{qty}")
         else:
             await add_item(cid, uid, item_id, qty)
