@@ -12,7 +12,7 @@ router = Router()
 SEALS = {
     "seal_durability": {
         "name": "Печать прочности",
-        "desc": "Каждая 3 копка не -1 прочности.",
+        "desc": "Каждая 3 копка -0 прочности.",
         "emoji": "🛡️",
         "recipe": {
             "coal": 20,
@@ -47,11 +47,11 @@ async def show_seals(message: types.Message):
     builder = InlineKeyboardBuilder()
     for key, data in SEALS.items():
         builder.button(
-            text=f"{data['emoji']} {data['name']} - {data['desc']}",
+            text=f"{data['emoji']} {data['name']}",
             callback_data=f"seal_{key}"
         )
     builder.adjust(1)
-    msg = await message.answer("🪬 Выбери печать для крафта:", reply_markup=builder.as_markup())
+    msg = await message.answer(f"🪬 Выбери печать для крафта:\n{data['emoji']} {data['name']} - {data['desc']}", reply_markup=builder.as_markup())
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 @router.callback_query(F.data.startswith("seal_"))

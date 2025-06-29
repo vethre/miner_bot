@@ -56,6 +56,35 @@ CRAFT_RECIPES = {
     },
 }
 
+CRAFT_RECIPES.update({
+    "obsidian_pickaxe": {
+        "in": {"obsidian_shard": 8, "iron_handle": 1},
+        "out_key": "obsidian_pickaxe",
+        "out_name": "🟪 Обсидиановая кирка"
+    },
+    "lapis_torch": {
+        "in": {"lapis": 2, "torch": 1},
+        "out_key": "lapis_torch",
+        "out_name": "🔵 Лазуритовый факел"
+    },
+    "iron_handle": {
+        "in": {
+            "wood_handle": 3,
+            "iron_ingot": 5
+        },
+        "out_key": "iron_handle",
+        "out_name": "🪚 Железная рукоять"
+    },
+    "disassemble_tool": {
+        "in": {
+            "wax": 2,
+            "iron_ingot": 2
+        },
+        "out_key": "disassemble_tool",
+        "out_name": "🔧 Инструмент разборки"
+    }
+})
+
 PICKAXE_UPGRADES = {
     "reinforced_grip": {
         "name": "🛠️ Усиленная рукоять",

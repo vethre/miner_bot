@@ -158,7 +158,7 @@ async def get_display_name(bot: Bot, chat_id: int, user_id: int) -> str:
 
 # ────────── Mining Task ──────────
 async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
-                      ores: List[str], bonus: float, duration: int, use_bomb: bool = False):
+                      ores: List[str], bonus: float, duration: int, bomb_mult: float = 1.0):
     prog = await get_progress(cid,uid)
     mine_count = prog.get("mine_count", 0)
     seal = prog.get("seals_active")
@@ -207,8 +207,8 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         amount = int(amount * 0.5)
 
     amount = int(amount * total_bonus)
-    if use_bomb:                # 💣
-        amount = int(amount * 1.5)
+    amount = int(amount * bomb_mult) 
+    if bomb_mult > 1.0:                # 💣
         extra_txt += "\n💣 Бомба взорвалась → +50 % руды!"
 
     xp_gain=amount
@@ -579,11 +579,11 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         sec = max(MINE_SEC_MIN, sec - 300)   # −5 хв, але не нижче мінімуму
         seal_boost = True
 
-    use_bomb = False
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    bomb_mult = 1.0
     if inv.get("bomb", 0) > 0:
-        await add_item(cid, uid, "bomb", -1)
-        use_bomb = True
+        await add_item(cid, uid, "bomb", -1)   # списуємо одразу
+        bomb_mult = 1.50      
 
     # списуємо енергію/голод + ставимо таймер
     await db.execute(
@@ -614,7 +614,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         msg_text = f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин."
     msg = await message.reply(msg_text + "\n🔋 Энергия −12 / Голод −10. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
-    asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier, sec, use_bomb))
+    asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier, sec, bomb_mult))
 
 @router.callback_query(F.data.startswith("badge:use:"))
 async def badge_use_cb(cb: types.CallbackQuery):
@@ -821,104 +821,128 @@ async def cancel_sell(call: types.CallbackQuery):
     await call.message.edit_text("Продажа отменена ❌")
 
 # ────────── /smelt (async) ──────────
+# ────────── /smelt ──────────
 @router.message(Command("smelt"))
 async def smelt_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
-    inventory = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
 
-    # Список доступних руд
-    smeltables = [ore for ore in SMELT_RECIPES if inventory.get(ore, 0) >= SMELT_RECIPES[ore]["in_qty"]]
+    smeltables = [
+        ore for ore in SMELT_RECIPES
+        if inv.get(ore, 0) >= SMELT_RECIPES[ore]["in_qty"]
+    ]
     if not smeltables:
         return await message.reply("❌ Недостаточно руды для плавки.")
 
-    # Генерація кнопок
-    builder = InlineKeyboardBuilder()
+    kb = InlineKeyboardBuilder()
     for ore in smeltables:
-        emoji = ITEM_DEFS.get(ore, {}).get("emoji", "⛏️")
-        name = ITEM_DEFS.get(ore, {}).get("name", ore)
-        builder.button(
-            text=f"{emoji} {name} ({inventory[ore]} шт)",
-            callback_data=f"smelt_{ore}"
+        qty      = inv[ore]
+        need_one = SMELT_RECIPES[ore]["in_qty"]
+        max_out  = qty // need_one
+        meta     = ITEM_DEFS.get(ore, {})
+        kb.button(
+            text=f"{meta.get('emoji','⛏️')} {meta.get('name', ore)} ({qty} шт)",
+            callback_data=f"smeltq:{ore}:1:{max_out}"   # стартуємо з 1 інгота
         )
-    builder.adjust(1)
-    msg = await message.answer("Выбери руду для плавки:", reply_markup=builder.as_markup())
-    register_msg_for_autodelete(cid, msg.message_id)
+    kb.adjust(1)
+    m = await message.answer(
+        "Выбери руду для плавки:",
+        reply_markup=kb.as_markup())
+    register_msg_for_autodelete(cid, m.message_id)
 
-@router.callback_query(F.data.startswith("smelt_"))
-async def smelt_choose_ore(callback: types.CallbackQuery):
-    cid, uid = await cid_uid(callback)
-    ore_key = callback.data.split("_", 1)[1]
-    recipe = SMELT_RECIPES.get(ore_key)
+# ────────── крутилка кількості ──────────
+@router.callback_query(F.data.startswith("smeltq:"))
+async def smelt_quantity(cb: CallbackQuery):
+    await cb.answer()
+    cid, uid = await cid_uid(cb)
+    _, ore, cur_str, max_str = cb.data.split(":")
+    cur, max_cnt = int(cur_str), int(max_str)
 
-    if not recipe:
-        return await callback.answer("Неизвестный рецепт.")
+    def make_btn(txt, delta=0):
+        new_val = max(1, min(max_cnt, cur + delta))
+        return types.InlineKeyboardButton(
+            text=txt,
+            callback_data=f"smeltq:{ore}:{new_val}:{max_cnt}"
+        )
 
-    builder = InlineKeyboardBuilder()
-    for coal in [5, 15, 30]:
-        builder.button(
+    kb = InlineKeyboardBuilder()
+    kb.row(make_btn("−10", -10), make_btn("−1", -1),
+           types.InlineKeyboardButton(text=f"🔥 {cur} шт", callback_data="noop"),
+           make_btn("+1", 1), make_btn("+10", 10))
+    kb.row(types.InlineKeyboardButton(
+        text="➡️ Уголь",
+        callback_data=f"smeltcoal:{ore}:{cur}"
+    ))
+    kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data="sell_cancel"))
+
+    meta = ITEM_DEFS.get(ore, {})
+    await cb.message.edit_text(
+        f"Сколько {meta.get('name', ore)} переплавить?",
+        reply_markup=kb.as_markup())
+
+# ────────── вибір вугілля ──────────
+@router.callback_query(F.data.startswith("smeltcoal:"))
+async def smelt_choose_coal(cb: CallbackQuery):
+    await cb.answer()
+    cid, uid = await cid_uid(cb)
+    _, ore, cnt_str = cb.data.split(":")
+    cnt = int(cnt_str)
+
+    kb = InlineKeyboardBuilder()
+    for coal in (5, 15, 30):
+        kb.button(
             text=f"🪨 Уголь ×{coal}",
-            callback_data=f"smeltgo_{ore_key}_{coal}"
+            callback_data=f"smeltgo2:{ore}:{coal}:{cnt}"
         )
-    builder.adjust(1)
-    await callback.message.edit_text(
-        f"Сколько угля хочешь использовать для переплавки {ITEM_DEFS.get(ore_key, {}).get('name', ore_key)}?",
-        reply_markup=builder.as_markup()
-    )
+    kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data="sell_cancel"))
 
-@router.callback_query(F.data.startswith("smeltgo_"))
-async def smelt_execute(callback: types.CallbackQuery):
-    cid, uid = await cid_uid(callback)
-    try:
-        _, ore_key, coal_str = callback.data.split("_")
-        coal = int(coal_str)
-    except Exception:
-        return await callback.answer("❌ Ошибка данных. Попробуй ещё раз.")
+    await cb.message.edit_text(
+        f"Сколько угля потратить на {cnt} шт {ITEM_DEFS[ore]['name']}?",
+        reply_markup=kb.as_markup())
 
-    recipe = SMELT_RECIPES.get(ore_key)
+# ────────── запуск таймера ──────────
+@router.callback_query(F.data.startswith("smeltgo2:"))
+async def smelt_execute_exact(cb: CallbackQuery):
+    await cb.answer()
+    cid, uid = await cid_uid(cb)
+    _, ore, coal_str, cnt_str = cb.data.split(":")
+    coal, cnt = int(coal_str), int(cnt_str)
+
+    recipe = SMELT_RECIPES.get(ore)
     if not recipe:
-        return await callback.answer("❌ Неизвестный рецепт.")
+        return await cb.message.edit_text("❌ Неизвестный рецепт.")
 
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
-    ore_have = inv.get(ore_key, 0)
+    ore_have  = inv.get(ore, 0)
     coal_have = inv.get("coal", 0)
 
     need_per_ingot = recipe["in_qty"]
-    max_ingots = ore_have // need_per_ingot
-    if max_ingots < 1:
-        return await callback.answer("❌ Недостаточно руды.")
-
+    if ore_have < cnt * need_per_ingot:
+        return await cb.message.edit_text("❌ Недостаточно руды.")
     if coal_have < coal:
-        return await callback.answer("❌ Недостаточно угля.")
+        return await cb.message.edit_text("❌ Недостаточно угля.")
 
-    # Удаление ресурсов
-    await add_item(cid, uid, ore_key, -max_ingots * need_per_ingot)
+    # списываем вход
+    await add_item(cid, uid, ore,  -cnt * need_per_ingot)
     await add_item(cid, uid, "coal", -coal)
 
-    # Длительность
     duration_map = {5: 1500, 15: 900, 30: 600}
-    duration = duration_map.get(coal, 1500)  # дефолт — 5 угля
-
+    duration = duration_map.get(coal, 1500)
+    finish_at = dt.datetime.utcnow() + dt.timedelta(seconds=duration)
     await db.execute(
-        "UPDATE progress_local SET smelt_end = :e WHERE chat_id = :c AND user_id = :u",
-        {
-            "e": dt.datetime.utcnow() + dt.timedelta(seconds=duration),
-            "c": cid,
-            "u": uid
-        }
-    )
+        "UPDATE progress_local SET smelt_end = :e WHERE chat_id=:c AND user_id=:u",
+        {"e": finish_at, "c": cid, "u": uid})
 
-    # Запуск таймера
-    asyncio.create_task(smelt_timer(callback.bot, cid, uid, recipe, max_ingots, duration))
+    asyncio.create_task(smelt_timer(cb.bot, cid, uid, recipe, cnt, duration))
 
-    # Ответ
-    name = ITEM_DEFS.get(ore_key, {}).get("name", ore_key)
-    emoji = ITEM_DEFS.get(ore_key, {}).get("emoji", "⛏️")
+    meta = ITEM_DEFS[ore]
     txt = (
-        f"🔥 В печь отправлено {max_ingots * need_per_ingot}× {emoji} {name}\n"
+        f"🔥 В печь отправлено {cnt*need_per_ingot}×{meta['emoji']} {meta['name']}\n"
         f"🪨 Уголь: {coal} шт\n"
-        f"⏳ Готово через <b>{round(duration / 60)}</b> минут."
+        f"⏳ Готово через <b>{round(duration/60)}</b> мин."
     )
-    await callback.message.edit_text(txt, parse_mode="HTML")
+    await cb.message.edit_text(txt, parse_mode="HTML")
+
 
 # ────────── /craft ──────────
 @router.message(Command("craft"))
@@ -975,56 +999,112 @@ def _refund_percent(dur: int, dur_max: int) -> float:
         return 0.65
     return 0.70    # 80 < x ≤ 100
 
+# ────────── /disassemble (меню) ──────────
 @router.message(Command("disassemble"))
-async def disassemble_cmd(message: types.Message):
+async def disasm_menu(message: types.Message):
     cid, uid = await cid_uid(message)
-    args = message.text.split(maxsplit=1)
-    if len(args) < 2:
-        return await message.reply("⚙️ /disassemble iron_pickaxe")
 
-    pick_key = args[1].strip().lower()
-
-    # перевіряємо, що така кирка є у юзера
+    # кирки, которые реально есть в инвентаре
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    picks = [k for k, q in inv.items()
+             if k.endswith("_pickaxe") and q > 0 and k in CRAFT_RECIPES]
+
+    if not picks:
+        return await message.reply("🪓 Нет кирок, пригодных для разборки 🤷")
+
+    kb = InlineKeyboardBuilder()
+    for pk in picks:
+        meta = ITEM_DEFS.get(pk, {"name": pk, "emoji": "⛏️"})
+        kb.button(
+            text=f"{meta['emoji']} {meta['name']} ({inv[pk]})",
+            callback_data=f"disasm_pick:{pk}"
+        )
+    kb.adjust(2)
+    await message.answer(
+        "Что разбираем? ↓",
+        reply_markup=kb.as_markup()
+    )
+
+# ────────── выбор конкретной кирки ──────────
+@router.callback_query(F.data.startswith("disasm_pick:"))
+async def disasm_confirm(cb: types.CallbackQuery):
+    await cb.answer()
+    cid, uid = cb.message.chat.id, cb.from_user.id
+    pick_key = cb.data.split(":")[1]
+
+    inv   = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     if inv.get(pick_key, 0) < 1:
-        return await message.reply("❌ У тебя нет такой кирки.")
+        return await cb.answer("Кирки уже нет 😕", show_alert=True)
 
-    # перевіряємо наявність розбірника
     if inv.get("disassemble_tool", 0) < 1:
-        return await message.reply("🔧 Нужен Инструмент разборки (скрафти /craft disassemble_tool).")
+        return await cb.answer("Нужен Инструмент разборки 🛠️", show_alert=True)
 
-    # міцність кирки
+    # прочность
     prog = await get_progress(cid, uid)
-    dur_map  = _jsonb_to_dict(prog.get("pick_dur_map"))
+    dur_map     = _jsonb_to_dict(prog.get("pick_dur_map"))
     dur_max_map = _jsonb_to_dict(prog.get("pick_dur_max_map"))
-    dur      = dur_map.get(pick_key, 0)
-    dur_max  = dur_max_map.get(pick_key, PICKAXES[pick_key]["dur"])
+    dur     = dur_map.get(pick_key, 0)
+    dur_max = dur_max_map.get(pick_key, PICKAXES[pick_key]["dur"])
 
     pct = _refund_percent(dur, dur_max)
     if pct == 0:
-        return await message.reply("🪫 Кирка почти сломана – разборка невозможна.")
+        return await cb.answer("Кирка почти сломана – не разбирается 🪫", show_alert=True)
 
-    recipe = CRAFT_RECIPES.get(pick_key)
-    if not recipe:
-        return await message.reply("🤔 Для этой кирки нет крафт-рецепта, разборка недоступна.")
+    meta = ITEM_DEFS.get(pick_key, {"name": pick_key, "emoji": "⛏️"})
+    text = (f"🔧 <b>{meta['name']}</b> ({dur}/{dur_max})\n"
+            f"↩️ Вернётся ≈ <b>{int(pct*100)} %</b> ресурсов.\n\n"
+            "Разобрать?")
 
-    # списуємо 1 розбірник + 1 кирку
+    kb = InlineKeyboardBuilder()
+    kb.button(text="✅ Разобрать", callback_data=f"disasm_ok:{pick_key}")
+    kb.button(text="❌ Отмена",     callback_data="disasm_cancel")
+    kb.adjust(2)
+    await cb.message.edit_text(text, reply_markup=kb.as_markup(), parse_mode="HTML")
+
+# ────────── финальное выполнение ──────────
+@router.callback_query(F.data.startswith("disasm_ok:"))
+async def disasm_execute(cb: types.CallbackQuery):
+    await cb.answer()
+    cid, uid = cb.message.chat.id, cb.from_user.id
+    pick_key = cb.data.split(":")[1]
+
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    if inv.get(pick_key, 0) < 1 or inv.get("disassemble_tool", 0) < 1:
+        return await cb.answer("Что-то изменилось — операция отменена.", show_alert=True)
+
+    # ещё раз читаем durability (вдруг успели сломать)
+    prog = await get_progress(cid, uid)
+    dur_map = _jsonb_to_dict(prog.get("pick_dur_map"))
+    dur_max_map = _jsonb_to_dict(prog.get("pick_dur_max_map"))
+    dur, dur_max = dur_map.get(pick_key, 0), dur_max_map.get(pick_key, PICKAXES[pick_key]["dur"])
+    pct = _refund_percent(dur, dur_max)
+    if pct == 0:
+        return await cb.answer("Кирка почти сломана – не разбирается.", show_alert=True)
+
+    # списываем
     await add_item(cid, uid, "disassemble_tool", -1)
     await add_item(cid, uid, pick_key, -1)
 
-    # віддаємо ресурси
+    recipe = CRAFT_RECIPES[pick_key]["in"]
     refund_lines = []
-    for item, need_qty in recipe["in"].items():
-        back_qty = max(1, int(need_qty * pct))
-        await add_item(cid, uid, item, back_qty)
-        meta = ITEM_DEFS.get(item, {"name": item, "emoji": "❔"})
-        refund_lines.append(f"{back_qty}×{meta['emoji']} {meta['name']}")
+    for itm, need_qty in recipe.items():
+        back = max(1, int(need_qty * pct))
+        await add_item(cid, uid, itm, back)
+        meta = ITEM_DEFS.get(itm, {"name": itm, "emoji": "❔"})
+        refund_lines.append(f"{back}×{meta['emoji']} {meta['name']}")
 
-    await message.reply(
-        f"🔧 Кирка разобрана ({dur}/{dur_max})\n"
-        f"↩️ Вернулось: " + ", ".join(refund_lines) +
-        f"  ({int(pct*100)} %)"
+    await cb.message.edit_text(
+        f"✅ Разобрано!\n↩️ Вернулось: " + ", ".join(refund_lines) +
+        f"  ({int(pct*100)} %)",
+        parse_mode="HTML"
     )
+
+# ────────── отмена ──────────
+@router.callback_query(F.data == "disasm_cancel")
+async def disasm_cancel(cb: types.CallbackQuery):
+    await cb.answer("Отменено 🚫")
+    await cb.message.delete()
+
 
 
 

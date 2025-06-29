@@ -94,6 +94,10 @@ ITEM_DEFS.update({
     "disassemble_tool": {
         "name": "Инструмент разборки",
         "emoji": "🔧"
+    },
+    "iron_handle": {
+        "name": "Железная рукоять",
+        "emoji": "🪚"
     }
 })
 # bot/handlers/items.py  (где собирается ITEM_DEFS)
@@ -111,16 +115,11 @@ ITEM_DEFS["amethyst_pickaxe"]["emoji"]= "🔮"
 ITEM_DEFS["roundstone_pickaxe"]["emoji"] = "🪨"
 ITEM_DEFS["obsidian_pickaxe"] = {
     "name":  "Обсидиановая кирка",
-    "emoji": "🟣"
+    "emoji": "🟪"
 }
 ITEM_DEFS["wooden_pickaxe"]["emoji"] = "🪵"
 ITEM_DEFS["diamond_pickaxe"]["emoji"] = "💎"
 CRAFT_RECIPES.update({
-    "iron_handle": {
-        "in": {"wood_handle": 2, "iron_ingot": 5},
-        "out_key": "iron_handle",
-        "out_name": "Железная рукоять"
-    },
     "obsidian_pickaxe": {
         "in": {"obsidian_shard": 8, "iron_handle": 1},
         "out_key": "obsidian_pickaxe",
