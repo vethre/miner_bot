@@ -87,9 +87,14 @@ ITEM_DEFS.update({
         "name": "Алмазная кирка",
         "emoji": "💎",
     },
-
-
-    # інші як є …
+    "wax": {
+        "name": "Воск",
+        "emoji": "🍯",
+    },
+    "disassemble_tool": {
+        "name": "Инструмент разборки",
+        "emoji": "🔧"
+    }
 })
 # bot/handlers/items.py  (где собирается ITEM_DEFS)
 
@@ -106,6 +111,41 @@ ITEM_DEFS["amethyst_pickaxe"]["emoji"]= "🔮"
 ITEM_DEFS["roundstone_pickaxe"]["emoji"] = "🪨"
 ITEM_DEFS["wooden_pickaxe"]["emoji"] = "🪵"
 ITEM_DEFS["diamond_pickaxe"]["emoji"] = "💎"
+ITEM_DEFS["obsidian_pickaxe"]["emoji"] = "🟣"
+CRAFT_RECIPES.update({
+    "iron_handle": {
+        "in": {"wood_handle": 2, "iron_ingot": 5},
+        "out_key": "iron_handle",
+        "out_name": "Железная рукоять"
+    },
+    "obsidian_pickaxe": {
+        "in": {"obsidian_shard": 8, "iron_handle": 1},
+        "out_key": "obsidian_pickaxe",
+        "out_name": "Обсидиановая кирка"
+    },
+    "lapis_torch": {
+        "in": {"lapis": 2, "torch": 1},
+        "out_key": "lapis_torch",
+        "out_name": "Лазуритовый факел"
+    },
+    "iron_handle": {
+        "in": {
+            "wood_handle": 3,
+            "iron_ingot": 5
+        },
+        "out_key": "iron_handle",
+        "out_name": "Железная рукоять"
+    },
+    "disassemble_tool": {
+        "in": {
+            "wax": 2,
+            "iron_ingot": 2
+        },
+        "out_key": "disassemble_tool",
+        "out_name": "Инструмент разборки"
+    }
+})
+
 
 for ore, v in SMELT_RECIPES.items():
     base_price = ORE_ITEMS.get(ore, {"price": 20})["price"]
@@ -114,6 +154,13 @@ for ore, v in SMELT_RECIPES.items():
         "emoji": "🔥",
         "price": int(base_price * 1.8)
     }
+
+ITEM_DEFS.update({
+    "obsidian_shard":  {"name": "Обсидиановый осколок", "emoji": "🟣", "price": 85},
+    "iron_handle":     {"name": "Железная рукоять",      "emoji": "🪚"},
+    "lapis_torch":     {"name": "Лазуритовый факел",     "emoji": "🔵"},
+    "bomb":            {"name": "Бомба",                 "emoji": "💣"},
+})
 
 EXTRA_ORES = {
     "amethyst": {"name": "Аметистовая руда",  "emoji": "💜", "drop_range": (1,2), "price": 40},
@@ -138,6 +185,7 @@ ALIASES = {
     "изумруд": "emerald",
     "лазурит": "lapis",
     "рубин":   "ruby",
+    "обсидиановый осколок": "obsidian_shard",
 
     "💎": "diamond",
     "💚": "emerald",

@@ -76,6 +76,7 @@ ORE_ITEMS = {
     "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1, 3),  "price": 38},
     "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 30},
     "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (1, 4),  "price": 45},
+    "obsidian_shard": {"name": "Обсидиановый осколок", "emoji": "🟣", "drop_range": (1, 3), "price": 85},
 }
 
 TIER_TABLE = [
@@ -85,6 +86,7 @@ TIER_TABLE = [
     {"level_min": 13, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis"]},
     {"level_min": 18, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby"]},
     {"level_min": 23, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby", "diamond"]},
+    {"level_min": 28, "ores": ["stone","coal","iron","gold","amethyst","lapis", "emerald","ruby","diamond","obsidian_shard"]},
 ]
 BONUS_BY_TIER = {i + 1: 1.0 + i * 0.2 for i in range(len(TIER_TABLE))}
 
@@ -156,7 +158,7 @@ async def get_display_name(bot: Bot, chat_id: int, user_id: int) -> str:
 
 # ────────── Mining Task ──────────
 async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
-                      ores: List[str], bonus: float, duration: int):
+                      ores: List[str], bonus: float, duration: int, use_bomb: bool = False):
     prog = await get_progress(cid,uid)
     mine_count = prog.get("mine_count", 0)
     seal = prog.get("seals_active")
@@ -205,6 +207,9 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         amount = int(amount * 0.5)
 
     amount = int(amount * total_bonus)
+    if use_bomb:                # 💣
+        amount = int(amount * 1.5)
+        extra_txt += "\n💣 Бомба взорвалась → +50 % руды!"
 
     xp_gain=amount
     if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():
@@ -224,7 +229,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     # Бейдж: возврат энергии
     if prog.get("badge_active") == "cashback":
         await db.execute(
-            "UPDATE progress_local SET energy=LEAST(100, energy + 6) "
+            "UPDATE progress_local SET energy=LEAST(100, energy + 7) "
             "WHERE chat_id=:c AND user_id=:u",
             {"c": cid, "u": uid}
         )
@@ -271,6 +276,14 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         await add_money(cid, uid, coin_bonus)
         extra_txt += f"\n💰 Лавина монет! +{coin_bonus} монет"
 
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    if inv.get("lapis_torch", 0) and random.random() < 0.10:
+        await db.execute(
+            "UPDATE progress_local SET energy=100,hunger=100 "
+            "WHERE chat_id=:c AND user_id=:u", {"c": cid, "u": uid}
+        )
+        extra_txt += "\n🔵 Лазуритовый факел восполнил силы!"
+
     txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
          f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
          f"XP +<b>{xp_gain}</b> | Серия {streak} дн. | Tier ×{bonus:.1f}\n"
@@ -289,8 +302,10 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
                      {"c":cid,"u":uid})
     await add_clash_points(cid, uid, 3)
+    xp_gain = cnt * 5
+    await add_xp(cid, uid, xp_gain)
     member_name = await get_display_name(bot, cid, uid)
-    await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}", parse_mode="HTML")
+    await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}\n🔥 +{xp_gain} XP", parse_mode="HTML")
 
 # ────────── /start ──────────
 @router.message(CommandStart())
@@ -329,7 +344,7 @@ async def profile_cmd(message: types.Message):
     prog    = await get_progress(cid, uid)
     lvl     = prog.get("level", 1)
     xp      = prog.get("xp", 0)
-    next_xp = lvl * 80
+    next_xp = lvl * 85
     streaks = prog.get("streak", 0)
     mine_count = prog.get("mine_count", 0)
     badge = prog.get("badge_active")
@@ -565,6 +580,12 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         sec = max(MINE_SEC_MIN, sec - 300)   # −5 хв, але не нижче мінімуму
         seal_boost = True
 
+    use_bomb = False
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    if inv.get("bomb", 0) > 0:
+        await add_item(cid, uid, "bomb", -1)
+        use_bomb = True
+
     # списуємо енергію/голод + ставимо таймер
     await db.execute(
         """UPDATE progress_local
@@ -594,7 +615,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         msg_text = f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин."
     msg = await message.reply(msg_text + "\n🔋 Энергия −12 / Голод −10. Удачи!")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
-    asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier, sec))
+    asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier, sec, use_bomb))
 
 @router.callback_query(F.data.startswith("badge:use:"))
 async def badge_use_cb(cb: types.CallbackQuery):
@@ -629,7 +650,7 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         "ingots": [],
         "pickaxes": [],
         "food": [],
-        "torch": [],
+        "waxes": [],
         "misc": []
     }
 
@@ -641,8 +662,8 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
             return "pickaxes"
         elif item_key in ("meat", "bread", "coffee", "borsch", "energy_drink"):
             return "food"
-        elif item_key in ("torch", "torch_bundle", "lapis_torch"):
-            return "torch"
+        elif item_key in ("waxes", "wax", "lapis_torch"):
+            return "waxes"
         elif item_key in ORE_ITEMS:
             return "ores"
         return "misc"
@@ -673,9 +694,9 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         lines.append("\n<b>🍖 Еда:</b>")
         for meta, qty in categories["food"]:
             lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
-    if categories["torch"]:
-        lines.append("\n<b>🕯️ Факелы:</b>")
-        for meta, qty in categories["torch"]:
+    if categories["waxes"]:
+        lines.append("\n<b>🕯️ Воск:</b>")
+        for meta, qty in categories["waxes"]:
             lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
     if categories["misc"]:
         lines.append("\n<b>🎒 Прочее:</b>")
@@ -928,7 +949,7 @@ async def craft_cmd(message: types.Message):
             name  = ITEM_DEFS.get(key, {}).get("name", key)
             text += f"• {emoji} {name} ×{qty}\n"
         return await message.reply(text.strip())
-
+    xp_gain = 10
     # Все є — списуємо
     for k, need in recipe["in"].items():
         await add_item(cid, uid, k, -need)
@@ -936,8 +957,76 @@ async def craft_cmd(message: types.Message):
     if recipe["out_key"] == "roundstone_pickaxe":
         await unlock_achievement(cid, uid, "cobble_player")
     await add_clash_points(cid, uid, 4)
-    msg = await message.reply(f"🎉 Создано: {recipe['out_name']}!")
+    await add_xp(cid, uid, xp_gain)
+    msg = await message.reply(f"🎉 Создано: {recipe['out_name']}!\n🎉 +{xp_gain} XP")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
+
+def _refund_percent(dur: int, dur_max: int) -> float:
+    """Повертає коеф. відшкодування сировини."""
+    if dur <= 10:
+        return 0.0
+    ratio = dur / dur_max * 100
+    if ratio <= 20:
+        return 0.30
+    if ratio <= 40:
+        return 0.40
+    if ratio <= 60:
+        return 0.55
+    if ratio <= 80:
+        return 0.65
+    return 0.70    # 80 < x ≤ 100
+
+@router.message(Command("disassemble"))
+async def disassemble_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        return await message.reply("⚙️ /disassemble iron_pickaxe")
+
+    pick_key = args[1].strip().lower()
+
+    # перевіряємо, що така кирка є у юзера
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    if inv.get(pick_key, 0) < 1:
+        return await message.reply("❌ У тебя нет такой кирки.")
+
+    # перевіряємо наявність розбірника
+    if inv.get("disassemble_tool", 0) < 1:
+        return await message.reply("🔧 Нужен Инструмент разборки (скрафти /craft disassemble_tool).")
+
+    # міцність кирки
+    prog = await get_progress(cid, uid)
+    dur_map  = _jsonb_to_dict(prog.get("pick_dur_map"))
+    dur_max_map = _jsonb_to_dict(prog.get("pick_dur_max_map"))
+    dur      = dur_map.get(pick_key, 0)
+    dur_max  = dur_max_map.get(pick_key, PICKAXES[pick_key]["dur"])
+
+    pct = _refund_percent(dur, dur_max)
+    if pct == 0:
+        return await message.reply("🪫 Кирка почти сломана – разборка невозможна.")
+
+    recipe = CRAFT_RECIPES.get(pick_key)
+    if not recipe:
+        return await message.reply("🤔 Для этой кирки нет крафт-рецепта, разборка недоступна.")
+
+    # списуємо 1 розбірник + 1 кирку
+    await add_item(cid, uid, "disassemble_tool", -1)
+    await add_item(cid, uid, pick_key, -1)
+
+    # віддаємо ресурси
+    refund_lines = []
+    for item, need_qty in recipe["in"].items():
+        back_qty = max(1, int(need_qty * pct))
+        await add_item(cid, uid, item, back_qty)
+        meta = ITEM_DEFS.get(item, {"name": item, "emoji": "❔"})
+        refund_lines.append(f"{back_qty}×{meta['emoji']} {meta['name']}")
+
+    await message.reply(
+        f"🔧 Кирка разобрана ({dur}/{dur_max})\n"
+        f"↩️ Вернулось: " + ", ".join(refund_lines) +
+        f"  ({int(pct*100)} %)"
+    )
+
 
 
 # ────────── /stats ──────────

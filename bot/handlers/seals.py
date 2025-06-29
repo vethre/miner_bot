@@ -12,7 +12,7 @@ router = Router()
 SEALS = {
     "seal_durability": {
         "name": "Печать прочности",
-        "desc": "Каждая 3-я копка не тратит прочность кирки.",
+        "desc": "Каждая 3 копка не -1 прочности.",
         "emoji": "🛡️",
         "recipe": {
             "coal": 20,
@@ -21,7 +21,7 @@ SEALS = {
     },
     "seal_sacrifice": {
         "name": "Печать жертвы",
-        "desc": "-20 XP, но +20% руды при копке.",
+        "desc": "-20 XP, +20% руды.",
         "emoji": "🩸",
         "recipe": {
             "roundstone": 15,
@@ -31,7 +31,7 @@ SEALS = {
     },
     "seal_energy": {
         "name": "Печать бодрости",
-        "desc": "Сокращает время копки на 5 минут.",
+        "desc": "-5 минут копки.",
         "emoji": "⚡",
         "recipe": {
             "borsch": 2,
@@ -47,7 +47,7 @@ async def show_seals(message: types.Message):
     builder = InlineKeyboardBuilder()
     for key, data in SEALS.items():
         builder.button(
-            text=f"{data['emoji']} {data['name']}",
+            text=f"{data['emoji']} {data['name']} - {data['desc']}",
             callback_data=f"seal_{key}"
         )
     builder.adjust(1)

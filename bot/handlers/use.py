@@ -10,12 +10,13 @@ router = Router()
 
 PICKAXES = {
     "wooden_pickaxe":   {"bonus": .05, "name": "деревяная кирка",   "emoji": "🔨", "dur": 65},
-    "iron_pickaxe":     {"bonus": .15, "name": "железная кирка",     "emoji": "⛏️", "dur": 90},
-    "gold_pickaxe":     {"bonus": .30, "name": "золотая кирка",      "emoji": "✨", "dur": 60},
-    "roundstone_pickaxe":{"bonus": .10, "name": "булыжниковая кирка", "emoji": "🪨", "dur": 80},
-    "crystal_pickaxe":  {"bonus":.80, "name": "хрустальная кирка",  "emoji": "💎", "dur": 75},
-    "amethyst_pickaxe": {"bonus": .50, "name": "аметистовая кирка",  "emoji": "🔮", "dur":100},
-    "diamond_pickaxe": {"bonus": .75, "name": "алмазная кирка",  "emoji": "💎", "dur":65},
+    "iron_pickaxe":     {"bonus": .18, "name": "железная кирка",     "emoji": "⛏️", "dur": 115},
+    "gold_pickaxe":     {"bonus": .30, "name": "золотая кирка",      "emoji": "✨", "dur": 80},
+    "roundstone_pickaxe":{"bonus": .12, "name": "булыжниковая кирка", "emoji": "🪨", "dur": 100},
+    "crystal_pickaxe":  {"bonus":.95, "name": "хрустальная кирка",  "emoji": "💎", "dur": 75},
+    "amethyst_pickaxe": {"bonus": .55, "name": "аметистовая кирка",  "emoji": "🔮", "dur":120},
+    "diamond_pickaxe": {"bonus": .80, "name": "алмазная кирка",  "emoji": "💎", "dur":85},
+    "obsidian_pickaxe": {"name":  "Обсидиановая кирка", "emoji": "🟪", "bonus": 0.90,"dur":   200}
 }
 
 ALIAS = {

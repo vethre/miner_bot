@@ -24,13 +24,14 @@ SHOP_ITEMS: dict[str, dict] = {
     "wooden_pickaxe": {"price": 400,  "name": "Деревянная кирка", "emoji": "🔨"},
     "iron_pickaxe":   {"price": 1400, "name": "Железная кирка",   "emoji": "⛏️"},
     "gold_pickaxe":   {"price": 2800, "name": "Золотая кирка",    "emoji": "✨"},
-    "torch_bundle":   {"price": 140,  "name": "Факел",            "emoji": "🕯️"},
-    "bread":          {"price": 30,   "name": "Хлеб",             "emoji": "🍞"},
+    "wax":            {"price": 90,  "name": "Воск",            "emoji": "🍯"},
+    "bread":          {"price": 40,   "name": "Хлеб",             "emoji": "🍞"},
     "meat":           {"price": 80,  "name": "Мясо",             "emoji": "🍖"},
-    "borsch":         {"price": 180,  "name": "Борщ",             "emoji": "🥣"},
+    "borsch":         {"price": 140,  "name": "Борщ",             "emoji": "🥣"},
     "energy_drink":   {"price": 40,  "name": "Энергетик",        "emoji": "🥤"},
     "coffee":         {"price": 80,  "name": "Кофе",             "emoji": "☕"},
     "cave_cases":     {"price": 300,  "name": "Cave Case",        "emoji": "📦"},
+    "bomb":           {"price": 400, "name": "Бомба",           "emoji": "💣"}
 }
 
 ITEMS_PER_PAGE = 6 # This variable is not currently used to chunk PAGES.
