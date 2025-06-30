@@ -4,7 +4,6 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from itertools import islice
-# Добавлено в imports:
 from typing import Optional
 from datetime import datetime
 
@@ -175,7 +174,7 @@ async def shop_buy_callback(callback: CallbackQuery):
         cashback = int(item["price"] * 0.3)
         await add_money(cid, uid, cashback)
         await callback.message.reply(f"💸 Бейдж Монобанк активен: возвращено {cashback} монет!")
-    await add_clash_points(cid, uid, 1)
+    await add_clash_points(cid, uid, 0)
 
     msg = await callback.message.reply(
         f"Покупка: {item['emoji']}<b>{item['name']}</b> за {item['price']} монет ✔️",

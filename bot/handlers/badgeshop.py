@@ -6,6 +6,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.assets import BADGESHOP_IMG_ID
 from bot.db_local import cid_uid, get_progress, get_money, add_money, db
 from bot.handlers.badge_defs import BADGES
+from bot.handlers.cave_clash import add_clash_points
 from bot.utils.autodelete import register_msg_for_autodelete
 
 router = Router()
@@ -110,6 +111,7 @@ async def badgeshop_buy(callback: CallbackQuery):
         return await callback.message.reply("Недостаточно монет 💸")
     
     await add_money(cid, uid, -price)
+    await add_clash_points(cid, uid, 1)
     if badge_id not in owned:
         owned.append(badge_id)
         await db.execute(

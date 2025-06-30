@@ -306,7 +306,7 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     await add_item(cid,uid,rec["out_key"],cnt)
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
                      {"c":cid,"u":uid})
-    await add_clash_points(cid, uid, 3)
+    await add_clash_points(cid, uid, 1)
     xp_gain = cnt * 5
     await add_xp_with_notify(bot, cid, uid, xp_gain)
     member_name = await get_display_name(bot, cid, uid)
@@ -818,7 +818,7 @@ async def confirm_sell(call: types.CallbackQuery):
     await add_money(cid, uid, earned)
 
     meta = ITEM_DEFS[item_key]
-    await add_clash_points(cid, uid, 2)
+    await add_clash_points(cid, uid, 0)
     await call.message.edit_text(f"✅ Продано {qty}×{meta['emoji']} {meta['name']} за {earned} монет 💰")
     register_msg_for_autodelete(cid, call.message.message_id)
 
@@ -989,7 +989,7 @@ async def craft_cmd(message: types.Message):
     await add_item(cid, uid, recipe["out_key"], 1)
     if recipe["out_key"] == "roundstone_pickaxe":
         await unlock_achievement(cid, uid, "cobble_player")
-    await add_clash_points(cid, uid, 4)
+    await add_clash_points(cid, uid, 2)
     await add_xp_with_notify(bot, cid, uid, xp_gain)
     msg = await message.reply(f"🎉 Создано: {recipe['out_name']}!\n🎉 +{xp_gain} XP")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
@@ -1274,7 +1274,7 @@ async def repair_cmd(message: types.Message):
     )
     if prog.get("repair_count", 0) >= 10:
         await unlock_achievement(cid, uid, "repair_master")
-    await add_clash_points(cid, uid, 2)
+    await add_clash_points(cid, uid, 1)
     return await message.reply(
         f"🛠️ {pick_data['name']} отремонтирована до {dur_max}/{dur_max} за {cost} монет!"
     )
