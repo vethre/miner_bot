@@ -118,11 +118,11 @@ async def _season_job(b: Bot):
 
 
 def setup_weekly_reset(bot: Bot):
-    kyiv = ZoneInfo("Europe/Kyiv")
+    prague = ZoneInfo("Europe/Prague")
     try:
         scheduler.add_job(
             _season_job,
-            CronTrigger(day_of_week="mon", hour=10, minute=30, timezone=kyiv),
+            CronTrigger(day_of_week="mon", hour=9, minute=40, timezone=prague),
             kwargs={"bot": bot},
             id="cave_clash_reset",
             replace_existing=True,
