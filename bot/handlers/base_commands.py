@@ -995,7 +995,6 @@ async def craft_cmd(message: types.Message):
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 def _refund_percent(dur: int, dur_max: int) -> float:
-    """Повертає коеф. відшкодування сировини."""
     if dur <= 10:
         return 0.0
     ratio = dur / dur_max * 100
