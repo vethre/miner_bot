@@ -103,6 +103,10 @@ ITEM_DEFS.update({
         "name": "Лазурный факел",
         "emoji": "🔵"
     },
+    "water_bottle": {
+        "name": "Фляга с водой",
+        "emoji": "💧"
+    }
 })
 # bot/handlers/items.py  (где собирается ITEM_DEFS)
 
