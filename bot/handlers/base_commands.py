@@ -51,7 +51,7 @@ from bot.handlers.seals import SEALS, choose_seal, show_seals
 from bot.handlers.use import PICKAXES, use_cmd
 from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
-from bot.utils.autodelete import register_msg_for_autodelete
+from bot.utils.autodelete import register_msg_for_autodelete, reply_clean
 from bot.handlers.use import _json2dict
 from bot.handlers.cave_clash import add_clash_points
 from bot.utils.unlockachievement import unlock_achievement
@@ -192,7 +192,8 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         member = await bot.get_chat_member(cid, uid)
         mention = f"@{member.user.username}" if member.user.username \
                     else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
-        await bot.send_message(cid, f"💀 {mention}, {fail_msg}", parse_mode="HTML")
+        msg = await bot.send_message(cid, f"💀 {mention}, {fail_msg}", parse_mode="HTML")
+        register_msg_for_autodelete(cid, msg.message_id)
         return
 
     # Обчислення Tier
@@ -295,7 +296,8 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
          + extra_txt)
 
     await maybe_send_choice_card(bot, cid, uid)
-    await bot.send_message(cid,txt,parse_mode="HTML")
+    msg = await bot.send_message(cid,txt,parse_mode="HTML")
+    register_msg_for_autodelete(cid, msg.message_id)
 
     logging.info("Mining result sent: chat=%s uid=%s", cid, uid)
     
@@ -310,7 +312,8 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     xp_gain = cnt * 5
     await add_xp_with_notify(bot, cid, uid, xp_gain)
     member_name = await get_display_name(bot, cid, uid)
-    await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}\n🔥 +{xp_gain} XP", parse_mode="HTML")
+    msg = await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}\n🔥 +{xp_gain} XP", parse_mode="HTML")
+    register_msg_for_autodelete(cid, msg.message_id)
 
 # ────────── /start ──────────
 @router.message(CommandStart())
@@ -522,7 +525,8 @@ async def rename_cmd(message: types.Message):
 
     await add_money(cid, uid, -RENAME_PRICE)
 
-    await message.answer(f"✅ Ник обновлён на <b>{new_nick}</b>!\n💸 Списано {RENAME_PRICE} монет.", parse_mode="HTML")
+    msg = await message.answer(f"✅ Ник обновлён на <b>{new_nick}</b>!\n💸 Списано {RENAME_PRICE} монет.", parse_mode="HTML")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 # ────────── /mine ──────────
 @router.message(Command("mine"))

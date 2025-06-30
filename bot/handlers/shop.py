@@ -98,14 +98,16 @@ async def _send_shop_page(
     kb.row(*nav_buttons_list)
 
     if edit:
-        await bot_message.edit_reply_markup(reply_markup=kb.as_markup())
+        msg = await bot_message.edit_reply_markup(reply_markup=kb.as_markup())
     else:
-        await bot_message.answer_photo(
+        msg = await bot_message.answer_photo(
             photo=SHOP_IMG_ID,
             caption="🛒 <b>Магазин</b> — выбери товар:",
             parse_mode="HTML",
             reply_markup=kb.as_markup()
         )
+
+    register_msg_for_autodelete(chat_id, msg.message_id)
 
 # ------------------------------------------------------------------ handlers
 

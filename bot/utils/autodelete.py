@@ -1,7 +1,7 @@
 # bot/utils/autodelete.py
 import asyncio, logging, datetime as dt
 from typing import Dict, List
-from aiogram import Bot
+from aiogram import Bot, types
 
 log = logging.getLogger(__name__)
 
@@ -51,3 +51,10 @@ async def auto_cleanup_task(bot: Bot, db):
             log.exception(f"auto_cleanup_task crashed: {e}")
 
         await asyncio.sleep(60)   # loop
+
+async def reply_clean(src_msg: types.Message, *args, **kwargs) -> types.Message:
+    """send reply **і** одразу зареєструвати на видалення"""
+    m = await src_msg.reply(*args, **kwargs)
+    register_msg_for_autodelete(src_msg.chat.id, m.message_id)
+    return m
+

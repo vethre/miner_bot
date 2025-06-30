@@ -119,5 +119,6 @@ async def badgeshop_buy(callback: CallbackQuery):
             {"val": json.dumps(owned), "c": cid, "u": uid}
         )
 
-    await callback.message.reply(f"✅ Куплено: {BADGES[badge_id]['emoji']} <b>{BADGES[badge_id]['name']}</b>", parse_mode="HTML")
+    msg = await callback.message.reply(f"✅ Куплено: {BADGES[badge_id]['emoji']} <b>{BADGES[badge_id]['name']}</b>", parse_mode="HTML")
     await _send_badgeshop(cid, uid, 0, callback.message, edit=True)
+    register_msg_for_autodelete(cid, msg.message_id)

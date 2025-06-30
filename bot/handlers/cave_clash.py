@@ -14,6 +14,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from bot.db_local import db, add_money, add_xp
+from bot.utils.autodelete import register_msg_for_autodelete
 
 # ── Globals ─────────────────────────────────────────
 router = Router()
@@ -106,7 +107,8 @@ async def _process_chat(bot: Bot, chat_id: int):
         msg.append(f"{badge} {name} — <b>{p['clash_points']} SP</b>")
     msg.append("\n🏆 Кейсы и бонусы начислены!")
 
-    await bot.send_message(chat_id, "\n".join(msg), parse_mode="HTML")
+    msg = await bot.send_message(chat_id, "\n".join(msg), parse_mode="HTML")
+    register_msg_for_autodelete(chat_id, msg.message_id)
 
 
 async def _season_job(bot: Bot):
@@ -121,7 +123,7 @@ def setup_weekly_reset(bot: Bot):
     try:
         scheduler.add_job(
             _season_job,
-            CronTrigger(day_of_week="mon", hour=10, minute=0, timezone=kyiv),
+            CronTrigger(day_of_week="mon", hour=10, minute=10, timezone=kyiv),
             kwargs={"bot": bot},
             id="cave_clash_reset",
             replace_existing=False,
@@ -154,7 +156,8 @@ async def clashrank(message: Message):
             name = f"Игрок {r['user_id']}"
         badge = medals[i] if i < 3 else f"{i+1}."
         lines.append(f"{badge} {name} — <b>{r['clash_points']} SP</b>")
-    await message.answer("\n".join(lines), parse_mode="HTML")
+    msg = await message.answer("\n".join(lines), parse_mode="HTML")
+    register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 
 # ── Integration helper ─────────────────────────────
