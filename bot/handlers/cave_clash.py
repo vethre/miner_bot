@@ -127,10 +127,10 @@ def setup_weekly_reset(b: Bot):
         id="cave_clash_reset",
         replace_existing=True,
     )
-    nxt = job.next_fire_time
-    if nxt:                                   # може бути None, коли сьогодні не Monday
+    nxt = getattr(job, "next_fire_time", getattr(job, "next_run_time", None))
+    if nxt:                                      # може бути None, якщо вже пізніше за cron-час
         logging.info(
-            "Clash-reset scheduled at %s (utc %s)",
+            "Clash-reset scheduled at %s (UTC %s)",
             nxt.astimezone(prague).strftime('%a %d %b %H:%M'),
             nxt.strftime('%Y-%m-%d %H:%M %Z'),
         )
