@@ -80,8 +80,7 @@ def _weighted_choice(pool: List[Dict[str, int | str]]) -> str:
 
 async def pick_case_reward(case_type: CaseType) -> Dict[str, str | dict]:
     """Берём случайный ключ из пула, запрашиваем БД, fallback — мок."""
-    pool_keys = [p["key"] for p in CASE_POOLS[case_type]]
-    chosen_key = random.choice(pool_keys)
+    chosen_key = _weighted_choice(CASE_POOLS[case_type])
 
     row = await db.fetch_one(
         """
@@ -147,9 +146,15 @@ async def _open_case(message: Message, case_type: CaseType):
 
     elif rtype == "item":
         it = data
-        await add_item(cid, uid, it["item"], it["qty"])
-        meta = ITEM_DEFS[it["item"]]
-        parts.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
+        try:
+            meta = ITEM_DEFS[it["item"]]
+        except KeyError:
+            # если предмета нет в словаре – логируем и даём компенсацию монетами
+            await add_money(cid, uid, 200)
+            parts.append("200 монет (компенсация)")
+        else:
+            await add_item(cid, uid, it["item"], it["qty"])
+            parts.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
 
     elif rtype == "coins":
         await add_money(cid, uid, data["coins"])
@@ -159,7 +164,12 @@ async def _open_case(message: Message, case_type: CaseType):
         await add_xp(cid, uid, data["xp"])
         parts.append(f"{data['xp']} XP")
 
-    descr = " + ".join(parts)
+    if not parts:                      # на крайний случай
+        await add_money(cid, uid, 100)
+        descr = "100 монет (минимальный приз)"
+    else:
+        descr = " + ".join(parts)
+
     msg = await message.reply("📦 Открываем кейс...")
     for frame in ["▓▓░░░░░░░", "▓▓▓▓░░░░", "▓▓▓▓▓▓░░"]:
         await asyncio.sleep(0.35)
