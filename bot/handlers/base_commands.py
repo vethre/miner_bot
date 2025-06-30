@@ -1070,8 +1070,10 @@ async def disasm_confirm(cb: types.CallbackQuery):
     prog        = await get_progress(cid, uid)
     dur_map     = _jsonb_to_dict(prog.get("pick_dur_map"))
     dur_max_map = _jsonb_to_dict(prog.get("pick_dur_max_map"))
-    dur      = dur_map.get(pick_key, 0)
-    dur_max  = dur_max_map.get(pick_key, PICKAXES[pick_key]["dur"])
+    full_dur = PICKAXES[pick_key]["dur"]               # «заводська» міцність
+    dur      = dur_map.get(pick_key, full_dur)         # ← якщо запису немає → беремо full
+    dur_max  = dur_max_map.get(pick_key, full_dur)     # (тут теж підмінюємо)
+
 
     pct = _refund_percent(dur, dur_max)
     if pct == 0:
@@ -1109,8 +1111,10 @@ async def disasm_execute(cb: types.CallbackQuery):
     prog        = await get_progress(cid, uid)
     dur_map     = _jsonb_to_dict(prog.get("pick_dur_map"))
     dur_max_map = _jsonb_to_dict(prog.get("pick_dur_max_map"))
-    dur, dur_max = dur_map.get(pick_key, 0), dur_max_map.get(
-        pick_key, PICKAXES[pick_key]["dur"])
+    full_dur = PICKAXES[pick_key]["dur"]               # «заводська» міцність
+    dur      = dur_map.get(pick_key, full_dur)         # ← якщо запису немає → беремо full
+    dur_max  = dur_max_map.get(pick_key, full_dur)     # (тут теж підмінюємо)
+
     pct = _refund_percent(dur, dur_max)
     if pct == 0:
         return await cb.answer("Кирка почти сломана – не разбирается.", show_alert=True)
