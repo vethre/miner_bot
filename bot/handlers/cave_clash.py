@@ -117,14 +117,13 @@ async def _season_job(b: Bot):
         await _process_chat(b, row["chat_id"])
 
 
-def setup_weekly_reset(b: Bot):
-    """Cron: каждый понедельник 10:00 по Киеву."""
+def setup_weekly_reset(bot: Bot):
     kyiv = ZoneInfo("Europe/Kyiv")
     try:
         scheduler.add_job(
             _season_job,
-            CronTrigger(day_of_week="mon", hour=10, minute=25, timezone=kyiv),
-            kwargs={"bot": b},
+            CronTrigger(day_of_week="mon", hour=10, minute=30, timezone=kyiv),
+            kwargs={"bot": bot},
             id="cave_clash_reset",
             replace_existing=True,
         )
