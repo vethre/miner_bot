@@ -122,7 +122,7 @@ def setup_weekly_reset(b: Bot):
     prague = ZoneInfo("Europe/Prague")
     job = scheduler.add_job(
         _season_job,
-        CronTrigger(day_of_week="mon", hour=9, minute=50, timezone=prague),
+        CronTrigger(day_of_week="mon", hour=9, minute=55, timezone=prague),
         args=(b,),
         id="cave_clash_reset",
         replace_existing=True,
