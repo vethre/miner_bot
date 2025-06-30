@@ -5,6 +5,7 @@ Loot‑кейсами (Cave/Clash) управляет bot/handlers/cases.py. З�
 
 from __future__ import annotations
 
+import logging
 from zoneinfo import ZoneInfo
 
 from aiogram import Router, Bot
@@ -117,19 +118,20 @@ async def _season_job(b: Bot):
         await _process_chat(b, row["chat_id"])
 
 
-def setup_weekly_reset(bot: Bot):
+def setup_weekly_reset(b: Bot):
     prague = ZoneInfo("Europe/Prague")
-    try:
-        scheduler.add_job(
-            _season_job,
-            CronTrigger(day_of_week="mon", hour=9, minute=40, timezone=prague),
-            kwargs={"bot": bot},
-            id="cave_clash_reset",
-            replace_existing=True,
+    job = scheduler.add_job(
+        _season_job,
+        CronTrigger(day_of_week="mon", hour=9, minute=50, timezone=prague),
+        args=(b,),
+        id="cave_clash_reset",
+        replace_existing=True,
+    )
+    logging.info(
+            "Clash-reset scheduled at %s (utc: %s)",
+            job.next_run_time.astimezone(prague).strftime('%a %d %b %H:%M'),
+            job.next_run_time.strftime('%Y-%m-%d %H:%M %Z'),
         )
-    except Exception:  # ConflictingIdError
-        pass  # job уже существует
-
     if not scheduler.running:
         scheduler.start()
 
