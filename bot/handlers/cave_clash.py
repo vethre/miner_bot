@@ -127,10 +127,12 @@ def setup_weekly_reset(b: Bot):
         id="cave_clash_reset",
         replace_existing=True,
     )
-    logging.info(
-            "Clash-reset scheduled at %s (utc: %s)",
-            job.next_run_time.astimezone(prague).strftime('%a %d %b %H:%M'),
-            job.next_run_time.strftime('%Y-%m-%d %H:%M %Z'),
+    nxt = job.next_fire_time
+    if nxt:                                   # може бути None, коли сьогодні не Monday
+        logging.info(
+            "Clash-reset scheduled at %s (utc %s)",
+            nxt.astimezone(prague).strftime('%a %d %b %H:%M'),
+            nxt.strftime('%Y-%m-%d %H:%M %Z'),
         )
     if not scheduler.running:
         scheduler.start()
