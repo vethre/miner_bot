@@ -123,10 +123,10 @@ def setup_weekly_reset(b: Bot):
     try:
         scheduler.add_job(
             _season_job,
-            CronTrigger(day_of_week="mon", hour=10, minute=15, timezone=kyiv),
+            CronTrigger(day_of_week="mon", hour=10, minute=25, timezone=kyiv),
             kwargs={"bot": b},
             id="cave_clash_reset",
-            replace_existing=False,
+            replace_existing=True,
         )
     except Exception:  # ConflictingIdError
         pass  # job уже существует
