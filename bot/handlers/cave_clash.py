@@ -70,7 +70,7 @@ async def reward_user(
 
 
 # ── Season reset job ───────────────────────────────
-async def _process_chat(bot: Bot, chat_id: int):
+async def _process_chat(b: Bot, chat_id: int):
     players = await db.fetch_all(
         "SELECT user_id, clash_points FROM progress_local WHERE chat_id=:c AND clash_points>0 ORDER BY clash_points DESC",
         {"c": chat_id},
@@ -99,7 +99,7 @@ async def _process_chat(bot: Bot, chat_id: int):
     ]
     for idx, p in enumerate(players[:10]):
         try:
-            member = await bot.get_chat_member(chat_id, p["user_id"])
+            member = await b.get_chat_member(chat_id, p["user_id"])
             name = member.user.full_name
         except Exception:
             name = f"Игрок {p['user_id']}"
@@ -107,24 +107,24 @@ async def _process_chat(bot: Bot, chat_id: int):
         msg.append(f"{badge} {name} — <b>{p['clash_points']} SP</b>")
     msg.append("\n🏆 Кейсы и бонусы начислены!")
 
-    msg = await bot.send_message(chat_id, "\n".join(msg), parse_mode="HTML")
+    msg = await b.send_message(chat_id, "\n".join(msg), parse_mode="HTML")
     register_msg_for_autodelete(chat_id, msg.message_id)
 
 
-async def _season_job(bot: Bot):
+async def _season_job(b: Bot):
     chats = await db.fetch_all("SELECT DISTINCT chat_id FROM progress_local WHERE clash_points>0")
     for row in chats:
-        await _process_chat(bot, row["chat_id"])
+        await _process_chat(b, row["chat_id"])
 
 
-def setup_weekly_reset(bot: Bot):
+def setup_weekly_reset(b: Bot):
     """Cron: каждый понедельник 10:00 по Киеву."""
     kyiv = ZoneInfo("Europe/Kyiv")
     try:
         scheduler.add_job(
             _season_job,
-            CronTrigger(day_of_week="mon", hour=10, minute=10, timezone=kyiv),
-            kwargs={"bot": bot},
+            CronTrigger(day_of_week="mon", hour=10, minute=15, timezone=kyiv),
+            kwargs={"bot": b},
             id="cave_clash_reset",
             replace_existing=False,
         )
