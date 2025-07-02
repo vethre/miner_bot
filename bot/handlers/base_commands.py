@@ -167,6 +167,22 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     mine_count = prog.get("mine_count", 0)
     seal = prog.get("seals_active")
     extra_txt=""
+    
+    # ─── штраф за флуд ─────────────────────────────────────────────────────────
+    penalty_counter = prog.get("penalty_counter", 0)
+
+    extra_delay = 0          # добавочные секунды
+    if penalty_counter >= 20:
+        extra_delay = 10 * 60        # +10 мин
+    elif 10 < penalty_counter < 20:
+        extra_delay = 7 * 60         # +7 мин
+    elif 0 < penalty_counter <= 10:
+        extra_delay = 5 * 60         # +5 мин
+
+    if extra_delay:
+        duration += extra_delay                      # удлиняем копку
+        extra_txt += f"\n⏳ Ты оштрафован: +{extra_delay//60} мин."
+
     await asyncio.sleep(duration)
     level = prog.get("level", 1)
     pick_key = prog.get("current_pickaxe")
@@ -298,7 +314,15 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     await maybe_send_choice_card(bot, cid, uid)
     msg = await bot.send_message(cid,txt,parse_mode="HTML")
     register_msg_for_autodelete(cid, msg.message_id)
-
+    # ↓ после отправки сообщения игроку
+    await db.execute(
+        """
+        UPDATE progress_local
+           SET penalty_counter = GREATEST(0, penalty_counter - 1)
+         WHERE chat_id = :c AND user_id = :u
+        """,
+        {"c": cid, "u": uid}
+    )
     logging.info("Mining result sent: chat=%s uid=%s", cid, uid)
     
 # ────────── Smelt Task ──────────
