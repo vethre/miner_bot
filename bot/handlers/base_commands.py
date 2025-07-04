@@ -772,7 +772,7 @@ async def inv_go_sell(cb: CallbackQuery):
         return await cb.answer("Эта кнопка не для тебя 😼", show_alert=True)
     await cb.answer()
     # викликаємо існуючий /sell
-    await sell_start(cb.message)
+    await sell_start(cb.message, user_id=cb.message.from_user.id)
 
 @router.callback_query(F.data.startswith("inv_smelt:"))
 async def inv_go_smelt(cb: CallbackQuery):
@@ -780,7 +780,7 @@ async def inv_go_smelt(cb: CallbackQuery):
     if cb.from_user.id != int(orig):
         return await cb.answer("Эта кнопка не для тебя 😼", show_alert=True)
     await cb.answer()
-    await smelt_cmd(cb.message)
+    await smelt_cmd(cb.message, user_id=cb.message.from_user.id)
 
 # ────────── /sell (локальний) ──────────
 ALIASES = {k: k for k in ITEM_DEFS}
@@ -802,8 +802,10 @@ ALIASES.update({
 })
 
 @router.message(Command("sell"))
-async def sell_start(message: types.Message):
+async def sell_start(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
+    if user_id:
+        uid = user_id
     inv_raw = await get_inventory(cid, uid)
     inv = {r["item"]: r["qty"] for r in inv_raw if r["qty"] > 0}
 
@@ -902,7 +904,7 @@ async def confirm_sell(call: types.CallbackQuery):
     )
     register_msg_for_autodelete(cid, call.message.message_id)
 
-@router.callback_query(F.data == "sell_cancel")
+@router.callback_query(F.data == "sell_cancel:")
 async def cancel_sell(call: types.CallbackQuery):
     orig_uid = call.data.split(":")[1]
     if call.from_user.id != int(orig_uid):
@@ -912,8 +914,10 @@ async def cancel_sell(call: types.CallbackQuery):
 # ────────── /smelt (async) ──────────
 # ────────── /smelt ──────────
 @router.message(Command("smelt"))
-async def smelt_cmd(message: types.Message):
+async def smelt_cmd(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
+    if user_id:
+        uid = user_id
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
 
     smeltables = [
@@ -1039,7 +1043,7 @@ async def smelt_execute_exact(cb: CallbackQuery):
     )
     await cb.message.edit_text(txt, parse_mode="HTML")
 
-@router.callback_query(F.data == "smelt_cancel")
+@router.callback_query(F.data == "smelt_cancel:")
 async def cancel_smelt(call: types.CallbackQuery):
     orig_uid = call.data.split(":")[1]
     if call.from_user.id != int(orig_uid):
