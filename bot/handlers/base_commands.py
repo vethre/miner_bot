@@ -169,20 +169,6 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     extra_txt=""
     
     # ─── штраф за флуд ─────────────────────────────────────────────────────────
-    penalty_counter = prog.get("penalty_counter", 0)
-
-    extra_delay = 0          # добавочные секунды
-    if penalty_counter >= 20:
-        extra_delay = 10 * 60        # +10 мин
-    elif 10 < penalty_counter < 20:
-        extra_delay = 7 * 60         # +7 мин
-    elif 0 < penalty_counter <= 10:
-        extra_delay = 5 * 60         # +5 мин
-
-    if extra_delay:
-        duration += extra_delay                      # удлиняем копку
-        extra_txt += f"\n⏳ Ты оштрафован: +{extra_delay//60} мин."
-
     await asyncio.sleep(duration)
     level = prog.get("level", 1)
     pick_key = prog.get("current_pickaxe")
@@ -238,7 +224,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     if seal == "seal_sacrifice":
         amount = int(amount * 1.2)
         xp_gain = max(0, xp_gain - 20)
-
+    amount = max(1, int(amount))
     await add_item(cid,uid,ore_id,amount)
     await add_xp_with_notify(bot, cid, uid, xp_gain)
     streak=await update_streak(cid,uid)
@@ -780,7 +766,7 @@ ALIASES.update({
 @router.message(Command("sell"))
 async def sell_start(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
-    if user_id is not None:
+    if user_id:
         uid = user_id # github bljad alo
     inv_raw = await get_inventory(cid, uid)
     inv = {r["item"]: r["qty"] for r in inv_raw if r["qty"] > 0}
@@ -892,7 +878,7 @@ async def sell_menu_cb(call: types.CallbackQuery):
 
     await call.answer()                     # закрываем «часики»
     # вызываем уже готовый экран выбора товара
-    await sell_start(call.message)          # передаём то же message
+    await sell_start(call.message, user_id=cb.from_user.id)          # передаём то же message
     
 @router.callback_query(F.data == "sell_close")
 async def sell_close_cb(call: types.CallbackQuery):
