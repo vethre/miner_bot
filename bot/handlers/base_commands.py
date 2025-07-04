@@ -379,8 +379,8 @@ WEATHERS = [
 ]
 
 # ────────── /profile ──────────
-XP_BAR_W      = 8                      # ширина бару XP
-STAT_BAR_W    = 8                      # ширина барів енергії/голоду
+XP_BAR_W      = 10                      # ширина бару XP
+STAT_BAR_W    = 10                      # ширина барів енергії/голоду
 BAR_STEPS     = ["🟥", "🟧", "🟨", "🟩"]  # градієнт: red→green
 SEP           = "┅" * 3                # делікатний розділювач
 
@@ -433,7 +433,7 @@ async def profile_cmd(message: types.Message):
     s_id = prog.get("seal_active")
     seal_str = "–"
     if s_id and (s := SEALS.get(s_id)):
-        seal_str = f"{s['emoji']} {s['name']}"
+        seal_str = f"{s['name']}"
 
     # ── Tier + бонус ─────────────────────────────────────
     tier = max(i + 1 for i, t in enumerate(TIER_TABLE) if lvl >= t["level_min"])
@@ -459,12 +459,14 @@ async def profile_cmd(message: types.Message):
 
     txt = (
         f"👤 <b>{prog.get('nickname') or message.from_user.full_name}</b>\n"
-        f"⭐ <u>L{lvl}</u> ({xp}/{next_xp})\n"
+        f"{weather_emoji} {weather_name}\n"
+        f"⭐ <u>L{lvl}</u> ({xp}/{next_xp})\n{xp_bar}\n"
         f"🔋 {energy}/100 <code>{energy_bar}</code>\n"
         f"🍗 {hunger}/100 <code>{hunger_bar}</code>\n"
+        f"{SEP}\n"
         f"⛏️ {pick_name} (+{int(pick_bonus*100)}%)\n"
         f"🏅 {badge_str} | 🪬 {seal_str}\n"
-        f"🔷 Tier {tier} ×{tier_bonus:.1f} | Серия {streak} дн.\n"
+        f"🔷 Tier {tier} ×{tier_bonus:.1f} | 🔥 Серия {streak} дн.\n"
         f"{SEP}\n"
         f"💰 {balance_s} | 🏔 {mines_s}\n"
         f"📦 CC {cave_cases} | CL {clash_cases}"
@@ -748,36 +750,13 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         for meta, qty in categories["misc"]:
             lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
 
-    kb = InlineKeyboardBuilder()
-    kb.button(text="💰 Продажа", callback_data=f"inv_sell:{uid}")
-    kb.button(text="🔥 Плавка",  callback_data=f"inv_smelt:{uid}")
-    kb.adjust(2)
-
     msg = await message.answer_photo(
         INV_IMG_ID,
         caption="\n".join(lines),
         parse_mode="HTML",
         reply_to_message_id=message.message_id,
-        reply_markup=kb.as_markup()
     )
     register_msg_for_autodelete(cid, msg.message_id)
-
-@router.callback_query(F.data.startswith("inv_sell:"))
-async def inv_go_sell(cb: CallbackQuery):
-    _, orig = cb.data.split(":")
-    if cb.from_user.id != int(orig):
-        return await cb.answer("Эта кнопка не для тебя 😼", show_alert=True)
-    await cb.answer()
-    # викликаємо існуючий /sell
-    await sell_start(cb.message, user_id=cb.message.from_user.id)
-
-@router.callback_query(F.data.startswith("inv_smelt:"))
-async def inv_go_smelt(cb: CallbackQuery):
-    _, orig = cb.data.split(":")
-    if cb.from_user.id != int(orig):
-        return await cb.answer("Эта кнопка не для тебя 😼", show_alert=True)
-    await cb.answer()
-    await smelt_cmd(cb.message, user_id=cb.message.from_user.id)
 
 # ────────── /sell (локальний) ──────────
 ALIASES = {k: k for k in ITEM_DEFS}
@@ -802,7 +781,7 @@ ALIASES.update({
 async def sell_start(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
     if user_id is not None:
-        uid = user_id
+        uid = user_id # github bljad alo
     inv_raw = await get_inventory(cid, uid)
     inv = {r["item"]: r["qty"] for r in inv_raw if r["qty"] > 0}
 
