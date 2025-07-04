@@ -428,7 +428,7 @@ async def profile_cmd(message: types.Message):
     b_id = prog.get("badge_active")
     badge_str = "–"
     if b_id and (b := BADGES.get(b_id)):
-        badge_str = f"{b['emoji']} {b['name']}"
+        badge_str = f"{b['name']}"
 
     s_id = prog.get("seal_active")
     seal_str = "–"
