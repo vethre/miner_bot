@@ -55,14 +55,13 @@ async def eat_cmd(message: types.Message):
 @router.callback_query(F.data.startswith("eat:"))
 async def eat_callback(callback: CallbackQuery):
     cid, uid = await cid_uid(callback)
+
     try:
         _, key, orig_uid_str = callback.data.split(":")
-        orig_uid = int(orig_uid_str)
+        if uid != int(orig_uid_str):
+            return await callback.answer("Эта еда не для тебя 😤", show_alert=True)
     except ValueError:
         return await callback.answer("Неверные данные", show_alert=True)
-
-    if uid != orig_uid:
-        return await callback.answer("Эта еда не для тебя 😤", show_alert=True)
 
     item = CONSUMABLES.get(key)
     if not item:
@@ -72,23 +71,31 @@ async def eat_callback(callback: CallbackQuery):
     if inv.get(key, 0) < 1:
         return await callback.answer("У тебя нет этого блюда 😔", show_alert=True)
 
+    # ─── списываем 1 шт ───────────────────────────────────────
     await add_item(cid, uid, key, -1)
-    now = dt.datetime.utcnow()
 
+    now          = dt.datetime.utcnow()
+    text_parts   = [f"Ты употребил: {item['name']}"]
+
+    # ─── голод ────────────────────────────────────────────────
     if "hunger" in item:
         curr_hunger = await update_hunger(cid, uid)
-        new_hunger = min(100, curr_hunger + item["hunger"])
-        await db.execute("""
+        new_hunger  = min(100, curr_hunger + item["hunger"])
+        await db.execute(
+            """
             UPDATE progress_local
                SET hunger = :h,
                    last_hunger_update = :now
              WHERE chat_id=:c AND user_id=:u
-        """, {"h": new_hunger, "now": now, "c": cid, "u": uid})
-        text = f"Ты съел: {item['name']}. 🍽️\nГолод: {new_hunger}/100"
-    else:
-        inc = item["energy"]
-        await add_energy(cid, uid, inc)
-        new_energy = await update_energy(cid, uid)
-        text = f"Ты выпил: {item['name']}. 🥤\nЭнергия: {new_energy}/100"
+            """,
+            {"h": new_hunger, "now": now, "c": cid, "u": uid}
+        )
+        text_parts.append(f"🍗 Голод: {new_hunger}/100")
 
-    await callback.message.edit_text(text)
+    # ─── энергия ──────────────────────────────────────────────
+    if "energy" in item:
+        await add_energy(cid, uid, item["energy"])
+        new_energy = await update_energy(cid, uid)
+        text_parts.append(f"🔋 Энергия: {new_energy}/100")
+
+    await callback.message.edit_text("\n".join(text_parts))
