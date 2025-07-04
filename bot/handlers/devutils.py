@@ -92,7 +92,7 @@ async def announce_entry(msg: types.Message, state: FSMContext, bot: Bot):
         await state.set_state(Ann.text)
         await msg.reply("📝 Пришли текст объявления одним сообщением.")
     else:
-        await msg.reply("❗️ Формат: /announce all <текст>  или  /announce <id,id> <текст>")
+        await msg.reply("❗️ Формат: /announce all 'текст'  или  /announce 'id,id' 'текст'")
 
 # получаем текст
 @router.message(Ann.text)
