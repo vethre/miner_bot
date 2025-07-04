@@ -380,9 +380,9 @@ WEATHERS = [
 
 # ────────── /profile ──────────
 XP_BAR_W      = 8                      # ширина бару XP
-STAT_BAR_W    = 10                      # ширина барів енергії/голоду
+STAT_BAR_W    = 8                      # ширина барів енергії/голоду
 BAR_STEPS     = ["🟥", "🟧", "🟨", "🟩"]  # градієнт: red→green
-SEP           = "┅" * 5                # делікатний розділювач
+SEP           = "┅" * 3                # делікатний розділювач
 
 def mono_bar(value: int, maximum: int, width: int = XP_BAR_W) -> str:
     """▰▱-бар (чорний) для XP."""
@@ -459,13 +459,12 @@ async def profile_cmd(message: types.Message):
 
     txt = (
         f"👤 <b>{prog.get('nickname') or message.from_user.full_name}</b>\n"
-        f"⭐ <u>L{lvl}</u> ({xp}/{next_xp})\n<code>{xp_bar}</code>\n"
+        f"⭐ <u>L{lvl}</u> ({xp}/{next_xp})\n"
         f"🔋 {energy}/100 <code>{energy_bar}</code>\n"
         f"🍗 {hunger}/100 <code>{hunger_bar}</code>\n"
         f"⛏️ {pick_name} (+{int(pick_bonus*100)}%)\n"
         f"🏅 {badge_str} | 🪬 {seal_str}\n"
-        f"🔷 Tier {tier} ×{tier_bonus:.1f}\n"
-        f"🔥 Серия {streak} дн.\n"
+        f"🔷 Tier {tier} ×{tier_bonus:.1f} | Серия {streak} дн.\n"
         f"{SEP}\n"
         f"💰 {balance_s} | 🏔 {mines_s}\n"
         f"📦 CC {cave_cases} | CL {clash_cases}"
@@ -802,7 +801,8 @@ ALIASES.update({
 @router.message(Command("sell"))
 async def sell_start(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
-    uid = user_id or uid
+    if user_id is not None:
+        uid = user_id
     inv_raw = await get_inventory(cid, uid)
     inv = {r["item"]: r["qty"] for r in inv_raw if r["qty"] > 0}
 
@@ -913,7 +913,8 @@ async def cancel_sell(call: types.CallbackQuery):
 @router.message(Command("smelt"))
 async def smelt_cmd(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
-    uid = user_id or uid
+    if user_id is not None:
+        uid = user_id
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
 
     smeltables = [
