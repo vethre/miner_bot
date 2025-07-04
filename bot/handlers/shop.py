@@ -43,22 +43,33 @@ def max_page() -> int:
     """Returns the index of the last page."""
     return len(PAGES) - 1
 
-def get_discount_multiplier():
-    weekday = datetime.utcnow().weekday()
-    if weekday == 4:
-        return 0.80
-    elif weekday == 6:
-        return 0.60
+# ─── helpers  ──────────────────────────────────────────────────────────
+def get_discount_multiplier() -> float:
+    """Пятница −20 %, воскресенье −40 %, иначе без скидки."""
+    wd = datetime.utcnow().weekday()        # 0-пон, 4-пт, 6-вс
+    if wd == 4:      # Friday
+        return 0.8
+    if wd == 5:
+        return 0.6
+    if wd == 6:      # Sunday
+        return 0.45
     return 1.0
 
-def get_item_price(item_id: str, base_price: int) -> tuple[int, str]:
-    discount = get_discount_multiplier()
+
+def calc_price(item_id: str, base: int, *, has_sale: bool) -> tuple[int, str]:
+    """Вернёт (число, подпись). Кирки не участвуют в акциях."""
     if item_id in PICKAXES:
-        return base_price, f"{base_price} мон."
-    if discount < 1.0:
-        discounted = int(base_price * discount)
-        return discounted, f"{discounted} мон. (−{int((1 - discount) * 100)}%)"
-    return base_price, f"{base_price} мон."
+        return base, f"{base} мон."
+
+    # ← одна строка: общий множитель = скидка_дня × скидка_ваучера
+    mult = get_discount_multiplier() * (0.8 if has_sale else 1.0)
+
+    final = int(base * mult)
+    label = f"{final} мон."
+    if mult < 1.0:
+        label += f" (−{int((1 - mult)*100)} %)"
+    return final, label
+# ───────────────────────────────────────────────────────────────────────
 
 # 🛍 Покращена версія _send_shop_page:
 async def _send_shop_page(
@@ -67,21 +78,16 @@ async def _send_shop_page(
     page: int,
     bot_message: types.Message,
     user_id: Optional[int] = None,
-    edit: bool = True
+    edit: bool = True,
 ):
-    items = PAGES[page]
-    kb = InlineKeyboardBuilder()
-
-    # ВАЖЛИВО: використай user_id, або fallback на from_user.id
     uid = user_id or bot_message.from_user.id
-
     prog = await get_progress(chat_id, uid)
     has_sale = prog.get("sale_voucher", False)
 
-    for iid in items:
+    kb = InlineKeyboardBuilder()
+    for iid in PAGES[page]:
         meta = SHOP_ITEMS[iid]
-        price_val = int(meta['price'] * (0.8 if has_sale else 1.0))
-        price_str = f"{price_val} мон." + (" (−20 %)" if has_sale else "")
+        price_val, price_str = calc_price(iid, meta["price"], has_sale=has_sale)
         kb.button(
             text=f"{meta['emoji']} {meta['name']} — {price_str}",
             callback_data=f"buy:{iid}:{uid}"
@@ -144,50 +150,61 @@ async def noop_cb(callback: CallbackQuery):
 
 # Handler for "buy" buttons
 @router.callback_query(F.data.startswith("buy:"))
-async def shop_buy_callback(callback: CallbackQuery):
-    await callback.answer() # Acknowledge the callback query
-    cid, uid = callback.message.chat.id, callback.from_user.id
+async def shop_buy_callback(cb: CallbackQuery):
+    await cb.answer()
+    cid, uid = cb.message.chat.id, cb.from_user.id
+
+    # ── разбор callback_data
     try:
-        _, item_id, orig_uid_str = callback.data.split(":")
-        orig_uid = int(orig_uid_str)
+        _, item_id, orig_uid = cb.data.split(":")
     except ValueError:
-        return await callback.answer("Неверные данные", show_alert=True)
+        return
+    if uid != int(orig_uid):
+        return await cb.answer("Эта кнопка не для тебя 😠", show_alert=True)
 
-    if uid != orig_uid:
-        return await callback.answer("Эта кнопка не для тебя 😠", show_alert=True)
+    # ── товар в каталоге?
+    meta = SHOP_ITEMS.get(item_id)
+    if not meta:
+        return await cb.answer("Товар не найден 😕", show_alert=True)
 
-    if (item := SHOP_ITEMS.get(item_id)) is None:
-        return await callback.message.reply("Товар не найден 😕")
-
-    has_sale     = prog.get("sale_voucher", False)
-    balance = await get_money(cid, uid)
-    price_val = int(item["price"] * (0.8 if has_sale else 1.0))
-    if balance < price_val:
-        return await callback.message.reply("Недостаточно монет 💸")
-
-    await add_money(cid, uid, -price_val) # Deduct price
-    if item_id == "cave_cases":
-        await give_case_to_user(cid, uid, "cave_case", 1) # Specific logic for "cave_cases"
-    else:
-        await add_item(cid, uid, item_id, 1) # Add other items to inventory
-
+    # ── цена с учётом скидок
     prog = await get_progress(cid, uid)
+    has_sale = prog.get("sale_voucher", False)
+    price_val, price_label = calc_price(item_id, meta["price"], has_sale=has_sale)
+
+    # ── денег хватает?
+    if await get_money(cid, uid) < price_val:
+        return await cb.answer("Недостаточно монет 💸", show_alert=True)
+
+    # ── списываем деньги
+    await add_money(cid, uid, -price_val)
+
+    # ── выдаём товар / кейс
+    if item_id == "cave_cases":
+        await give_case_to_user(cid, uid, "cave_case", 1)
+    else:
+        await add_item(cid, uid, item_id, 1)
+
+    # ── одноразовый ваучер отработал → сбрасываем
     if has_sale:
-       await db.execute("""
-           UPDATE progress_local
-              SET sale_voucher = FALSE
-            WHERE chat_id=:c AND user_id=:u
-       """, {"c": cid, "u": uid})
+        await db.execute(
+            "UPDATE progress_local SET sale_voucher = FALSE "
+            "WHERE chat_id=:c AND user_id=:u",
+            {"c": cid, "u": uid}
+        )
 
-    active_badge = prog.get("badge_active")
-
-    if active_badge == "moneyback":
-        cashback = int(item["price"] * 0.3)
+    # ── бейдж «moneyback»
+    if prog.get("badge_active") == "moneyback":
+        cashback = int(meta["price"] * 0.30)
         await add_money(cid, uid, cashback)
-        await callback.message.reply(f"💸 Бейдж Монобанк активен: возвращено {cashback} монет!")
+        await cb.message.reply(f"💸 Бейдж Монобанк: возвращено {cashback} монет!")
+
+    # ── +Clash-очки
     await add_clash_points(cid, uid, 0)
 
-    msg = await callback.message.reply(
-        f"Покупка: {item['emoji']}<b>{item['name']}</b> за {item['price']} монет ✔️",
-        parse_mode="HTML")
-    register_msg_for_autodelete(callback.message.chat.id, msg.message_id)
+    # ── подтверждение пользователю
+    confirm = await cb.message.reply(
+        f"✅ Покупка: {meta['emoji']}<b>{meta['name']}</b> за {price_val} монет.",
+        parse_mode="HTML"
+    )
+    register_msg_for_autodelete(cid, confirm.message_id)
