@@ -869,16 +869,38 @@ async def confirm_sell(call: types.CallbackQuery):
 
     meta = ITEM_DEFS[item_key]
     await add_clash_points(cid, uid, 0)
+    # после расчёта earned и перед edit_text
     repeat_kb = InlineKeyboardBuilder()
     repeat_kb.button(
         text="🔁 Продать ещё",
-        callback_data=f"sell_confirm:{item_key}:{qty}:{orig_uid}"
+        callback_data=f"sell_menu:{orig_uid}"   # ← новый callback-ключ
     )
+    repeat_kb.button(text="❌ Закрыть", callback_data="sell_close")
+    repeat_kb.adjust(2)
+    
     await call.message.edit_text(
         f"✅ Продано {qty}×{meta['emoji']} {meta['name']} за {earned} монет 💰",
         reply_markup=repeat_kb.as_markup()
     )
     register_msg_for_autodelete(cid, call.message.message_id)
+
+@router.callback_query(F.data.startswith("sell_menu:"))
+async def sell_menu_cb(call: types.CallbackQuery):
+    _, orig_uid = call.data.split(":")
+    if call.from_user.id != int(orig_uid):
+        return await call.answer("Не для тебя 🤚", show_alert=True)
+
+    await call.answer()                     # закрываем «часики»
+    # вызываем уже готовый экран выбора товара
+    await sell_start(call.message)          # передаём то же message
+    
+@router.callback_query(F.data == "sell_close")
+async def sell_close_cb(call: types.CallbackQuery):
+    await call.answer()
+    try:
+        await call.message.delete()
+    except Exception:
+        pass
 
 @router.callback_query(F.data == "sell_cancel:")
 async def cancel_sell(call: types.CallbackQuery):
@@ -1503,7 +1525,7 @@ async def inventory_msg_cmd(message: types.Message):
 async def shop_msg_cmd(message: types.Message):
     return await shop_cmd(message)
 
-@router.message(lambda msg: re.match(r"шахта\s+(копать|копка|шахта)", msg.text, re.IGNORECASE))
+@router.message(lambda msg: re.match(r"шахта\s+(копать|копка|шахта|попка)", msg.text, re.IGNORECASE))
 async def mine_msg_cmd(message: types.Message):
     return await mine_cmd(message)
 
