@@ -878,7 +878,7 @@ async def sell_menu_cb(call: types.CallbackQuery):
 
     await call.answer()                     # закрываем «часики»
     # вызываем уже готовый экран выбора товара
-    await sell_start(call.message, user_id=cb.from_user.id)          # передаём то же message
+    await sell_start(call.message, user_id=call.from_user.id)          # передаём то же message
     
 @router.callback_query(F.data == "sell_close")
 async def sell_close_cb(call: types.CallbackQuery):
