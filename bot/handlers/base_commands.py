@@ -460,7 +460,7 @@ async def profile_cmd(message: types.Message):
     txt = (
         f"👤 <b>{prog.get('nickname') or message.from_user.full_name}</b>\n"
         f"{weather_emoji} {weather_name}\n"
-        f"⭐ <u>L{lvl}</u> ({xp}/{next_xp})\nXP: {xp_bar}\n"
+        f"⭐ <u>L{lvl}</u> ({xp}/{next_xp})\n⭐ XP: {xp_bar}\n"
         f"🔋 {energy}/100 <code>{energy_bar}</code>\n"
         f"🍗 {hunger}/100 <code>{hunger_bar}</code>\n"
         f"{SEP}\n"
