@@ -5,6 +5,9 @@ from aiogram.filters import Command
 from aiogram.utils.markdown import hcode
 from bot.db_local import db, cid_uid, get_money, get_progress, get_inventory
 from aiogram.filters.command import CommandObject
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.context import FSMContext
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 import logging
 
 from bot.handlers.items import ITEM_DEFS
@@ -55,29 +58,116 @@ async def id_cmd(message: types.Message):
     )
     await message.reply(text, parse_mode="HTML")
 
+class Ann(StatesGroup):
+    text = State()
+    choose = State()
+
+# util — получить список групп, где «живёт» бот
+async def _all_chats() -> list[tuple[int,str]]:
+    rows = await db.fetch_all("SELECT chat_id, title FROM groups")
+    # title может быть NULL → str(chat_id)
+    return [(r["chat_id"], r["title"] or str(r["chat_id"])) for r in rows]
+
+# ────────────────────────────────────────────
+
 @router.message(Command("announce"))
-async def announce_cmd(message: types.Message, bot: Bot):
-    # ─── доступ тільки для адмінів ─────────────────────────────
-    if message.from_user.id not in ADMINS:
-        return await message.reply("⛔️ Только для разработчика")
+async def announce_entry(msg: types.Message, state: FSMContext, bot: Bot):
+    if msg.from_user.id not in ADMINS:
+        return await msg.reply("⛔️ Только для разработчика")
 
-    # ─── текст оголошення ──────────────────────────────────────
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
-        return await message.reply("Используй: /announce 'текст'")
-    text = parts[1]
+    args = msg.text.split(maxsplit=2)
 
-    # ─── вибираємо всі групи ───────────────────────────────────
-    rows = await db.fetch_all("SELECT chat_id FROM groups")
-    ok, fail = 0, 0
-    for r in rows:
+    # ── Быстрый режим: /announce all …  или  /announce <id1,id2> …
+    if len(args) >= 3:
+        dest_raw, text = args[1], args[2]
+        if dest_raw.lower() == "all":
+            chats = [cid for cid, _ in await _all_chats()]
+        else:
+            chats = [int(x) for x in dest_raw.split(",") if x.strip().isdigit()]
+        await _broadcast(bot, chats, text, msg)
+        return
+
+    # ─────────────────────────────── интерактив
+    if len(args) == 1:
+        await state.set_state(Ann.text)
+        await msg.reply("📝 Пришли текст объявления одним сообщением.")
+    else:
+        await msg.reply("❗️ Формат: /announce all <текст>  или  /announce <id,id> <текст>")
+
+# получаем текст
+@router.message(Ann.text)
+async def ann_got_text(msg: types.Message, state: FSMContext):
+    await state.update_data(text=msg.html_text)
+    # строим клавиатуру
+    chats = await _all_chats()
+    kb = InlineKeyboardBuilder()
+    for cid, title in chats:
+        kb.button(text=f"❌ {title}", callback_data=f"ann:{cid}:0")
+    kb.adjust(1)
+    kb.button(text="➡️ Отправить", callback_data="ann_send")
+    await msg.reply("✅ Выбери чаты (клик меняет статус):", reply_markup=kb.as_markup())
+    await state.update_data(choosen=set())
+    await state.set_state(Ann.choose)
+
+# переключаем «✅/❌»
+@router.callback_query(Ann.choose, F.data.startswith("ann:"))
+async def ann_toggle(cb: types.CallbackQuery, state: FSMContext):
+    _, cid_str, flag = cb.data.split(":")
+    cid = int(cid_str)
+    data = await state.get_data()
+    chosen: set[int] = data.get("choosen", set())
+    if flag == "0":
+        chosen.add(cid)
+        new_flag, mark = "1", "✅"
+    else:
+        chosen.discard(cid)
+        new_flag, mark = "0", "❌"
+    await state.update_data(choosen=chosen)
+
+    # меняем подпись кнопки
+    await cb.message.edit_reply_markup(
+        reply_markup=_rebuild_kb(cb.message.reply_markup, cid, new_flag, mark)
+    )
+    await cb.answer()
+
+# отправка
+@router.callback_query(Ann.choose, F.data == "ann_send")
+async def ann_send(cb: types.CallbackQuery, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    text = data["text"]
+    chats = list(data["choosen"])
+    await _broadcast(bot, chats, text, cb.message)
+    await state.clear()
+
+# ─── helper: массовая рассылка ─────────────────────
+async def _broadcast(bot: Bot, chats: list[int], text: str, origin_msg: types.Message):
+    ok = fail = 0
+    for cid in chats:
         try:
-            await bot.send_message(r["chat_id"], text, parse_mode="HTML")
+            await bot.send_message(cid, text, parse_mode="HTML")
             ok += 1
         except Exception:
             fail += 1
+    await origin_msg.reply(f"📣 Разослано: {ok}, ошибок: {fail}")
 
-    await message.reply(f"✅ Отослано: {ok}, ошибок: {fail}")
+# ─── helper: перестроить инлайн-клаву ──────────────
+def _rebuild_kb(markup: types.InlineKeyboardMarkup, cid: int, new_flag:str, mark:str):
+    new_rows = []
+    for row in markup.inline_keyboard:
+        new_row = []
+        for btn in row:
+            if btn.callback_data and btn.callback_data.startswith(f"ann:{cid}:"):
+                title = btn.text[2:].strip()        # отрезаем старый ❌/✅
+                new_row.append(
+                    types.InlineKeyboardButton(
+                        text=f"{mark} {title}",
+                        callback_data=f"ann:{cid}:{new_flag}"
+                    )
+                )
+            else:
+                new_row.append(btn)
+        new_rows.append(new_row)
+    return types.InlineKeyboardMarkup(inline_keyboard=new_rows)
 
 # ───────────── Команда /debug ─────────────
 @router.message(Command("debug"))

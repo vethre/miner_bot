@@ -7,7 +7,7 @@ from itertools import islice
 from typing import Optional
 from datetime import datetime
 
-from bot.db_local import cid_uid, get_money, add_money, add_item, get_progress
+from bot.db_local import cid_uid, get_money, add_money, add_item, get_progress, db
 from bot.handlers.cases import give_case_to_user
 from bot.handlers.cave_clash import add_clash_points
 from bot.handlers.items import ITEM_DEFS
@@ -20,17 +20,14 @@ router = Router()
 # ---------- каталог ----------
 SHOP_ITEMS: dict[str, dict] = {
     "wood_handle":    {"price": 80,  "name": "Рукоять",          "emoji": "🪵"},
-    "wooden_pickaxe": {"price": 400,  "name": "Деревянная кирка", "emoji": "🔨"},
-    "iron_pickaxe":   {"price": 1400, "name": "Железная кирка",   "emoji": "⛏️"},
-    "gold_pickaxe":   {"price": 2800, "name": "Золотая кирка",    "emoji": "✨"},
     "wax":            {"price": 90,  "name": "Воск",            "emoji": "🍯"},
     "bread":          {"price": 40,   "name": "Хлеб",             "emoji": "🍞"},
     "meat":           {"price": 80,  "name": "Мясо",             "emoji": "🍖"},
-    "borsch":         {"price": 140,  "name": "Борщ",             "emoji": "🥣"},
+    "borsch":         {"price": 120,  "name": "Борщ",             "emoji": "🥣"},
     "energy_drink":   {"price": 40,  "name": "Энергетик",        "emoji": "🥤"},
     "coffee":         {"price": 80,  "name": "Кофе",             "emoji": "☕"},
     "cave_cases":     {"price": 300,  "name": "Cave Case",        "emoji": "📦"},
-    "bomb":           {"price": 400, "name": "Бомба",           "emoji": "💣"}
+    "bomb":           {"price": 100, "name": "Бомба",           "emoji": "💣"}
 }
 
 ITEMS_PER_PAGE = 6 # This variable is not currently used to chunk PAGES.
@@ -78,9 +75,13 @@ async def _send_shop_page(
     # ВАЖЛИВО: використай user_id, або fallback на from_user.id
     uid = user_id or bot_message.from_user.id
 
+    prog = await get_progress(chat_id, uid)
+    has_sale = prog.get("sale_voucher", False)
+
     for iid in items:
         meta = SHOP_ITEMS[iid]
-        price_val, price_str = get_item_price(iid, meta['price'])
+        price_val = int(meta['price'] * (0.8 if has_sale else 1.0))
+        price_str = f"{price_val} мон." + (" (−20 %)" if has_sale else "")
         kb.button(
             text=f"{meta['emoji']} {meta['name']} — {price_str}",
             callback_data=f"buy:{iid}:{uid}"
@@ -158,8 +159,9 @@ async def shop_buy_callback(callback: CallbackQuery):
     if (item := SHOP_ITEMS.get(item_id)) is None:
         return await callback.message.reply("Товар не найден 😕")
 
+    has_sale     = prog.get("sale_voucher", False)
     balance = await get_money(cid, uid)
-    price_val, _ = get_item_price(item_id, item["price"])
+    price_val = int(item["price"] * (0.8 if has_sale else 1.0))
     if balance < price_val:
         return await callback.message.reply("Недостаточно монет 💸")
 
@@ -170,6 +172,13 @@ async def shop_buy_callback(callback: CallbackQuery):
         await add_item(cid, uid, item_id, 1) # Add other items to inventory
 
     prog = await get_progress(cid, uid)
+    if has_sale:
+       await db.execute("""
+           UPDATE progress_local
+              SET sale_voucher = FALSE
+            WHERE chat_id=:c AND user_id=:u
+       """, {"c": cid, "u": uid})
+
     active_badge = prog.get("badge_active")
 
     if active_badge == "moneyback":

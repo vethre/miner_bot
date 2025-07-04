@@ -41,10 +41,10 @@ async def main():
     setup_weekly_reset(BOT)
 
     dp.message.middleware.register(
-        AntiFlood(limit=15, window=12, mute_seconds=90)     # настройки «под себя»
+        AntiFlood(limit=15, window=12, mute_seconds=10)     # настройки «под себя»
     )
     dp.callback_query.middleware.register(
-        AntiFlood(limit=12, window=15, mute_seconds=30)
+        AntiFlood(limit=12, window=15, mute_seconds=5)
     )
 
     aiocron.crontab(

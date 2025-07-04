@@ -228,6 +228,22 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     streak=await update_streak(cid,uid)
     mine_count = prog.get("mine_count", 0)
 
+    if pick_key == "proto_eonite_pickaxe" and random.random() < 0.30:
+        ore2 = random.choice(ores)
+        ore_def = ORE_ITEMS[ore2]
+        amount2 = random.randint(*ore_def["drop_range"])
+        
+        if prog.get("hunger", 100) <= 30:
+            amount2 = int(amount2 * 0.5)
+        amount2 = max(1, int(amount2 * total_bonus))
+
+        await add_item(cid, uid, ore2, amount2)
+        await add_xp(cid, uid, amount2)
+
+        # Дополнительный текст
+        proto_txt += f"\n🔮 Прототип эонита активировался!\n" \
+                    f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
+
     if prog.get("badge_active") == "recruit":
         await add_money(cid, uid, 30)
 
@@ -339,118 +355,113 @@ WEATHERS = [
 ]
 
 # ────────── /profile ──────────
+XP_BAR_W      = 12                      # ширина бару XP
+STAT_BAR_W    = 12                      # ширина барів енергії/голоду
+BAR_STEPS     = ["🟥", "🟧", "🟨", "🟩"]  # градієнт: red→green
+SEP           = "┅" * 10                # делікатний розділювач
+
+def mono_bar(value: int, maximum: int, width: int = XP_BAR_W) -> str:
+    """▰▱-бар (чорний) для XP."""
+    filled = int(value / maximum * width)
+    return "▰" * filled + "▱" * (width - filled)
+
+def color_bar(value: int, maximum: int, width: int = STAT_BAR_W) -> str:
+    """Кольоровий градієнт-бар."""
+    ratio   = value / maximum
+    filled  = int(ratio * width)
+    step_id = min(int(ratio * len(BAR_STEPS)), len(BAR_STEPS) - 1)
+    block   = BAR_STEPS[step_id]
+    return block * filled + "⬜" * (width - filled)
+
+# ──────────────────────────────────────────────────────────────
+#  /profile   (оновлена версія)
+# ──────────────────────────────────────────────────────────────
 @router.message(Command("profile"))
 async def profile_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
-    # ensure user exists
-    await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
+    await create_user(uid, message.from_user.username or message.from_user.full_name)
 
-    # обчислюємо енергію та голод
+    # ── динамічні величини ───────────────────────────────
     energy = await update_energy(cid, uid)
     hunger = await update_hunger(cid, uid)
+    prog   = await get_progress(cid, uid)
 
-    prog    = await get_progress(cid, uid)
-    lvl     = prog.get("level", 1)
-    xp      = prog.get("xp", 0)
-    next_xp = lvl * 85
-    streaks = prog.get("streak", 0)
-    mine_count = prog.get("mine_count", 0)
-    badge = prog.get("badge_active")
+    lvl, xp  = prog.get("level", 1), prog.get("xp", 0)
+    next_xp  = lvl * 85
+    streak   = prog.get("streak", 0)
+    mines    = prog.get("mine_count", 0)
+    balance  = await get_money(cid, uid)
+
+    # ── поточна кирка ─────────────────────────────────────
+    cur  = prog.get("current_pickaxe") or "wooden_pickaxe"
+    dm   = _json2dict(prog.get("pick_dur_map"))
+    dmm  = _json2dict(prog.get("pick_dur_max_map"))
+    dur, dur_max = dm.get(cur, PICKAXES[cur]["dur"]), dmm.get(cur, PICKAXES[cur]["dur"])
+    pick_bonus   = PICKAXES[cur]["bonus"]
+    pick_name    = PICKAXES[cur]["name"]
+
+    # ── бейдж / печать ───────────────────────────────────
+    b_id = prog.get("badge_active")
     badge_str = "–"
-    if badge:
-        b = BADGES.get(badge)
-        if b:
-            badge_str = f"{b['emoji']} {b['name']}"
-    nickname_str = prog.get("nickname") or message.from_user.full_name
-    seal = prog.get("seal_active")
+    if b_id and (b := BADGES.get(b_id)):
+        badge_str = f"{b['emoji']} {b['name']}"
+
+    s_id = prog.get("seal_active")
     seal_str = "–"
-    if seal:
-        s = SEALS.get(seal)
-        if s:
-            seal_str = f"{s['emoji']} {s['name']}"
-    emoji, weather = random.choice(WEATHERS)
+    if s_id and (s := SEALS.get(s_id)):
+        seal_str = f"{s['emoji']} {s['name']}"
 
-    tier = max([i + 1 for i, t in enumerate(TIER_TABLE) if lvl >= t["level_min"]], default=1)
-    tier_bonus = BONUS_BY_TIER.get(tier, 1.0)
-    tier_str = f"🔷 Tier {tier} (бонус ×{tier_bonus:.1f})"
+    # ── Tier + бонус ─────────────────────────────────────
+    tier = max(i + 1 for i, t in enumerate(TIER_TABLE) if lvl >= t["level_min"])
+    tier_bonus = BONUS_BY_TIER[tier]
 
-    mine_end = prog.get("mining_end")
-    if isinstance(mine_end, dt.datetime):
-        remaining = mine_end.astimezone(UTC) - dt.datetime.now(tz=UTC)
-        if remaining.total_seconds() > 0:
-            minutes = max(1, int(remaining.total_seconds() // 60))
-            status = f"🕳️ Копает (ещё {minutes} мин.)"
-        else:
-            status = "🛌 Отдыхает"
-    else:
-        status = "🛌 Отдыхает"
-
-
-    # Кирка та її міцність
-    current         = prog.get("current_pickaxe") or "wooden_pickaxe"
-    if current == "wood_pickaxe":
-        current = "wooden_pickaxe"
-    dur_map         = _json2dict(prog.get("pick_dur_map"))
-    dur_max_map     = _json2dict(prog.get("pick_dur_max_map"))
-    pick = PICKAXES.get(current, {"name":"–"})
-    pick_name       = pick["name"]
-    dur             = dur_map.get(current,      PICKAXES[current]["dur"])
-    dur_max         = dur_max_map.get(current,  PICKAXES[current]["dur"])
-
-    # Pass
-    has_pass    = prog.get("cave_pass", False)
-    expires     = prog.get("pass_expires")
+    # ── Cave-/Clash-cases ────────────────────────────────
     cave_cases  = prog.get("cave_cases", 0)
     clash_cases = prog.get("clash_cases", 0)
-    if has_pass and expires:
-        pass_str = expires.strftime("%d.%m.%Y")
-    else:
-        pass_str = "Не активирован"
 
-    balance = await get_money(cid, uid)
+    # ── допоміжні бари/іконки ───────────────────────────
+    xp_bar      = mono_bar(xp, next_xp)
+    energy_bar  = color_bar(energy, 100)
+    hunger_bar  = color_bar(hunger, 100)
 
-    builder = InlineKeyboardBuilder()
-    builder.button(text="📦 Инвентарь", callback_data=f"profile:inventory:{uid}")
-    builder.button(text="🛒 Магазин",    callback_data=f"profile:shop:{uid}")
-    builder.button(text="⛏️ Шахта",      callback_data=f"profile:mine:{uid}")
-    builder.button(text="💎 Cave Pass",      callback_data=f"profile:cavepass:{uid}")
-    builder.button(text="🏆 Ачивки", callback_data=f"profile:achievements:{uid}")
-    builder.button(text="🏅 Бейджи", callback_data=f"profile:badges:{uid}")
-    builder.adjust(1)
+    weather_emoji, weather_name = random.choice(WEATHERS)
 
-    text = (
-        f"👤 <b>Профиль:</b> {nickname_str}\n"
-        f"☁️ <b>Погода сейчас:</b> {weather}\n"
-        f"⭐ <b>Уровень:</b> {lvl} (XP {xp}/{next_xp})\n"
-        f"{tier_str}\n"
-        f"🔥 <b>Серия:</b> {streaks}\n" 
-        f"💎 <b>Cave Pass:</b> {pass_str}\n\n"
-        f"{status}\n"
-        f"🔋 <b>Энергия:</b> {energy}/100\n"
-        f"🍗 <b>Голод:</b> {hunger}/100\n\n"
-        f"📦 <b>Cave | Clash Cases:</b> {cave_cases} | {clash_cases}\n"
-        f"💰 <b>Баланс:</b> {balance} монет\n\n"
-        f"🏅 <b>Бейдж:</b> {badge_str}\n"
-        f"🪬 <b>Печать:</b> {seal_str}\n"
-        f"⛏️ <b>Кирка:</b> {pick_name} ({dur}/{dur_max})\n"
-        f"📊 <b>Всего копок:</b> {mine_count}"
+    # ── складання тексту ─────────────────────────────────
+    txt = (
+        f"👤 <b>{prog.get('nickname') or message.from_user.full_name}</b>\n"
+        f"{SEP}\n"
+        f"{weather_emoji} {weather_name}\n"
+        f"⭐ <u>Ур. {lvl}</u>  XP {xp}/{next_xp}\n<code>{xp_bar}</code>\n"
+        f"🔋 {energy}/100  <code>{energy_bar}</code>\n"
+        f"🍗 {hunger}/100  <code>{hunger_bar}</code>\n"
+        f"{SEP}\n"
+        f"⛏️ {pick_name}  (+{int(pick_bonus*100)} %)\n"
+        f"🏅 {badge_str} | 🪬 {seal_str}\n"
+        f"{SEP}\n"
+        f"🔷 Tier {tier}  (×{tier_bonus:.1f})\n"
+        f"🔥 Серия: {streak} дн.\n"
+        f"{SEP}\n"
+        f"💰 {balance:,} мон.  |   🏔 {mines:,} копок\n"
+        f"📦 CC {cave_cases} | ⚡ CL {clash_cases}"
     )
 
-    inventory = await get_inventory(cid, uid)
-    for row in inventory:
-        if row["item"] == "legacy_pickaxe":
-            legacy = ITEM_DEFS.get("legacy_pickaxe", {"name": "Памятная кирка"})
-            text += f"\n\n🏛️ <b>Памятка:</b> {legacy['name']}"
-            break
+    # ── клавіатура ──────────────────────────────────────
+    kb = InlineKeyboardBuilder()
+    kb.button(text="⛏️ Шахта",     callback_data=f"profile:mine:{uid}")
+    kb.button(text="📦 Инвентарь",  callback_data=f"profile:inventory:{uid}")
+    kb.button(text="🛒 Магазин",   callback_data=f"profile:shop:{uid}")
+    kb.button(text="🏆 Ачивки", callback_data=f"profile:achievements:{uid}")
+    kb.button(text="🏅 Бейджи",    callback_data=f"profile:badges:{uid}")
+    kb.button(text="💎 Cave Pass", callback_data=f"profile:cavepass:{uid}")
+    kb.adjust(1)
 
     msg = await message.answer_photo(
         photo=PROFILE_IMG_ID,
-        caption=text,
+        caption=txt,
         parse_mode="HTML",
-        reply_to_message_id=message.message_id,
-        reply_markup=builder.as_markup()
+        reply_markup=kb.as_markup()
     )
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
+    register_msg_for_autodelete(cid, msg.message_id)
     # await message.reply(text, parse_mode="HTML", reply_markup=builder.as_markup())
 
 # Profile Callback
@@ -712,14 +723,36 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         for meta, qty in categories["misc"]:
             lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
 
+    kb = InlineKeyboardBuilder()
+    kb.button(text="💰 Продажа", callback_data=f"inv_sell:{uid}")
+    kb.button(text="🔥 Плавка",  callback_data=f"inv_smelt:{uid}")
+    kb.adjust(2)
+
     msg = await message.answer_photo(
         INV_IMG_ID,
         caption="\n".join(lines),
         parse_mode="HTML",
-        reply_to_message_id=message.message_id
+        reply_to_message_id=message.message_id,
+        reply_markup=kb.as_markup()
     )
     register_msg_for_autodelete(cid, msg.message_id)
 
+@router.callback_query(F.data.startswith("inv_sell:"))
+async def inv_go_sell(cb: CallbackQuery):
+    _, orig = cb.data.split(":")
+    if cb.from_user.id != int(orig):
+        return await cb.answer("Эта кнопка не для тебя 😼", show_alert=True)
+    await cb.answer()
+    # викликаємо існуючий /sell
+    await sell_start(cb.message)
+
+@router.callback_query(F.data.startswith("inv_smelt:"))
+async def inv_go_smelt(cb: CallbackQuery):
+    _, orig = cb.data.split(":")
+    if cb.from_user.id != int(orig):
+        return await cb.answer("Эта кнопка не для тебя 😼", show_alert=True)
+    await cb.answer()
+    await smelt_cmd(cb.message)
 
 # ────────── /sell (локальний) ──────────
 ALIASES = {k: k for k in ITEM_DEFS}
@@ -758,7 +791,7 @@ async def sell_start(message: types.Message):
     for k, qty in items:
         emoji = ITEM_DEFS[k].get("emoji", "")
         name = ITEM_DEFS[k]["name"]
-        builder.button(text=f"{emoji} {name} ({qty})", callback_data=f"sell_choose:{k}")
+        builder.button(text=f"{emoji} {name} ({qty})", callback_data=f"sell_choose:{k}:{uid}")
 
     msg = await message.answer(
         "Что хочешь продать?",
@@ -774,6 +807,10 @@ async def choose_amount(call: types.CallbackQuery):
     qty = inv.get(item_key, 0)
     if qty <= 0:
         return await call.answer("У тебя нет этого предмета.")
+    
+    _, item_key, orig_uid = call.data.split(":")
+    if call.from_user.id != int(orig_uid):
+        return await call.answer("Не для тебя 🤚", show_alert=True)
 
     builder = InlineKeyboardBuilder()
     buttons = {1, 5, 10, qty}  # базові
@@ -785,10 +822,10 @@ async def choose_amount(call: types.CallbackQuery):
         label = f"½ ({amount})" if amount == half else f"Продать {amount}×"
         builder.button(
             text=label,
-            callback_data=f"sell_confirm:{item_key}:{amount}"
+            callback_data=f"sell_confirm:{item_key}:{amount}:{orig_uid}"
         )
 
-    builder.button(text="❌ Отмена", callback_data="sell_cancel")
+    builder.button(text="❌ Отмена", callback_data=f"sell_cancel:{orig_uid}")
 
     meta = ITEM_DEFS[item_key]
     msg = await call.message.edit_text(
@@ -799,7 +836,10 @@ async def choose_amount(call: types.CallbackQuery):
 @router.callback_query(F.data.startswith("sell_confirm:"))
 async def confirm_sell(call: types.CallbackQuery):
     cid, uid = call.message.chat.id, call.from_user.id
-    _, item_key, qty_str = call.data.split(":")
+    _, item_key, qty_str, orig_uid = call.data.split(":")
+    if call.from_user.id != int(orig_uid):
+        return await call.answer("Не для тебя 🤚", show_alert=True)
+
     qty = int(qty_str)
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     if inv.get(item_key, 0) < qty:
@@ -823,11 +863,22 @@ async def confirm_sell(call: types.CallbackQuery):
 
     meta = ITEM_DEFS[item_key]
     await add_clash_points(cid, uid, 0)
-    await call.message.edit_text(f"✅ Продано {qty}×{meta['emoji']} {meta['name']} за {earned} монет 💰")
+    repeat_kb = InlineKeyboardBuilder()
+    repeat_kb.button(
+        text="🔁 Продать ещё",
+        callback_data=f"sell_confirm:{item_key}:{qty}:{orig_uid}"
+    )
+    await call.message.edit_text(
+        f"✅ Продано {qty}×{meta['emoji']} {meta['name']} за {earned} монет 💰",
+        reply_markup=repeat_kb.as_markup()
+    )
     register_msg_for_autodelete(cid, call.message.message_id)
 
 @router.callback_query(F.data == "sell_cancel")
 async def cancel_sell(call: types.CallbackQuery):
+    orig_uid = call.data.split(":")[1]
+    if call.from_user.id != int(orig_uid):
+        return await call.answer("Не для тебя 🤚", show_alert=True)
     await call.message.edit_text("Продажа отменена ❌")
 
 # ────────── /smelt (async) ──────────
@@ -852,7 +903,7 @@ async def smelt_cmd(message: types.Message):
         meta     = ITEM_DEFS.get(ore, {})
         kb.button(
             text=f"{meta.get('emoji','⛏️')} {meta.get('name', ore)} ({qty} шт)",
-            callback_data=f"smeltq:{ore}:1:{max_out}"   # стартуємо з 1 інгота
+            callback_data=f"smeltq:{ore}:1:{max_out}:{uid}"   # стартуємо з 1 інгота
         )
     kb.adjust(1)
     m = await message.answer(
@@ -865,14 +916,16 @@ async def smelt_cmd(message: types.Message):
 async def smelt_quantity(cb: CallbackQuery):
     await cb.answer()
     cid, uid = await cid_uid(cb)
-    _, ore, cur_str, max_str = cb.data.split(":")
+    _, ore, cur_str, max_str, orig_uid = cb.data.split(":")
     cur, max_cnt = int(cur_str), int(max_str)
+    if cb.from_user.id != int(orig_uid):
+        return await cb.answer("Эта кнопка не для тебя 😼", show_alert=True)
 
     def make_btn(txt, delta=0):
         new_val = max(1, min(max_cnt, cur + delta))
         return types.InlineKeyboardButton(
             text=txt,
-            callback_data=f"smeltq:{ore}:{new_val}:{max_cnt}"
+            callback_data=f"smeltq:{ore}:{new_val}:{max_cnt}:{orig_uid}"
         )
 
     kb = InlineKeyboardBuilder()
@@ -881,9 +934,9 @@ async def smelt_quantity(cb: CallbackQuery):
            make_btn("+1", 1), make_btn("+5", 5))
     kb.row(types.InlineKeyboardButton(
         text="➡️ Уголь",
-        callback_data=f"smeltcoal:{ore}:{cur}"
+        callback_data=f"smeltcoal:{ore}:{cur}:{orig_uid}"
     ))
-    kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data="smelt_cancel"))
+    kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data=f"smelt_cancel:{orig_uid}"))
 
     meta = ITEM_DEFS.get(ore, {})
     await cb.message.edit_text(
@@ -895,17 +948,19 @@ async def smelt_quantity(cb: CallbackQuery):
 async def smelt_choose_coal(cb: CallbackQuery):
     await cb.answer()
     cid, uid = await cid_uid(cb)
-    _, ore, cnt_str = cb.data.split(":")
+    _, ore, cnt_str, orig_uid = cb.data.split(":")
     cnt = int(cnt_str)
+    if cb.from_user.id != int(orig_uid):
+        return await cb.answer("Эта кнопка не для тебя 😼", show_alert=True)
 
     kb = InlineKeyboardBuilder()
     kb.adjust(1)
     for coal in (5, 15, 30):
         kb.button(
             text=f"🪨 ×{coal}",
-            callback_data=f"smeltgo2:{ore}:{coal}:{cnt}"
+            callback_data=f"smeltgo2:{ore}:{coal}:{cnt}:{orig_uid}"
         )
-    kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data="smelt_cancel"))
+    kb.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data=f"smelt_cancel:{orig_uid}"))
 
     await cb.message.edit_text(
         f"Сколько угля потратить на {cnt} шт {ITEM_DEFS[ore]['name']}?",
@@ -916,8 +971,10 @@ async def smelt_choose_coal(cb: CallbackQuery):
 async def smelt_execute_exact(cb: CallbackQuery):
     await cb.answer()
     cid, uid = await cid_uid(cb)
-    _, ore, coal_str, cnt_str = cb.data.split(":")
+    _, ore, coal_str, cnt_str, orig_uid = cb.data.split(":")
     coal, cnt = int(coal_str), int(cnt_str)
+    if cb.from_user.id != int(orig_uid):
+        return await cb.answer("Эта кнопка не для тебя 😼", show_alert=True)
 
     recipe = SMELT_RECIPES.get(ore)
     if not recipe:
@@ -956,6 +1013,9 @@ async def smelt_execute_exact(cb: CallbackQuery):
 
 @router.callback_query(F.data == "smelt_cancel")
 async def cancel_smelt(call: types.CallbackQuery):
+    orig_uid = call.data.split(":")[1]
+    if call.from_user.id != int(orig_uid):
+        return await call.answer("Не для тебя 🤚", show_alert=True)
     await call.message.edit_text("Плавка отменена ❌")
 
 # ────────── /craft ──────────
@@ -1366,7 +1426,30 @@ async def cavebot_cmd(message: types.Message):
         "<b>[ALERT] CORE NULLIFIED</b>\nОшибка связи с ядром Эонита. Текущий канал: /null",
         "💾 <code>~$ unity_export.sh → permission denied</code>\n🧠 «если ты это читаешь — значит кто-то выжил»",
         "<code>01000101 01001111 01001110 01001001 01010100 01000101</code>"
-        "🔄 <code>fetch_update(“Eonit Awakens”)</code> → доступ запрещён.\nПричина: доступ возможен только при наличии <b>Legacy Token</b>"
+        "🔄 <code>fetch_update(“Eonit Awakens”)</code> → доступ запрещён.\nПричина: доступ возможен только при наличии <b>Legacy Token</b>",
+        "🗿 <b>Tribute patch 0.9</b>\n<code>collect(tithes) ➝ 7/99</code>\n⚠️ Квота дани не выполнена • августовый пропуск заблокирован.",
+        "🌌 <i>Cave Pass S3:</i> «Tribute to the Core»\n<code>ticket_status = WAITING_FOR_RITUAL</code>",
+        "🔒 <code>/pass activate tribute</code> → ERROR 451\n<b>Reason:</b> pending Sacrifice Protocol.",
+        # ——— Cave Game link ———
+        "🎮 CaveGame.exe -autostart\n→ <code>Missing DLC “Bot Convergence”</code>\nℹ️ Подробности — в августовском Dev-Log.",
+        "🌐 <code>GET https://eonit.cave/game/v3')</code>\n⏳ 504 Gateway Timeout — сервер отвечает криками.",
+        # ——— глючные промики ———
+        "<code>[PROMO]</code> tribute-august-2024 → ✨ 0 монет… но почему полоска XP дрогнула?",
+        "🗳️ <i>Награда сезона:</i> ???\n<b>hint:</b> obsidian + legacy ashes + ???",
+        # ——— баг-логи ———
+        "<b>STACKTRACE</b>\npass.core > vault > tithe.py:84\n<code>ValueError: soul hash overflow</code>",
+        "📡 EONIT-Ping(Tribute) → 12 115 ms\nsignal integrity DOWN ▃▃▃▃▂▂▁",
+        # ——— крипто-HEX ———
+        "<code>0x54 0x52 0x42 0x54 0x00</code>  // TRBT – ключ шифрования сезона",
+        # ——— поломки Bot-side ———
+        "⚙️ CaveBot-Alpha[Tribute]\n<code>cron.tithe_collector()</code> → permission denied • admin required.",
+        "🛑 <code>upgrade_pass --channel stable</code>\n<b>Result:</b> downgraded to <s>0.1-beta</s> 0.0-prealpha.",
+        # ——— «живой» камень ———
+        "🪨 Обработчик StoneSoul: <code>consume()</code> ожидает…\n☠️ last heartbeat 66 h ago.",
+        # ——— пасхалочка ———
+        "👁‍🗨 Whisper: «Отдай кирку… и получи ∞-бутыр борща» — <i>сообщение самоудалится…</i>",
+        # ——— Eonit tribute alert ———
+        "<b>[EONIT]</b> Требуется очередная дань.\nДедлайн: 08-08-24 08:08 UTC\n<code>submit_tithe --ore ruby --qty 88</code>",
     ]
 
     await unlock_achievement(message.chat.id, message.from_user.id, "cave_bot")

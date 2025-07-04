@@ -19,10 +19,10 @@ PASS_PRICE_COINS = 1000           # якщо все ж хочете альтер
 PASS_PRICE_UAH = 53               # реальна ціна в гривнях
 PAYMENT_LINK = "https://send.monobank.ua/jar/A8ew2aMM3S"  # замініть на ваш
 
-PASS_DURATION_DAYS = 19
-EX_KEY = "crystal_pickaxe"
-EX_NAME = "Хрустальная кирка"
-EX_EMOJI = "💎"
+PASS_DURATION_DAYS = 20
+EX_KEY = "proto_eonite_pickaxe"
+EX_NAME = "Прототип Эонитовой Кирки"
+EX_EMOJI = "🧿"
 ITEM_DEFS[EX_KEY] = {"name": EX_NAME, "emoji": EX_EMOJI}
 
 @router.message(Command("cavepass"))
@@ -42,12 +42,13 @@ async def cavepass_cmd(message: types.Message):
         )
         builder.adjust(1)
         text = (
-            "<b><i>[Pre-Season]</i> Cave Pass</b> — 15 дней премиальных бонусов:\n"
+            "<b>СКОРО</b> — 7.7.2025\n"
+            "<b>Cave Pass</b> — Пробуждение Эонита:\n"
             f" • Эксклюзивная {EX_EMOJI} <b>{EX_NAME}</b>\n"
             " • ×1.5 XP при добывании\n"
             " • +10 пассивного XP каждый час!\n"
-            f" • <i><b>Примечание:</b> {EX_EMOJI} {EX_NAME} чинится только 1 раз и только наполовину.</i>\n\n"
-            f"<i>Цена: {PASS_PRICE_UAH} ₴ (оплата снаружи)</i>\n"
+            " • Премиальные награды на пути Pass\n"
+            f"<i>Цена: {PASS_PRICE_UAH} ₴ (оплата вне)</i>\n"
             "<i>После оплаты сообщите мне через /report 'сообщение'</i>"
         )
     else:
@@ -74,7 +75,7 @@ async def activate_pass_cmd(message: types.Message):
 
     parts = message.text.strip().split()
     if len(parts) != 3:
-        return await message.reply("Использование: /activate_pass <user_id> <chat_id>")
+        return await message.reply("Использование: /activate_pass 'user_id' 'chat_id'")
 
     try:
         uid = int(parts[1])
@@ -86,7 +87,7 @@ async def activate_pass_cmd(message: types.Message):
     if pick_key not in PICKAXES:
         return await message.reply("❌ Кирка не найдена.")
 
-    exp = dt.datetime(2025, 7, 10, 21, 59, 59)
+    exp = dt.datetime(2025, 7, 27, 21, 59, 59)
     pick_dur = PICKAXES[pick_key]["dur"]
     dur_map = json.dumps({pick_key: pick_dur})
     dur_max_map = json.dumps({pick_key: pick_dur})
