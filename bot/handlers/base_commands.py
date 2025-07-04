@@ -451,22 +451,26 @@ async def profile_cmd(message: types.Message):
     weather_emoji, weather_name = random.choice(WEATHERS)
 
     # ── складання тексту ─────────────────────────────────
+    def shorten_number(n: int) -> str:
+        return f"{n/1000:.1f} k" if n >= 1000 else str(n)
+
+    balance_s = shorten_number(balance)
+    mines_s   = shorten_number(mines)
+
     txt = (
         f"👤 <b>{prog.get('nickname') or message.from_user.full_name}</b>\n"
         f"{SEP}\n"
-        f"{weather_emoji} {weather_name}\n"
-        f"⭐ <u>Ур. {lvl}</u>  XP {xp}/{next_xp}\n<code>{xp_bar}</code>\n"
-        f"🔋 {energy}/100  <code>{energy_bar}</code>\n"
-        f"🍗 {hunger}/100  <code>{hunger_bar}</code>\n"
+        f"⭐ <u>L{lvl}</u> XP {xp}/{next_xp}\n<code>{xp_bar}</code>\n"
+        f"🔋 {energy}/100 <code>{energy_bar}</code>\n"
+        f"🍗 {hunger}/100 <code>{hunger_bar}</code>\n"
         f"{SEP}\n"
-        f"⛏️ {pick_name}  (+{int(pick_bonus*100)} %)\n"
+        f"⛏️ {pick_name} (+{int(pick_bonus*100)}%)\n"
         f"🏅 {badge_str} | 🪬 {seal_str}\n"
+        f"🔷 Tier {tier} ×{tier_bonus:.1f}\n"
+        f"🔥 Серия {streak} дн.\n"
         f"{SEP}\n"
-        f"🔷 Tier {tier}  (×{tier_bonus:.1f})\n"
-        f"🔥 Серия: {streak} дн.\n"
-        f"{SEP}\n"
-        f"💰 {balance:,} мон.  |   🏔 {mines:,} копок\n"
-        f"📦 CC {cave_cases} | ⚡ CL {clash_cases}"
+        f"💰 {balance_s} | 🏔 {mines_s}\n"
+        f"📦 CC {cave_cases} | CL {clash_cases}"
     )
 
     # ── клавіатура ──────────────────────────────────────
