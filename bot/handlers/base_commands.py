@@ -452,7 +452,7 @@ async def profile_cmd(message: types.Message):
 
     # ── складання тексту ─────────────────────────────────
     def shorten_number(n: int) -> str:
-        return f"{n/1000:.1f} k" if n >= 1000 else str(n)
+        return f"{n/1000:.1f}k" if n >= 1000 else str(n)
 
     balance_s = shorten_number(balance)
     mines_s   = shorten_number(mines)
