@@ -379,10 +379,10 @@ WEATHERS = [
 ]
 
 # ────────── /profile ──────────
-XP_BAR_W      = 12                      # ширина бару XP
-STAT_BAR_W    = 12                      # ширина барів енергії/голоду
+XP_BAR_W      = 8                      # ширина бару XP
+STAT_BAR_W    = 10                      # ширина барів енергії/голоду
 BAR_STEPS     = ["🟥", "🟧", "🟨", "🟩"]  # градієнт: red→green
-SEP           = "┅" * 10                # делікатний розділювач
+SEP           = "┅" * 5                # делікатний розділювач
 
 def mono_bar(value: int, maximum: int, width: int = XP_BAR_W) -> str:
     """▰▱-бар (чорний) для XP."""
@@ -802,8 +802,7 @@ ALIASES.update({
 @router.message(Command("sell"))
 async def sell_start(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
-    if user_id:
-        uid = user_id
+    uid = user_id or uid
     inv_raw = await get_inventory(cid, uid)
     inv = {r["item"]: r["qty"] for r in inv_raw if r["qty"] > 0}
 
@@ -914,8 +913,7 @@ async def cancel_sell(call: types.CallbackQuery):
 @router.message(Command("smelt"))
 async def smelt_cmd(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
-    if user_id:
-        uid = user_id
+    uid = user_id or uid
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
 
     smeltables = [
