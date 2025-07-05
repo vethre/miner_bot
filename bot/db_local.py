@@ -256,6 +256,20 @@ async def add_xp(
 
 async def add_xp_with_notify(bot: Bot, cid: int, uid: int, delta: int):
     await add_xp(cid, uid, delta, bot=bot)
+    await log_xp(cid, uid, delta)        #  <<< вот он
+
+    # 3️⃣ уведомление игроку
+    if delta > 0:
+        await bot.send_message(cid, f"✨ +{delta} XP")
+
+async def log_xp(chat_id:int, user_id:int, delta:int):
+    await db.execute("""
+        INSERT INTO xp_log (chat_id, user_id, day, delta)
+        VALUES (:c, :u, CURRENT_DATE, :d)
+        ON CONFLICT (chat_id,user_id,day)
+        DO UPDATE SET delta = xp_log.delta + EXCLUDED.delta
+    """, {"c": chat_id, "u": user_id, "d": delta})
+
 
 async def get_progress(cid: int, uid: int) -> Dict[str, Any]:
     row = await db.fetch_one(

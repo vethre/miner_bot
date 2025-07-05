@@ -6,3 +6,5 @@ aiocron
 pytz
 asyncpg
 APScheduler>=3.10
+pandas
+matplotlib

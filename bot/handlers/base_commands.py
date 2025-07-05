@@ -11,6 +11,9 @@ import random
 import time
 import datetime as dt
 from typing import List
+from matplotlib import pyplot as plt
+import pandas as pd
+from io import BytesIO
 
 from aiogram import Router, Bot, types, F
 from aiogram.filters import Command, CommandStart
@@ -449,6 +452,14 @@ async def profile_cmd(message: types.Message):
     hunger_bar  = color_bar(hunger, 100)
 
     weather_emoji, weather_name = random.choice(WEATHERS)
+    mine_end = prog.get("mining_end")
+
+    if isinstance(mine_end, dt.datetime) and mine_end > dt.datetime.utcnow():
+        # осталось времени -› минуты вверх
+        mins_left = max(1, int((mine_end - dt.datetime.utcnow()).total_seconds() // 60))
+        mine_status = f"🕳️ <i>Копает (ещё {mins_left} мин.)</i>"
+    else:
+        mine_status = "😴 <i>Отдыхает</i>"
 
     # ── складання тексту ─────────────────────────────────
     def shorten_number(n: int) -> str:
@@ -463,8 +474,9 @@ async def profile_cmd(message: types.Message):
         f"⭐ <u>L{lvl}</u> ({xp}/{next_xp})\n⭐ XP: {xp_bar}\n"
         f"🔋 {energy}/100 <code>{energy_bar}</code>\n"
         f"🍗 {hunger}/100 <code>{hunger_bar}</code>\n"
+        f"{mine_status}\n"
         f"{SEP}\n"
-        f"⛏️ {pick_name} (+{int(pick_bonus*100)}%)\n"
+        f"⛏️ {pick_name} ({dur}/{dur_max})\n"
         f"🏅 {badge_str} | 🪬 {seal_str}\n"
         f"🔷 Tier {tier} ×{tier_bonus:.1f} | 🔥 Серия {streak} дн.\n"
         f"{SEP}\n"
@@ -479,8 +491,10 @@ async def profile_cmd(message: types.Message):
     kb.button(text="🛒 Магазин",   callback_data=f"profile:shop:{uid}")
     kb.button(text="🏆 Ачивки", callback_data=f"profile:achievements:{uid}")
     kb.button(text="🏅 Бейджи",    callback_data=f"profile:badges:{uid}")
-    kb.button(text="💎 Cave Pass", callback_data=f"profile:cavepass:{uid}")
+    kb.button(text="💡 Предложить идею", switch_inline_query_current_chat="report idea: ")
     kb.adjust(1)
+
+
 
     msg = await message.answer_photo(
         photo=PROFILE_IMG_ID,
@@ -512,8 +526,6 @@ async def profile_callback(callback: types.CallbackQuery):
         await shop_cmd(callback.message)
     elif action == "mine":
         await mine_cmd(callback.message, user_id=orig_uid)
-    elif action == "cavepass":
-        await cavepass_cmd(callback.message)
     elif action == "achievements":
         await achievements_menu(callback.message, orig_uid)
     elif action == "badges":
@@ -530,8 +542,6 @@ async def profile_callback(cb: types.CallbackQuery):
         await shop_cmd(cb.message, cb.from_user.id)
     elif act == "mine":
         await mine_cmd(cb.message, cb.from_user.id)
-    elif act == "cavepass":
-        await cavepass_cmd(cb.message)
     elif act == "achievements":
         await achievements_menu(cb.message, cb.from_user.id)
     elif act == "badges":
@@ -1418,6 +1428,35 @@ async def autodelete_cmd(message: types.Message, bot: Bot):
     else:
         msg = await message.reply(f"🧼 Автоудаление активировано: каждые {minutes} минут бот будет чистить свои сообщения.")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
+
+@router.message(Command("progress"))
+async def progress_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+
+    rows = await db.fetch_all("""
+        SELECT day, delta FROM xp_log
+         WHERE chat_id=:c AND user_id=:u
+           AND day >= CURRENT_DATE - INTERVAL '6 days'
+         ORDER BY day
+    """, {"c": cid, "u": uid})
+
+    # превращаем в pd.Series
+    data = {r["day"]: r["delta"] for r in rows}
+    idx  = [dt.date.today() - dt.timedelta(d) for d in range(6,-1,-1)]
+    s = pd.Series([data.get(d, 0) for d in idx], index=idx)
+
+    # строим график
+    plt.figure()
+    s.plot(kind="bar")
+    plt.title("XP за последние 7 дней")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    buf = BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+
+    await message.reply_photo(buf, caption="Твоя продуктивность, шахтёр!")
 
 @router.message(Command("cavebot"))
 async def cavebot_cmd(message: types.Message):
