@@ -16,6 +16,7 @@ import pandas as pd
 from io import BytesIO
 
 from aiogram import Router, Bot, types, F
+from aiogram.types import BufferedInputFile
 from aiogram.filters import Command, CommandStart
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import CallbackQuery
@@ -477,10 +478,7 @@ async def profile_cmd(message: types.Message):
     kb.button(text="🛒 Магазин",   callback_data=f"profile:shop:{uid}")
     kb.button(text="🏆 Ачивки", callback_data=f"profile:achievements:{uid}")
     kb.button(text="🏅 Бейджи",    callback_data=f"profile:badges:{uid}")
-    kb.button(text="💡 Предложить идею", switch_inline_query_current_chat="report idea: ")
     kb.adjust(1)
-
-
 
     msg = await message.answer_photo(
         photo=PROFILE_IMG_ID,
@@ -1441,30 +1439,42 @@ async def autodelete_cmd(message: types.Message, bot: Bot):
 async def progress_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
 
-    rows = await db.fetch_all("""
-        SELECT day, delta FROM xp_log
+    rows = await db.fetch_all(
+        """
+        SELECT day, delta
+          FROM xp_log
          WHERE chat_id=:c AND user_id=:u
            AND day >= CURRENT_DATE - INTERVAL '6 days'
          ORDER BY day
-    """, {"c": cid, "u": uid})
+        """,
+        {"c": cid, "u": uid},
+    )
 
-    # превращаем в pd.Series
+    # --- подготовка данных --------------------------------------------------
     data = {r["day"]: r["delta"] for r in rows}
-    idx  = [dt.date.today() - dt.timedelta(d) for d in range(6,-1,-1)]
+    idx  = [dt.date.today() - dt.timedelta(d) for d in range(6, -1, -1)]
     s = pd.Series([data.get(d, 0) for d in idx], index=idx)
 
-    # строим график
-    plt.figure()
+    # --- график --------------------------------------------------------------
+    plt.figure(figsize=(6, 3))
     s.plot(kind="bar")
-    plt.title("XP за последние 7 дней")
-    plt.xticks(rotation=45)
+    plt.title("📈 XP за последние 7 дней")
+    plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
 
     buf = BytesIO()
     plt.savefig(buf, format="png")
+    plt.close()                           # освобождаем память
     buf.seek(0)
 
-    await message.reply_photo(buf, caption="Твоя продуктивность, шахтёр!")
+    # --- ОБЁРТКА -------------------------------------------------------------
+    photo = BufferedInputFile(buf.read(), filename="xp_progress.png")
+
+    await message.answer_photo(
+        photo,
+        caption="Твоя продуктивность, шахтёр!",
+        parse_mode="HTML",
+    )
 
 @router.message(Command("cavebot"))
 async def cavebot_cmd(message: types.Message):
