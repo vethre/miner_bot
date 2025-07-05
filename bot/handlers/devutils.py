@@ -354,19 +354,19 @@ async def emoji_id_cmd(message: types.Message):
 
 @router.message(Command("premium_emoji"))
 async def premium_emoji_cmd(message: types.Message):
-    # ─── доступ тільки адмінам ────────────────────────────────
     if message.from_user.id not in ADMINS:
         return await message.reply("⛔️ Только разработчикам")
-    cid = message.chat.id
-    text      = " че за нахуй"                 # ← в тексте ставим любой placeholder
-    emoji_id  = "5240072895274688214"   # ID, который ты сохранил раньше
+
+    cid       = message.chat.id
+    emoji_id  = "5240072895274688214"       # свой custom_emoji_id
+    placeholder = "■"                       # любой одиночный символ
 
     await message.answer(
-        text,
-        entities=[{
-            "type": "custom_emoji",
-            "offset": 0,
-            "length": 1,             # ровно один символ-заглушка
-            "custom_emoji_id": emoji_id
-        }]
+        placeholder,
+        entities=[types.MessageEntity(
+            type="custom_emoji",
+            offset=0,
+            length=1,
+            custom_emoji_id=emoji_id
+        )]
     )
