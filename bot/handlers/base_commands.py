@@ -172,20 +172,6 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     extra_txt=""
     
     # ─── штраф за флуд ─────────────────────────────────────────────────────────
-    penalty_counter = prog.get("penalty_counter", 0)
-
-    extra_delay = 0          # добавочные секунды
-    if penalty_counter >= 20:
-        extra_delay = 10 * 60        # +10 мин
-    elif 10 < penalty_counter < 20:
-        extra_delay = 7 * 60         # +7 мин
-    elif 0 < penalty_counter <= 10:
-        extra_delay = 5 * 60         # +5 мин
-
-    if extra_delay:
-        duration += extra_delay                      # удлиняем копку
-        extra_txt += f"\n⏳ Ты оштрафован: +{extra_delay//60} мин."
-
     await asyncio.sleep(duration)
     level = prog.get("level", 1)
     pick_key = prog.get("current_pickaxe")
@@ -241,7 +227,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     if seal == "seal_sacrifice":
         amount = int(amount * 1.2)
         xp_gain = max(0, xp_gain - 20)
-
+    amount = max(1, int(amount))
     await add_item(cid,uid,ore_id,amount)
     await add_xp_with_notify(bot, cid, uid, xp_gain)
     streak=await update_streak(cid,uid)
@@ -790,7 +776,7 @@ ALIASES.update({
 @router.message(Command("sell"))
 async def sell_start(message: types.Message, user_id: int | None = None):
     cid, uid = await cid_uid(message)
-    if user_id is not None:
+    if user_id:
         uid = user_id # github bljad alo
     inv_raw = await get_inventory(cid, uid)
     inv = {r["item"]: r["qty"] for r in inv_raw if r["qty"] > 0}
@@ -879,16 +865,38 @@ async def confirm_sell(call: types.CallbackQuery):
 
     meta = ITEM_DEFS[item_key]
     await add_clash_points(cid, uid, 0)
+    # после расчёта earned и перед edit_text
     repeat_kb = InlineKeyboardBuilder()
     repeat_kb.button(
         text="🔁 Продать ещё",
-        callback_data=f"sell_confirm:{item_key}:{qty}:{orig_uid}"
+        callback_data=f"sell_menu:{orig_uid}"   # ← новый callback-ключ
     )
+    repeat_kb.button(text="❌ Закрыть", callback_data="sell_close")
+    repeat_kb.adjust(2)
+    
     await call.message.edit_text(
         f"✅ Продано {qty}×{meta['emoji']} {meta['name']} за {earned} монет 💰",
         reply_markup=repeat_kb.as_markup()
     )
     register_msg_for_autodelete(cid, call.message.message_id)
+
+@router.callback_query(F.data.startswith("sell_menu:"))
+async def sell_menu_cb(call: types.CallbackQuery):
+    _, orig_uid = call.data.split(":")
+    if call.from_user.id != int(orig_uid):
+        return await call.answer("Не для тебя 🤚", show_alert=True)
+
+    await call.answer()                     # закрываем «часики»
+    # вызываем уже готовый экран выбора товара
+    await sell_start(call.message, user_id=call.from_user.id)          # передаём то же message
+    
+@router.callback_query(F.data == "sell_close")
+async def sell_close_cb(call: types.CallbackQuery):
+    await call.answer()
+    try:
+        await call.message.delete()
+    except Exception:
+        pass
 
 @router.callback_query(F.data == "sell_cancel:")
 async def cancel_sell(call: types.CallbackQuery):
@@ -1542,7 +1550,7 @@ async def inventory_msg_cmd(message: types.Message):
 async def shop_msg_cmd(message: types.Message):
     return await shop_cmd(message)
 
-@router.message(lambda msg: re.match(r"шахта\s+(копать|копка|шахта)", msg.text, re.IGNORECASE))
+@router.message(lambda msg: re.match(r"шахта\s+(копать|копка|шахта|попка)", msg.text, re.IGNORECASE))
 async def mine_msg_cmd(message: types.Message):
     return await mine_cmd(message)
 
