@@ -19,10 +19,6 @@ ACHIEVEMENT_REQUIREMENTS = {
         "count_field": "mine_count",
         "goal": 300
     },
-    "ore_horder": {
-        "count_field": None,
-        "goal": 1000 
-    }
 }
 
 # 🔳 Прогрес-бар у стилі ▰▱
