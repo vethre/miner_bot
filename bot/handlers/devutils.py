@@ -1,6 +1,6 @@
 # bot/handlers/devutils.py
 
-from datetime import datetime
+import datetime as dt
 from aiogram import F, Bot, Router, types
 from aiogram.filters import Command
 from aiogram.utils.markdown import hcode
@@ -278,7 +278,7 @@ async def forcepick_cmd(message: types.Message, command: CommandObject):
     await message.reply(f"🔧 Кирка установлена: <b>{key}</b>", parse_mode="HTML")
 
 AFK_FINE = 300      # 💰 аренда кирки
-AFK_DAYS  = 1                                # ⚙️ скільки днів без копки = «спить»
+AFK_DAYS  = 1                              # ⏳ сколько дней без копки — AFK
 AFK_TEXT  = (
     "<b>🏴‍☠️ Доска должников AFK-шахтёров!</b>\n"
     "Следующие граждане забыли про кирку и туннели:\n\n"
@@ -293,9 +293,9 @@ async def notify_afk_cmd(message: types.Message):
         return await message.reply("⛔️ Только разработчикам")
 
     cid = message.chat.id
-    cutoff = datetime.date.today() - datetime.timedelta(days=AFK_DAYS)
+    cutoff = dt.date.today() - dt.timedelta(days=AFK_DAYS)
+    # ─── берем список всех «заснувших» ───────────────────────
 
-    # берем список всех «заснувших»
     rows = await db.fetch_all(
         """
         SELECT user_id
