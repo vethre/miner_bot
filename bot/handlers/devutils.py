@@ -329,3 +329,23 @@ async def notify_afk_cmd(message: types.Message):
         )
         msg = await message.answer(txt, parse_mode="HTML", disable_web_page_preview=True)
         register_msg_for_autodelete(cid, msg.message_id)
+
+
+@router.message(Command("premium_emoji"))
+async def premium_emoji_cmd(message: types.Message):
+    # ─── доступ тільки адмінам ────────────────────────────────
+    if message.from_user.id not in ADMINS:
+        return await message.reply("⛔️ Только разработчикам")
+    cid = message.chat.id
+    text      = " че за нахуй"                 # ← в тексте ставим любой placeholder
+    emoji_id  = "5837208434730077905"   # ID, который ты сохранил раньше
+
+    await message.answer(
+        text,
+        entities=[{
+            "type": "custom_emoji",
+            "offset": 0,
+            "length": 1,             # ровно один символ-заглушка
+            "custom_emoji_id": emoji_id
+        }]
+    )
