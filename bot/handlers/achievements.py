@@ -3,7 +3,6 @@ from aiogram import types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.assets import ACHIEVE_IMG_ID
 from bot.db_local import get_progress, db
-from bot.handlers.base_commands import ORE_ITEMS
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.utils.unlockachievement import ACHIEVEMENT_REQUIREMENTS, generate_progress_bar
 
@@ -89,6 +88,7 @@ async def achievements_menu(message: types.Message, uid: int):
             line += f"\n{bar}"
 
         if code == "ore_horder" and not unlocked:
+            from bot.handlers.base_commands import ORE_ITEMS
     # суммируем всю руду (или ищем максимальную) прямо из inventory_local
             total_ore = await db.fetch_one(
                 """
