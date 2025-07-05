@@ -359,7 +359,7 @@ async def premium_emoji_cmd(message: types.Message):
         return await message.reply("⛔️ Только разработчикам")
     cid = message.chat.id
     text      = " че за нахуй"                 # ← в тексте ставим любой placeholder
-    emoji_id  = "5837208434730077905"   # ID, который ты сохранил раньше
+    emoji_id  = "5240072895274688214"   # ID, который ты сохранил раньше
 
     await message.answer(
         text,
