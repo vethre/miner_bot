@@ -330,6 +330,27 @@ async def notify_afk_cmd(message: types.Message):
         msg = await message.answer(txt, parse_mode="HTML", disable_web_page_preview=True)
         register_msg_for_autodelete(cid, msg.message_id)
 
+@router.message(Command("emoji_id"))
+async def emoji_id_cmd(message: types.Message):
+    """
+    1️⃣ Перешлите/напишите сообщение c premium-эмодзи и добавьте /emoji_id
+       (можно в том же сообщении, можно ответом).
+    2️⃣ Бот вернёт список найденных custom_emoji_id.
+    """
+    # Если команда пришла реплаем – анализируем reply-сообщение.
+    target_msg = message.reply_to_message or message
+
+    ids: list[str] = []
+    if target_msg.entities:
+        for ent in target_msg.entities:
+            if ent.type == "custom_emoji":
+                ids.append(ent.custom_emoji_id)
+
+    if not ids:
+        return await message.reply("❌ В этом сообщении нет premium-эмодзи")
+
+    txt = "🔎 Найдено custom_emoji_id:\n" + "\n".join(f"`{e}`" for e in ids)
+    await message.reply(txt, parse_mode="Markdown")
 
 @router.message(Command("premium_emoji"))
 async def premium_emoji_cmd(message: types.Message):
