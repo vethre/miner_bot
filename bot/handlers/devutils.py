@@ -277,7 +277,7 @@ async def forcepick_cmd(message: types.Message, command: CommandObject):
     )
     await message.reply(f"🔧 Кирка установлена: <b>{key}</b>", parse_mode="HTML")
 
-AFK_FINE = 100      # 💰 аренда кирки
+AFK_FINE = 300      # 💰 аренда кирки
 AFK_DAYS  = 1                                # ⚙️ скільки днів без копки = «спить»
 AFK_TEXT  = (
     "<b>🏴‍☠️ Доска должников AFK-шахтёров!</b>\n"
