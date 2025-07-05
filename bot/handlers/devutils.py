@@ -353,20 +353,8 @@ async def emoji_id_cmd(message: types.Message):
     await message.reply(txt, parse_mode="Markdown")
 
 @router.message(Command("premium_emoji"))
-async def premium_emoji_cmd(message: types.Message):
-    if message.from_user.id not in ADMINS:
-        return await message.reply("⛔️ Только разработчикам")
+async def premium_emoji_cmd(msg: types.Message):
+    if msg.from_user.id not in ADMINS:
+        return await msg.reply("⛔️ Только для разработчиков")
 
-    cid       = message.chat.id
-    emoji_id  = "5240072895274688214"       # свой custom_emoji_id
-    placeholder = "■"                       # любой одиночный символ
-
-    await message.answer(
-        placeholder,
-        entities=[types.MessageEntity(
-            type="custom_emoji",
-            offset=0,
-            length=1,
-            custom_emoji_id=emoji_id
-        )]
-    )
+    await msg.answer(f'<emoji id="5240072895274688214"/>', parse_mode="HTML")
