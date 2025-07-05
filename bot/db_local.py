@@ -7,7 +7,6 @@ import json, asyncpg
 from typing import Tuple, List, Dict, Any
 from aiogram.types import Message, CallbackQuery
 from bot.db import db
-from bot.handlers.base_commands import ORE_ITEMS
 from bot.utils.unlockachievement import unlock_achievement
               # глобальний async-connection
 
@@ -156,7 +155,7 @@ async def add_item(cid: int, uid: int, item: str, delta: int):
         "ON CONFLICT (chat_id,user_id,item) DO UPDATE SET qty = inventory_local.qty + :d",
         {"c": cid, "u": uid, "i": item, "d": delta}
     )
-
+    from bot.handlers.base_commands import ORE_ITEMS
     if item in ORE_ITEMS and delta > 0:
         row = await db.fetch_one(
             "SELECT qty FROM inventory_local "
