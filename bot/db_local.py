@@ -7,9 +7,13 @@ import json, asyncpg
 from typing import Tuple, List, Dict, Any
 from aiogram.types import Message, CallbackQuery
 from bot.db import db
+from bot.handlers.base_commands import ORE_ITEMS
+from bot.utils.unlockachievement import unlock_achievement
               # глобальний async-connection
 
 UTC = ZoneInfo("UTC")
+
+ORE_HORDER_GOAL = 1000 
 
 # ────────── DDL ──────────
 DDL = """
@@ -152,6 +156,15 @@ async def add_item(cid: int, uid: int, item: str, delta: int):
         "ON CONFLICT (chat_id,user_id,item) DO UPDATE SET qty = inventory_local.qty + :d",
         {"c": cid, "u": uid, "i": item, "d": delta}
     )
+
+    if item in ORE_ITEMS and delta > 0:
+        row = await db.fetch_one(
+            "SELECT qty FROM inventory_local "
+            "WHERE chat_id=:c AND user_id=:u AND item=:i",
+            {"c": cid, "u": uid, "i": item}
+        )
+        if row and row["qty"] >= ORE_HORDER_GOAL:
+            await unlock_achievement(cid, uid, "ore_horder")
 
 async def get_inventory(cid: int, uid: int) -> List[Dict[str, Any]]:
     return await db.fetch_all(

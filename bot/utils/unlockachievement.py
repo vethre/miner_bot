@@ -19,6 +19,10 @@ ACHIEVEMENT_REQUIREMENTS = {
         "count_field": "mine_count",
         "goal": 300
     },
+    "ore_horder": {
+        "count_field": None,
+        "goal": 1000 
+    }
 }
 
 # 🔳 Прогрес-бар у стилі ▰▱
@@ -52,7 +56,7 @@ async def unlock_achievement(cid: int, uid: int, code: str) -> bool:
 
     # 📈 Перевірка прогресу
     req = ACHIEVEMENT_REQUIREMENTS.get(code)
-    if req:
+    if req and req["count_field"]:
         val = row[req["count_field"]] or 0
         if val < req["goal"]:
             return False

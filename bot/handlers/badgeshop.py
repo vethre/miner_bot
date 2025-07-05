@@ -13,9 +13,10 @@ router = Router()
 
 BADGE_PRICES = {
     "recruit": 1300,
-    "cashback": 1900,
     "hungrycave": 2800,
-    "moneyback": 3500,
+    "moneyback": 3200,
+    "smeltmaster": 3600,
+    "richdealer": 3500,
 }
 
 BADGES_PER_PAGE = 3

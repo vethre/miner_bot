@@ -228,6 +228,9 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     if seal == "seal_sacrifice":
         amount = int(amount * 1.2)
         xp_gain = max(0, xp_gain - 20)
+    if seal == "seal_focus": 
+        xp_gain  = int(xp_gain * 1.12)
+        amount   = int(amount * 0.88)
     amount = max(1, int(amount))
     await add_item(cid,uid,ore_id,amount)
     await add_xp_with_notify(bot, cid, uid, xp_gain)
@@ -251,22 +254,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
                     f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
 
     if prog.get("badge_active") == "recruit":
-        await add_money(cid, uid, 30)
-
-    # Бейдж: возврат энергии
-    if prog.get("badge_active") == "cashback":
-        await db.execute(
-            "UPDATE progress_local SET energy=LEAST(100, energy + 7) "
-            "WHERE chat_id=:c AND user_id=:u",
-            {"c": cid, "u": uid}
-        )
-
-    if prog.get("badge_active") == "hungrycave":
-        await db.execute(
-            "UPDATE progress_local SET hunger=LEAST(100, energy + 5) "
-            "WHERE chat_id=:c AND user_id=:u",
-            {"c": cid, "u": uid}
-        )    
+        await add_money(cid, uid, 30)   
 
     # ---- прочність конкретної кирки (JSON-мапа) ----
     broken = False
@@ -310,25 +298,36 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         )
         extra_txt += "\n🔵 Лазуритовый факел восполнил силы!"
 
-    txt=(f"🏔️ {mention}, ты вернулся на поверхность!\n"
-         f"<b>{amount}×{ore['emoji']} {ore['name']}</b> в мешке\n"
-         f"XP +<b>{xp_gain}</b> | Серия {streak} дн. | Tier ×{bonus:.1f}\n"
-         f"Бонус кирки +<b>{int(pick_bonus*100)} %</b>"
-         + ("\n⚠️ Кирка сломалась! /repair" if broken else "")
-         + extra_txt)
+    def bar(value: float, width: int = 10, full: str = "▓", empty: str = "░") -> str:
+        """Фиксированный бар 0–1 → 10 символов."""
+        filled = round(value * width)
+        return full * filled + empty * (width - filled)
 
-    await maybe_send_choice_card(bot, cid, uid)
+    tier_fill = min(1, (tier_bonus - 1) / 1.5)   #  x1→0%, x2.5→100%
+    tier_bar  = bar(tier_fill)
+
+    # ─── сборка сообщения ───────────────────────────────────────
+    lines = [
+        f"🏔️ {mention}",
+        f"┌ <b>{amount}×{ore['emoji']} {ore['name']}</b>",
+        f"├ XP +<b>{xp_gain}</b>",
+        f"├ Tier ×<b>{tier_bonus:.1f}</b> {tier_bar}",
+        f"├ Бонус кирки +{int(pick_bonus*100)} %",
+        f"└ Серия {streak} дн.",
+    ]
+
+    if broken:
+        lines.append("⚠️ <b>Кирка сломалась!</b> /repair")
+
+    if extra_txt:
+        lines.append(extra_txt.strip())
+
+    txt = "\n".join(lines)
+
     msg = await bot.send_message(cid,txt,parse_mode="HTML")
+    await maybe_send_choice_card(bot, cid, uid)
     register_msg_for_autodelete(cid, msg.message_id)
     # ↓ после отправки сообщения игроку
-    await db.execute(
-        """
-        UPDATE progress_local
-           SET penalty_counter = GREATEST(0, penalty_counter - 1)
-         WHERE chat_id = :c AND user_id = :u
-        """,
-        {"c": cid, "u": uid}
-    )
     logging.info("Mining result sent: chat=%s uid=%s", cid, uid)
     
 # ────────── Smelt Task ──────────
@@ -560,6 +559,9 @@ async def rename_cmd(message: types.Message):
     msg = await message.answer(f"✅ Ник обновлён на <b>{new_nick}</b>!\n💸 Списано {RENAME_PRICE} монет.", parse_mode="HTML")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
+BASE_EN_COST = 12
+BASE_HU_COST = HUNGER_COST
+
 # ────────── /mine ──────────
 @router.message(Command("mine"))
 async def mine_cmd(message: types.Message, user_id: int | None = None):
@@ -591,6 +593,13 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
                 f"🍽️ Ты слишком голоден {hunger}, сперва /eat!"
             )
     prog = await get_progress(cid, uid)
+    if prog.get("badge_active") == "hungrycave":
+        await db.execute("""
+            UPDATE progress_local
+               SET hunger = LEAST(100, hunger + 5)
+             WHERE chat_id=:c AND user_id=:u
+        """, {"c": cid, "u": uid})
+        hunger += 5 
 
     raw_map = prog.get("pick_dur_map") or "{}"
     try:
@@ -614,12 +623,21 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     tier = get_tier(prog["level"])
     bonus_tier = BONUS_BY_TIER[tier]
     ores = TIER_TABLE[tier - 1]["ores"]
-
     sec = get_mine_duration(tier)
     seal_boost = False
-    if prog.get("seal_active") == "seal_energy":
-        sec = max(MINE_SEC_MIN, sec - 300)   # −5 хв, але не нижче мінімуму
+
+    energy_cost = BASE_EN_COST
+    hunger_cost = BASE_HU_COST
+
+    seal = prog.get("seal_active")
+    if seal == "seal_energy":          # (была скорость → оставим)
+        sec = max(MINE_SEC_MIN, sec - 300)
         seal_boost = True
+
+    if seal == "seal_gluttony":        # новая печать
+        hunger_cost *= 2
+    if prog.get("badge_active") == "hungrycave":
+        hunger_cost = 5
 
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
     bomb_mult = 1.0
@@ -628,19 +646,18 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         bomb_mult = 1.50      
 
     # списуємо енергію/голод + ставимо таймер
-    await db.execute(
-        """UPDATE progress_local
-               SET energy = GREATEST(0, energy - 12),
-                   hunger = GREATEST(0, hunger - :hc),
-                   mining_end = :end
-             WHERE chat_id=:c AND user_id=:u""",
-        {
-            "hc": HUNGER_COST,
-            "end": dt.datetime.utcnow() + dt.timedelta(seconds=sec),
-            "c": cid,
-            "u": uid,
-        },
-    )
+    await db.execute("""
+        UPDATE progress_local
+           SET energy      = GREATEST(0, energy - :en),
+               hunger      = GREATEST(0, hunger - :hu),
+               mining_end  = :end
+         WHERE chat_id=:c AND user_id=:u
+    """, {
+        "en": energy_cost,
+        "hu": hunger_cost,
+        "end": dt.datetime.utcnow() + dt.timedelta(seconds=sec),
+        "c": cid, "u": uid
+    })
     # 🔢 +1 до лічильника копань
     await db.execute(
         "UPDATE progress_local SET mine_count = COALESCE(mine_count, 0) + 1 WHERE chat_id=:c AND user_id=:u",
@@ -649,14 +666,67 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     await add_clash_points(cid, uid, 1)
     minutes  = max(1, round(sec / 60))
     orig_min = round(get_mine_duration(tier) / 60)
-    if seal_boost:
-        msg_text = (f"⛏️ Ты спускаешься в шахту на <s>{orig_min}</s> → "
-                    f"<b>{minutes}</b> мин. ⚡ Печать активна!")
-    else:
-        msg_text = f"⛏️ Ты спускаешься в шахту на <b>{minutes}</b> мин."
-    msg = await message.reply(msg_text + "\n🔋 Энергия −12 / Голод −10. Удачи!")
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
+    caption = (
+        f"⛏ <b>Шахта стартовала!</b>\n"
+        f"╭─ Время:  <b>{minutes} мин</b>\n"
+        f"├─ 🔋 −{energy_cost} энергии\n"
+        f"├─ 🍗 −{hunger_cost} голода\n"
+        f"╰─ 💣 Бомба ×1.5" if bomb_mult>1 else ""
+    )
+    kb = InlineKeyboardBuilder()
+    kb.button(text="⏳ Осталось", callback_data=f"mine_left:{uid}")
+    kb.button(text="🚫 Отмена",   callback_data=f"mine_stop:{uid}")
+    kb.adjust(2)
+
+    msg = await message.reply(
+        caption,
+        parse_mode="HTML",
+        reply_markup=kb.as_markup()
+    )
+    register_msg_for_autodelete(cid, msg.message_id)
     asyncio.create_task(mining_task(message.bot, cid, uid, tier, ores, bonus_tier, sec, bomb_mult))
+
+async def _minutes_left(cid: int, uid: int) -> int:
+    """Сколько минут осталось до конца копки (округление вверх)."""
+    row = await db.fetch_one("""
+        SELECT mining_end FROM progress_local
+         WHERE chat_id=:c AND user_id=:u
+    """, {"c": cid, "u": uid})
+    if not row or row["mining_end"] is None:
+        return 0
+    delta = row["mining_end"] - dt.datetime.utcnow()
+    return max(0, int((delta.total_seconds() + 59) // 60))
+
+@router.callback_query(F.data.startswith("mine_left:"))
+async def mine_left_cb(cb: types.CallbackQuery):
+    cid, uid = cb.message.chat.id, cb.from_user.id
+    _, orig_uid = cb.data.split(":")
+    if uid != int(orig_uid):
+        return await cb.answer("Не твоё копание 😼", show_alert=True)
+
+    mins = await _minutes_left(cid, uid)
+    if mins == 0:
+        txt = "⛏ Уже на поверхности!"
+    else:
+        txt = f"⏳ Осталось ≈ <b>{mins}</b> мин."
+    await cb.answer(txt, show_alert=True)
+
+@router.callback_query(F.data.startswith("mine_stop:"))
+async def mine_stop_cb(cb: types.CallbackQuery):
+    cid, uid = cb.message.chat.id, cb.from_user.id
+    _, orig_uid = cb.data.split(":")
+    if uid != int(orig_uid):
+        return await cb.answer("Не твоё копание 😼", show_alert=True)
+
+    # сбрасываем таймер
+    await db.execute("""
+        UPDATE progress_local
+           SET mining_end = NULL
+         WHERE chat_id=:c AND user_id=:u
+    """, {"c": cid, "u": uid})
+
+    await cb.message.edit_text("🚫 Копка прервана.")
+    await cb.answer("Ок, остановили ⛏")
 
 @router.callback_query(F.data.startswith("badge:use:"))
 async def badge_use_cb(cb: types.CallbackQuery):
@@ -860,6 +930,8 @@ async def confirm_sell(call: types.CallbackQuery):
     earned = price * qty
     await add_item(cid, uid, item_key, -qty)
     await add_money(cid, uid, earned)
+    if earned >= 5000:
+        await unlock_achievement(cid, uid, "big_sale")
 
     meta = ITEM_DEFS[item_key]
     await add_clash_points(cid, uid, 0)
@@ -911,6 +983,10 @@ async def smelt_cmd(message: types.Message, user_id: int | None = None):
     if user_id is not None:
         uid = user_id
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+
+    total_ore = sum(q for k,q in inv.items() if k in ORE_ITEMS)
+    if total_ore >= 1000:
+        await unlock_achievement(cid, uid, "ore_horder")
 
     smeltables = [
         ore for ore in SMELT_RECIPES

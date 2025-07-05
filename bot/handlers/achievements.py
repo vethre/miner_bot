@@ -1,8 +1,10 @@
 import json
 from aiogram import types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from db_local import db
 from bot.assets import ACHIEVE_IMG_ID
 from bot.db_local import get_progress
+from bot.handlers.base_commands import ORE_ITEMS
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.utils.unlockachievement import ACHIEVEMENT_REQUIREMENTS, generate_progress_bar
 
@@ -52,6 +54,14 @@ ACHIEVEMENTS = {
         "emoji": "🧿",
         "desc": "Получи Эонит"
     },
+    "ore_horder": {
+        "name": "Коллекционер руды", "emoji": "🪨",
+        "desc": "Держи 1 000 любой руды в инвентаре"
+    },
+    "big_sale": {
+        "name": "Оптовик", "emoji": "💰",
+        "desc": "Продай лут единой сделкой на ≥5 000 монет"
+    },
 }
 
 async def achievements_menu(message: types.Message, uid: int):
@@ -77,6 +87,25 @@ async def achievements_menu(message: types.Message, uid: int):
         if req and not unlocked:
             current = prog.get(req["count_field"], 0)
             bar = generate_progress_bar(current, req["goal"])
+            line += f"\n{bar}"
+
+        if code == "ore_horder" and not unlocked:
+    # суммируем всю руду (или ищем максимальную) прямо из inventory_local
+            total_ore = await db.fetch_one(
+                """
+                SELECT MAX(qty) AS best
+                FROM inventory_local
+                WHERE chat_id=:c AND user_id=:u
+                AND item = ANY (SELECT jsonb_object_keys(:items::jsonb))
+                """,
+                {
+                    "c": cid,
+                    "u": uid,
+                    "items": json.dumps({k:1 for k in ORE_ITEMS})
+                }
+            )
+            current = total_ore["best"] or 0
+            bar = generate_progress_bar(current, 1000)
             line += f"\n{bar}"
 
         lines.append(line)
