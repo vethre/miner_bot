@@ -296,7 +296,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
             "UPDATE progress_local SET energy=100,hunger=100 "
             "WHERE chat_id=:c AND user_id=:u", {"c": cid, "u": uid}
         )
-        extra_txt += "\n🔵 Лазуритовый факел восполнил силы!"
+        extra_txt += "\n🔵 Лазурный факел восполнил силы!"
 
     def bar(value: float, width: int = 10, full: str = "▓", empty: str = "░") -> str:
         """Фиксированный бар 0–1 → 10 символов."""
@@ -666,13 +666,17 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     await add_clash_points(cid, uid, 1)
     minutes  = max(1, round(sec / 60))
     orig_min = round(get_mine_duration(tier) / 60)
-    caption = (
-        f"⛏ <b>Шахта стартовала!</b>\n"
-        f"╭─ Время:  <b>{minutes} мин</b>\n"
-        f"├─ 🔋 −{energy_cost} энергии\n"
-        f"├─ 🍗 −{hunger_cost} голода\n"
-        f"╰─ 💣 Бомба ×1.5" if bomb_mult>1 else ""
-    )
+    lines = [
+        "⛏ <b>Шахта стартовала!</b>",
+        f"╭─ Время:  <b>{minutes} мин</b>",
+        f"├─ 🔋 −{energy_cost} энергии",
+        f"├─ 🍗 −{hunger_cost} голода",
+    ]
+
+    if bomb_mult > 1:
+        lines.append("╰─ 💣 Бомба ×1.5")
+
+    caption = "\n".join(lines) 
     kb = InlineKeyboardBuilder()
     kb.button(text="⏳ Осталось", callback_data=f"mine_left:{uid}")
     kb.button(text="🚫 Отмена",   callback_data=f"mine_stop:{uid}")

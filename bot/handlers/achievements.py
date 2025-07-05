@@ -90,19 +90,18 @@ async def achievements_menu(message: types.Message, uid: int):
         if code == "ore_horder" and not unlocked:
             from bot.handlers.base_commands import ORE_ITEMS
     # суммируем всю руду (или ищем максимальную) прямо из inventory_local
-            total_ore = await db.fetch_one(
-                """
-                SELECT MAX(qty) AS best
+            ore_array = "ARRAY[" + ",".join(["'{}'".format(k) for k in ORE_ITEMS]) + "]"
+
+            row = await db.fetch_one(
+                f"""
+                SELECT COALESCE(SUM(qty),0) AS total
                 FROM inventory_local
                 WHERE chat_id=:c AND user_id=:u
-                AND item = ANY (SELECT jsonb_object_keys(:items::jsonb))
+                AND item = ANY({ore_array})
                 """,
-                {
-                    "c": cid,
-                    "u": uid,
-                    "items": json.dumps({k:1 for k in ORE_ITEMS})
-                }
+                {"c": cid, "u": uid}
             )
+            total_ore = row["total"]
             current = total_ore["best"] or 0
             bar = generate_progress_bar(current, 1000)
             line += f"\n{bar}"
