@@ -355,19 +355,17 @@ async def emoji_id_cmd(message: types.Message):
 @router.message(Command("premium_emoji"))
 async def premium_emoji_cmd(msg: types.Message):
     if msg.from_user.id not in ADMINS:
-        return await msg.reply("⛔️ Только для разработчиков")
+        return await msg.reply("⛔ Только для разработчиков")
 
-    # тот самый ID, который вы поймали через rawdatabot
-    EMOJI_ID = "5240072895274688214"
+    EMOJI_ID = "5240072895274688214"          # ваш ID
 
-    # любой одиночный placeholder-символ (я беру •)
     await msg.answer(
-        "•",
+        "🍒",                                  # 1 символ-заглушка
         entities=[
             types.MessageEntity(
                 type="custom_emoji",
                 offset=0,
-                length=2,
+                length=1,
                 custom_emoji_id=EMOJI_ID,
             )
         ],
