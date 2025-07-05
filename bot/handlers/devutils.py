@@ -4,7 +4,7 @@ import datetime as dt
 from aiogram import F, Bot, Router, types
 from aiogram.filters import Command
 from aiogram.utils.markdown import hcode
-from bot.db_local import db, cid_uid, get_money, get_progress, get_inventory
+from bot.db_local import db, cid_uid, get_money, get_progress, get_inventory, add_money
 from aiogram.filters.command import CommandObject
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
@@ -321,20 +321,7 @@ async def notify_afk_cmd(message: types.Message):
             # пользователь покинул чат или скрыт — просто uid
             mentions.append(f"ID <code>{r['user_id']}</code>")
 
-        await db.execute(
-            """
-            UPDATE money_local
-            SET balance = balance - :fine
-            WHERE chat_id = :c
-            AND user_id  IN (
-                    SELECT user_id
-                    FROM progress_local
-                    WHERE chat_id = :c
-                    AND (last_mine_day IS NULL OR last_mine_day < :cutoff)
-            )
-            """,
-            {"fine": AFK_FINE, "c": cid, "cutoff": cutoff}
-        )
+        await add_money(cid, r["user_id"], -AFK_FINE)  # штрафуем
 
         txt = (
             AFK_TEXT.format(mentions=" • ".join(mentions)) +
