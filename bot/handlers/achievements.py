@@ -102,8 +102,7 @@ async def achievements_menu(message: types.Message, uid: int):
                 {"c": cid, "u": uid}
             )
             total_ore = row["total"]
-            current = total_ore["best"] or 0
-            bar = generate_progress_bar(current, 1000)
+            bar = generate_progress_bar(total_ore, 1000)
             line += f"\n{bar}"
 
         lines.append(line)
