@@ -1,5 +1,6 @@
 # bot/handlers/devutils.py
 
+from datetime import datetime
 from aiogram import F, Bot, Router, types
 from aiogram.filters import Command
 from aiogram.utils.markdown import hcode
@@ -275,3 +276,69 @@ async def forcepick_cmd(message: types.Message, command: CommandObject):
         {"p": key, "c": cid, "u": uid}
     )
     await message.reply(f"🔧 Кирка установлена: <b>{key}</b>", parse_mode="HTML")
+
+AFK_FINE = 100      # 💰 аренда кирки
+AFK_DAYS  = 1                                # ⚙️ скільки днів без копки = «спить»
+AFK_TEXT  = (
+    "<b>🏴‍☠️ Доска должников AFK-шахтёров!</b>\n"
+    "Следующие граждане забыли про кирку и туннели:\n\n"
+    "{mentions}\n\n"
+    "Вы либо копаете, либо оплачиваете уборку своего хлама! 💸"
+)
+
+@router.message(Command("notify_afk"))
+async def notify_afk_cmd(message: types.Message):
+    # ─── доступ тільки адмінам ────────────────────────────────
+    if message.from_user.id not in ADMINS:
+        return await message.reply("⛔️ Только разработчикам")
+
+    cid = message.chat.id
+    cutoff = datetime.date.today() - datetime.timedelta(days=AFK_DAYS)
+
+    # берем список всех «заснувших»
+    rows = await db.fetch_all(
+        """
+        SELECT user_id
+          FROM progress_local
+         WHERE chat_id = :c
+           AND (last_mine_day IS NULL OR last_mine_day < :cutoff)
+        """,
+        {"c": cid, "cutoff": cutoff}
+    )
+
+    if not rows:
+        return await message.reply("Все шахтёры активны! ✨")
+
+    # формируем @упоминания
+    mentions = []
+    for r in rows:
+        try:
+            member = await message.bot.get_chat_member(cid, r["user_id"])
+            m = member.user
+            mention = f"@{m.username}" if m.username else f'<a href="tg://user?id={m.id}">{m.full_name}</a>'
+            mentions.append(mention)
+        except Exception:
+            # пользователь покинул чат или скрыт — просто uid
+            mentions.append(f"ID <code>{r['user_id']}</code>")
+
+        await db.execute(
+            """
+            UPDATE money_local
+            SET balance = balance - :fine
+            WHERE chat_id = :c
+            AND user_id  IN (
+                    SELECT user_id
+                    FROM progress_local
+                    WHERE chat_id = :c
+                    AND (last_mine_day IS NULL OR last_mine_day < :cutoff)
+            )
+            """,
+            {"fine": AFK_FINE, "c": cid, "cutoff": cutoff}
+        )
+
+        txt = (
+            AFK_TEXT.format(mentions=" • ".join(mentions)) +
+            f"\n\n💸 <b>Штраф</b>: −{AFK_FINE} монет каждому бездельнику."
+        )
+        msg = await message.answer(txt, parse_mode="HTML", disable_web_page_preview=True)
+        register_msg_for_autodelete(cid, msg.message_id)

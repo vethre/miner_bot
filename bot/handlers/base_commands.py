@@ -46,7 +46,7 @@ from bot.handlers.badgeshop import badgeshop_cmd
 from bot.handlers.cavepass import cavepass_cmd
 from bot.handlers.achievements import achievements_menu
 from bot.handlers.badge_defs import BADGES
-from bot.handlers.badges import badges_menu
+from bot.handlers.badges import badges_menu, get_badge_effect
 from bot.handlers.choice_events import maybe_send_choice_card
 from bot.handlers.eat import eat_cmd
 from bot.handlers.items import ITEM_DEFS
@@ -712,7 +712,7 @@ async def mine_left_cb(cb: types.CallbackQuery):
     if mins == 0:
         txt = "⛏ Уже на поверхности!"
     else:
-        txt = f"⏳ Осталось ≈ <b>{mins}</b> мин."
+        txt = f"⏳ Осталось ≈ {mins} мин."
     await cb.answer(txt, show_alert=True)
 
 @router.callback_query(F.data.startswith("mine_stop:"))
@@ -931,7 +931,9 @@ async def confirm_sell(call: types.CallbackQuery):
         ore_price = ITEM_DEFS[ore_key]["price"] * in_qty
         price = int(ore_price * 1.25)              # +25 % профита
 
-    earned = price * qty
+    prog = await get_progress(cid, uid)
+    bonus = get_badge_effect(prog, "sell_bonus", 0.0)
+    earned = int(price * qty * (1 + bonus))
     await add_item(cid, uid, item_key, -qty)
     await add_money(cid, uid, earned)
     if earned >= 5000:
@@ -1097,9 +1099,12 @@ async def smelt_execute_exact(cb: CallbackQuery):
     # списываем вход
     await add_item(cid, uid, ore,  -cnt * need_per_ingot)
     await add_item(cid, uid, "coal", -coal)
+    prog        = await get_progress(cid, uid)
+    speed_mult  = get_badge_effect(prog, "smelt_mult", 1.0)
 
     duration_map = {5: 1500, 15: 900, 30: 600}
-    duration = duration_map.get(coal, 1500)
+    base_sec = duration_map.get(coal, 1500)
+    duration = int(base_sec * speed_mult)
     finish_at = dt.datetime.utcnow() + dt.timedelta(seconds=duration)
     await db.execute(
         "UPDATE progress_local SET smelt_end = :e WHERE chat_id=:c AND user_id=:u",

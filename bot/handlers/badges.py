@@ -4,6 +4,16 @@ from bot.db_local import get_progress, db
 from bot.utils.autodelete import register_msg_for_autodelete
 from .badge_defs import BADGES
 
+BADGE_EFFECTS = {
+    "smeltmaster":  {"smelt_mult": 0.80},   # ×0.8 к времени плавки
+    "richdealer":   {"sell_bonus": 0.10},   # +10 % к доходу
+    # … остальные …
+}
+
+def get_badge_effect(prog: dict, key: str, default=None):
+    code = prog.get("badge_active")
+    return BADGE_EFFECTS.get(code, {}).get(key, default)
+
 async def badges_menu(message: types.Message, uid: int):
     cid = message.chat.id
     prog = await get_progress(cid, uid)

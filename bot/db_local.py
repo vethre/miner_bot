@@ -268,11 +268,7 @@ async def add_xp(
 
 async def add_xp_with_notify(bot: Bot, cid: int, uid: int, delta: int):
     await add_xp(cid, uid, delta, bot=bot)
-    await log_xp(cid, uid, delta)        #  <<< вот он
-
-    # 3️⃣ уведомление игроку
-    if delta > 0:
-        await bot.send_message(cid, f"✨ +{delta} XP")
+    await log_xp(cid, uid, delta)        
 
 async def log_xp(chat_id:int, user_id:int, delta:int):
     await db.execute("""
