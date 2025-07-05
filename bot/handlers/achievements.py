@@ -1,9 +1,8 @@
 import json
 from aiogram import types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from db_local import db
 from bot.assets import ACHIEVE_IMG_ID
-from bot.db_local import get_progress
+from bot.db_local import get_progress, db
 from bot.handlers.base_commands import ORE_ITEMS
 from bot.utils.autodelete import register_msg_for_autodelete
 from bot.utils.unlockachievement import ACHIEVEMENT_REQUIREMENTS, generate_progress_bar
