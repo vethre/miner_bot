@@ -170,13 +170,7 @@ async def _open_case(message: Message, case_type: CaseType):
     else:
         descr = " + ".join(parts)
 
-    msg = await message.reply("📦 Открываем кейс...")
-    for frame in ["▓▓░░░░░░░", "▓▓▓▓░░░░", "▓▓▓▓▓▓░░"]:
-        await asyncio.sleep(0.35)
-        await msg.edit_text(f"📦 {frame}")
-    await asyncio.sleep(0.25)
-    await msg.edit_text(f"🎉 Тебе выпало: {descr}!")
-
+    msg = await message.reply(f"🎉 Тебе выпало: {descr}!")
 
 # ────────────────────────────────────────────────
 # Commands
