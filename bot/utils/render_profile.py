@@ -17,23 +17,23 @@ F_SMALL = ImageFont.truetype(FONT_MED_PATH, 24)
 F_MED   = ImageFont.truetype(FONT_MED_PATH, 28)
 
 # аватар
-AVATAR_SIZE = (205, 205)
+AVATAR_SIZE = (255, 255)
 AVATAR_POS  = (234, 246)        # ← измерено в Figma
 
 # ───── координаты текста (ваши значения) ─────────
-NICK_POS   = (233, 459)
+NICK_POS   = (243, 459)
 
-LVL_POS    = (255, 540)
-XP_POS     = (255, 615)
+LVL_POS    = (260, 542)
+XP_POS     = (260, 617)
 
-ENERGY_POS = (255, 775)
-HUNGER_POS = (255, 830)
+ENERGY_POS = (265, 770)
+HUNGER_POS = (265, 832)
 
-MONEY_POS  = (255, 940)
-FIRE_POS   = (424, 940)
+MONEY_POS  = (255, 944)
+FIRE_POS   = (424, 944)
 
-PICK_POS   = (255, 1002)
-CAVES_POS  = (424, 1002)
+PICK_POS   = (255, 1004)
+CAVES_POS  = (424, 1004)
 # ─────────────────────────────────────────────────
 
 async def render_profile_card(
