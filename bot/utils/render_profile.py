@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 PROFILE_BG = "bot/assets/profile_bg.jpg"
 FONT_PATH   = "bot/assets/Montserrat-Medium.ttf"
+FONT_BIG_PATH = "bot/assets/Montserrat-Bold.ttf"
 
 async def render_profile_card(bot, uid: int, nickname: str,
                               level: int, xp: int, next_xp: int):
@@ -26,19 +27,43 @@ async def render_profile_card(bot, uid: int, nickname: str,
 
     # ─── 3. Текст / XP-бар ─────────────────────────────
     draw = ImageDraw.Draw(bg)
-    f_big   = ImageFont.truetype(FONT_PATH, 46)
-    f_small = ImageFont.truetype(FONT_PATH, 32)
+    f_big   = ImageFont.truetype(FONT_BIG_PATH, 54)
+    f_medium = ImageFont.truetype(FONT_PATH, 32)
+    f_small = ImageFont.truetype(FONT_PATH, 28)
 
     draw.text((320, 80),  nickname,        font=f_big,   fill="white")
-    draw.text((320, 150), f"⭐ Уровень {level}", font=f_small, fill="white")
+    draw.text((320, 150), f"Уровень {level}", font=f_medium, fill="white")
 
-    bar_x, bar_y, bar_w, bar_h = 320, 220, 300, 28
-    progress = min(1, xp / next_xp or 1)
-    draw.rounded_rectangle((bar_x, bar_y, bar_x+bar_w, bar_y+bar_h),
-                           radius=8, outline="white", width=2)
-    draw.rounded_rectangle((bar_x, bar_y, bar_x+bar_w*progress, bar_y+bar_h),
-                           radius=8, fill="#4caf50")
-    draw.text((bar_x, bar_y-34), f"XP {xp}/{next_xp}", font=f_small, fill="white")
+    BAR_X, BAR_Y = 320, 225           # точка-лево-верх
+    BAR_W, BAR_H = 360, 40            # ширина/высота (было 300×28)
+
+    progress = xp / max(next_xp, 1)   # защита от next_xp==0
+    inner_w  = int(BAR_W * progress)
+
+    # рамка
+    draw.rounded_rectangle(
+        (BAR_X, BAR_Y, BAR_X + BAR_W, BAR_Y + BAR_H),
+        radius=BAR_H // 2,            # чтобы края были полукруглые
+        outline="white",
+        width=3
+    )
+    # заливка
+    draw.rounded_rectangle(
+        (BAR_X, BAR_Y, BAR_X + inner_w, BAR_Y + BAR_H),
+        radius=BAR_H // 2,
+        fill="#4caf50"
+    )
+
+    # подпись прямо НА бары, чтобы не занимать место сверху
+    txt = f"XP {xp}/{next_xp}"
+    tw, th = draw.textsize(txt, font=f_small)
+    draw.text(
+        (BAR_X + (BAR_W - tw) // 2,   # центрируем по X
+        BAR_Y + (BAR_H - th) // 2),  # центрируем по Y
+        txt,
+        font=f_small,
+        fill="white"
+    )
 
     # ─── 4. В Telegram ─────────────────────────────────
     buf = BytesIO()
