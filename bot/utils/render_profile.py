@@ -3,7 +3,7 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 from aiogram.types import BufferedInputFile
-from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageResampling
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 ROOT   = Path(__file__).parent.parent
 ASSETS = ROOT / "assets"
@@ -62,7 +62,7 @@ async def render_profile_card(
     except Exception:
         pass
 
-    avatar = ImageOps.fit(avatar, AVATAR_SIZE, ImageResampling.LANCZOS)
+    avatar = ImageOps.fit(avatar, AVATAR_SIZE, Image.Resampling.LANCZOS)
     bg.paste(avatar, AVATAR_POS, avatar)
 
     # 3. текст
