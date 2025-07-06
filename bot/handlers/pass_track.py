@@ -57,8 +57,8 @@ REWARDS = [
 ]
 
 # ---------- шрифты ---------------------------------------------------
-FONT_BIG   = ImageFont.truetype("Montserrat-SemiBold.ttf", 44)
-FONT_SMALL = ImageFont.truetype("Montserrat-Medium.ttf", 26)
+FONT_BIG   = ImageFont.load_default()
+FONT_SMALL = ImageFont.load_default()
 # --------------------------------------------------------------------
 async def ensure_row(cid:int, uid:int):
     await db.execute("""
