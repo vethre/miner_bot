@@ -17,10 +17,10 @@ F_SMALL = ImageFont.truetype(FONT_MED_PATH, 24)
 F_MED   = ImageFont.truetype(FONT_MED_PATH, 28)
 
 # аватар
-AVATAR_SIZE = (214, 214)  # размер аватара
-AVATAR_POS  = (236, 248)        
+AVATAR_SIZE = (218, 218)  # размер аватара
+AVATAR_POS  = (236, 248)
 
-NICK_POS   = (263, 459)
+NICK_POS   = (275, 459)
 
 LVL_POS    = (260, 542)    
 XP_POS     = (260, 620)    
