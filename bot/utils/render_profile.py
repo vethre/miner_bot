@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 PROFILE_BG = "bot/assets/profile_bg.jpg"
 FONT_PATH   = "bot/assets/Montserrat-Medium.ttf"
-FONT_BIG_PATH = "bot/assets/Montserrat-Bold.ttf"
+FONT_BIG_PATH = "bot/assets/Montserrat-SemiBold.ttf"
 
 async def render_profile_card(bot, uid: int, nickname: str,
                               level: int, xp: int, next_xp: int):
