@@ -58,6 +58,7 @@ from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, A
 from bot.utils.autodelete import register_msg_for_autodelete, reply_clean
 from bot.handlers.use import _json2dict
 from bot.handlers.cave_clash import add_clash_points
+from bot.utils.render_profile import render_profile_card
 from bot.utils.unlockachievement import unlock_achievement
 
 router = Router()
@@ -423,6 +424,7 @@ async def profile_cmd(message: types.Message):
     seal_str = "–"
     if s_id and (s := SEALS.get(s_id)):
         seal_str = f"{s['name']}"
+    nickname_str = prog.get("nickname") or message.from_user.full_name
 
     # ── Tier + бонус ─────────────────────────────────────
     tier = max(i + 1 for i, t in enumerate(TIER_TABLE) if lvl >= t["level_min"])
@@ -454,8 +456,10 @@ async def profile_cmd(message: types.Message):
     balance_s = shorten_number(balance)
     mines_s   = shorten_number(mines)
 
+    pic = await render_profile_card(message.bot, uid, nickname_str, lvl, xp, next_xp)
+
     txt = (
-        f"👤 <b>{prog.get('nickname') or message.from_user.full_name}</b>\n"
+        f"👤 <b>{nickname_str}</b>\n"
         f"{weather_emoji} {weather_name}\n"
         f"⭐ <u>L{lvl}</u> ({xp}/{next_xp})\n⭐ XP: {xp_bar}\n"
         f"🔋 {energy}/100 <code>{energy_bar}</code>\n"
@@ -480,7 +484,7 @@ async def profile_cmd(message: types.Message):
     kb.adjust(1)
 
     msg = await message.answer_photo(
-        photo=PROFILE_IMG_ID,
+        photo=pic,
         caption=txt,
         parse_mode="HTML",
         reply_markup=kb.as_markup()

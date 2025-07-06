@@ -351,25 +351,3 @@ async def emoji_id_cmd(message: types.Message):
 
     txt = "🔎 Найдено custom_emoji_id:\n" + "\n".join(f"`{e}`" for e in ids)
     await message.reply(txt, parse_mode="Markdown")
-
-@router.message(Command("premium_emoji"))
-async def premium_emoji_cmd(msg: types.Message):
-    if msg.from_user.id not in ADMINS:
-        return
-
-    EMOJI_ID = "5240072895274688214"        # ваш id
-
-    # zero-width space   →  U+200B
-    text = "\u200B🍒"                       # ZWSP + 1 placeholder-эмодзи
-
-    await msg.answer(
-        text,
-        entities=[
-            types.MessageEntity(
-                type="custom_emoji",
-                offset=1,                   # 1 — потому что перед ним ZWSP
-                length=1,
-                custom_emoji_id=EMOJI_ID,
-            )
-        ],
-    )
