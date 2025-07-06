@@ -142,7 +142,7 @@ async def trackpass_cmd(message: types.Message):
 
     # Заголовок
     draw.text((40, 30), "Cave Pass • Season 1", font=FONT_BIG, fill="white")
-    draw.text((40, 90), f"До конца: {(PASS_END-dt.datetime.utcnow()).days} дн.",
+    draw.text((40, 90), f"До конца: {(PASS_END-dt.datetime.now(dt.timezone.utc)).days} дн.",
               font=FONT_SMALL, fill="orange")
 
     # шкала прогресса
