@@ -26,7 +26,7 @@ LVL_POS    = (260, 542)
 XP_POS     = (260, 620)    
 
 ENERGY_POS = (265, 760)    
-HUNGER_POS = (265, 843)    
+HUNGER_POS = (265, 840)    
 
 MONEY_POS  = (255, 945)
 FIRE_POS   = (424, 945)
