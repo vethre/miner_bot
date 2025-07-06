@@ -2,8 +2,8 @@ from io import BytesIO
 from aiogram.types import BufferedInputFile           # ← нужный класс
 from PIL import Image, ImageDraw, ImageFont
 
-PROFILE_BG = "assets/profile_bg.png"
-FONT_PATH   = "assets/Roboto.ttf"
+PROFILE_BG = "bot/assets/profile_bg.jpg"
+FONT_PATH   = "bot/assets/Roboto.ttf"
 
 async def render_profile_card(bot, uid: int, nickname: str,
                               level: int, xp: int, next_xp: int):
