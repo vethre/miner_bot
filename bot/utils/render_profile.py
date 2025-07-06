@@ -17,7 +17,7 @@ F_MED = ImageFont.truetype(FONT_MED_PATH, 30)
 F_BIG = ImageFont.truetype(FONT_BIG_PATH, 40)
 
 AVATAR_SIZE = (256, 256)
-AVATAR_POS  = (47, 15)        # ⇐ точка «лево-верх» в шаблоне
+AVATAR_POS  = (234, 248)        # ⇐ точка «лево-верх» в шаблоне
 PANEL_X0, PANEL_X1 = 0, 530     # область горизонтального центрирования
 
 def _center(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont,
