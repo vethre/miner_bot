@@ -17,12 +17,8 @@ F_MED = ImageFont.truetype(FONT_MED_PATH, 30)
 F_BIG = ImageFont.truetype(FONT_BIG_PATH, 40)
 
 AVATAR_SIZE = (256, 256)
-AVATAR_POS  = (158, 185)        # ⇐ точка «лево-верх» в шаблоне
+AVATAR_POS  = (140, 165)        # ⇐ точка «лево-верх» в шаблоне
 PANEL_X0, PANEL_X1 = 0, 530     # область горизонтального центрирования
-ROWS_Y          = [565, 640, 740, 815]        # Уровень / XP / Energy / Hunger
-MONEY_ROW_Y     = 925
-MONEY_ROW_X_L   =  80             # «7k» / «62/65»
-MONEY_ROW_X_R   = 315 
 
 def _center(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont,
             y: int, x0: int = PANEL_X0, x1: int = PANEL_X1):
@@ -60,24 +56,24 @@ async def render_profile_card(bot,
     bg.paste(avatar, AVATAR_POS)
 
     # 3️⃣ ник
-    _center(draw, nickname, F_BIG, 470, 0, 530)
+    _center(draw, nickname, F_BIG, 445)
 
     # 4️⃣ строки-метрики
     rows = [
-        (f"УРОВЕНЬ {level}",  ROWS_Y[0]),
-        (f"{xp}/{next_xp}",   ROWS_Y[1]),
-        (f"{energy}/100",     ROWS_Y[2]),
-        (f"{hunger}/100",     ROWS_Y[3]),
+        (f"УРОВЕНЬ {level}",  525),
+        (f"{xp}/{next_xp}",   595),
+        (f"{energy}/100",     687),
+        (f"{hunger}/100",     757),
     ]
     for txt, y in rows:
         _center(draw, txt, F_MED, y)
 
     # 5️⃣ мини-инфо-блок (два ряда ×2 иконки)
     mini = [
-        (f"{money//1000}k",   MONEY_ROW_Y, MONEY_ROW_X_L),
-        (str(fire),           MONEY_ROW_Y, MONEY_ROW_X_R),
-        (pick_dur,            MONEY_ROW_Y+80, MONEY_ROW_X_L),
-        (str(caves),          MONEY_ROW_Y+80, MONEY_ROW_X_R),
+        (f"{money//1000}k",  875,  75),
+        (str(fire),          875, 305),
+        (pick_dur,           955,  75),
+        (str(caves),         955, 305),
     ]
     for txt, y, x in mini:
         draw.text((x, y), txt, font=F_MED, fill="white")
