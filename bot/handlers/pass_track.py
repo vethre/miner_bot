@@ -4,7 +4,7 @@ import datetime as dt, json
 from io import BytesIO
 
 from aiogram import Router, types, F
-from aiogram.types import InputFile
+from aiogram.types import BufferedInputFile
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from PIL import Image, ImageDraw, ImageFont
@@ -175,10 +175,12 @@ async def trackpass_cmd(message: types.Message):
     # ---------- отправка ----------------------
     buf = BytesIO()
     bg.save(buf, format="PNG")
-    buf.seek(0)
+    photo_bytes = buf.getvalue()                  # <- извлекаем байты
+
+    photo = BufferedInputFile(photo_bytes, filename="cave_pass.png")
 
     await message.answer_photo(
-        InputFile(buf, filename="cave_pass.png"),     # ← обёртка
+        photo,
         caption="⚒️ Твой прогресс Cave Pass"
     )
 
