@@ -456,9 +456,13 @@ async def profile_cmd(message: types.Message):
     balance_s = shorten_number(balance)
     mines_s   = shorten_number(mines)
 
-    pic = await render_profile_card(message.bot, uid, nickname_str, lvl, xp, next_xp)
+    pic = await render_profile_card(message.bot, uid, nickname_str, lvl, xp, next_xp,
+                                    energy, hunger, balance, streak, f"{dur}/{dur_max}", mines)
 
     txt = (
+        f"<b>{nickname_str}</b>\n"
+        f"<u>Уровень {lvl}</u>\n"
+        f"{xp_bar} <code>{xp}/{next_xp}</code>\n"
         f"{weather_emoji} {weather_name}\n"
         f"🔋 {energy}/100 <code>{energy_bar}</code>\n"
         f"🍗 {hunger}/100 <code>{hunger_bar}</code>\n"
