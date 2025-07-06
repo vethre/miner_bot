@@ -56,7 +56,9 @@ async def render_profile_card(bot, uid: int, nickname: str,
 
     # подпись прямо НА бары, чтобы не занимать место сверху
     txt = f"XP {xp}/{next_xp}"
-    tw, th = draw.text(txt, font=f_small)
+    bbox = draw.textbbox((0, 0), txt, font=f_small)   # (x0, y0, x1, y1)
+    tw  = bbox[2] - bbox[0]
+    th  = bbox[3] - bbox[1]
     draw.text(
         (BAR_X + (BAR_W - tw) // 2,   # центрируем по X
         BAR_Y + (BAR_H - th) // 2),  # центрируем по Y
