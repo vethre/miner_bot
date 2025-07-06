@@ -11,25 +11,14 @@ BG_PATH = ASSETS / "profile_new.jpg"
 FONT_MED_PATH = ASSETS / "Montserrat-Medium.ttf"
 FONT_BIG_PATH = ASSETS / "Montserrat-SemiBold.ttf"
 
-# Font sizes adjusted for better fit
-F_MED = ImageFont.truetype(FONT_MED_PATH, 28)
-F_BIG = ImageFont.truetype(FONT_BIG_PATH, 36)
+# Правильные размеры шрифтов
 F_SMALL = ImageFont.truetype(FONT_MED_PATH, 24)
+F_MED = ImageFont.truetype(FONT_MED_PATH, 28)
+F_BIG = ImageFont.truetype(FONT_BIG_PATH, 32)
 
-# Avatar settings
-AVATAR_SIZE = (200, 200)  # Slightly smaller to fit better
-AVATAR_POS = (165, 140)   # Adjusted position
-
-# Panel centering area (left sidebar)
-PANEL_X0, PANEL_X1 = 50, 480  # Adjusted for better centering
-
-def _center(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont,
-           y: int, x0: int = PANEL_X0, x1: int = PANEL_X1):
-    """Center text horizontally between x0 and x1"""
-    bbox = draw.textbbox((0, 0), text, font=font)
-    text_width = bbox[2] - bbox[0]
-    x = x0 + (x1 - x0 - text_width) // 2
-    draw.text((x, y), text, font=font, fill="white")
+# Настройки аватара - НАМНОГО меньше!
+AVATAR_SIZE = (140, 140)  # Уменьшенный размер
+AVATAR_POS = (135, 125)   # Позиция в рамке
 
 async def render_profile_card(bot,
                             uid: int,
@@ -39,12 +28,12 @@ async def render_profile_card(bot,
                             money: int, fire: int,
                             pick_dur: str, caves: int) -> BufferedInputFile:
     
-    # 1️⃣ Load background
+    # 1️⃣ Загружаем фон
     bg = Image.open(BG_PATH).convert("RGBA")
     draw = ImageDraw.Draw(bg)
     
-    # 2️⃣ Handle avatar (square with border)
-    avatar = Image.new("RGBA", AVATAR_SIZE, (30, 30, 30, 255))
+    # 2️⃣ Обрабатываем аватар
+    avatar = Image.new("RGBA", AVATAR_SIZE, (50, 50, 50, 255))
     
     try:
         photos = await bot.get_user_profile_photos(uid, limit=1)
@@ -55,79 +44,61 @@ async def render_profile_card(bot,
             avatar = Image.open(f).convert("RGBA")
             avatar = ImageOps.fit(avatar, AVATAR_SIZE, Image.Resampling.LANCZOS)
     except Exception as e:
-        print(f"Error loading avatar: {e}")
-        # Keep default avatar
+        print(f"Ошибка загрузки аватара: {e}")
     
-    # Create border for avatar
-    border_size = 6
-    border = Image.new("RGBA", 
-                      (AVATAR_SIZE[0] + border_size*2, AVATAR_SIZE[1] + border_size*2), 
-                      (0, 0, 0, 0))
-    border_draw = ImageDraw.Draw(border)
-    
-    # Cyan/neon border
-    border_draw.rectangle((0, 0, *border.size), fill=(0, 255, 255, 255))
-    # Cut out center
-    border_draw.rectangle((border_size, border_size, 
-                          border_size + AVATAR_SIZE[0], 
-                          border_size + AVATAR_SIZE[1]), 
-                         fill=(0, 0, 0, 0))
-    
-    # Paste border and avatar
-    bg.paste(border, (AVATAR_POS[0] - border_size, AVATAR_POS[1] - border_size), border)
+    # Вставляем аватар БЕЗ рамки (рамка уже есть в шаблоне)
     bg.paste(avatar, AVATAR_POS, avatar)
     
-    # 3️⃣ Username/nickname - centered below avatar
-    _center(draw, nickname, F_BIG, 365)
+    # 3️⃣ Никнейм - под аватаром, выровнен по левому краю
+    draw.text((135, 280), nickname, font=F_MED, fill="white")
     
-    # 4️⃣ Main stats - positioned in left panel
-    stats_data = [
-        (f"УРОВЕНЬ {level}", 420),
-        (f"{xp}/{next_xp}", 470),
-        (f"{energy}/100", 540),
-        (f"{hunger}/100", 590),
-    ]
+    # 4️⃣ Основные характеристики - точные позиции как во втором изображении
     
-    for text, y in stats_data:
-        _center(draw, text, F_MED, y)
+    # Уровень
+    draw.text((135, 320), f"УРОВЕНЬ {level}", font=F_SMALL, fill="white")
     
-    # 5️⃣ Bottom mini stats - positioned in bottom area
-    # Format money to show k for thousands
+    # XP
+    draw.text((135, 355), f"{xp}/{next_xp}", font=F_SMALL, fill="white")
+    
+    # Энергия (с желтой молнией)
+    draw.text((175, 400), f"{energy}/100", font=F_SMALL, fill="white")
+    
+    # Голод (с коричневым бургером)
+    draw.text((175, 435), f"{hunger}/100", font=F_SMALL, fill="white")
+    
+    # 5️⃣ Нижний блок статистики - две строки
+    
+    # Первая строка: деньги и огонь
     money_text = f"{money//1000}k" if money >= 1000 else str(money)
+    draw.text((135, 485), money_text, font=F_SMALL, fill="white")  # Зеленые деньги
+    draw.text((250, 485), str(fire), font=F_SMALL, fill="white")   # Желтый огонь
     
-    mini_stats = [
-        # Row 1
-        (money_text, 680, 85),      # Money (bottom left)
-        (str(fire), 680, 245),      # Fire (bottom left-center)
-        # Row 2  
-        (pick_dur, 730, 85),        # Pick durability (bottom left)
-        (str(caves), 730, 245),     # Caves (bottom left-center)
-    ]
+    # Вторая строка: кирка и пещеры  
+    draw.text((135, 520), pick_dur, font=F_SMALL, fill="white")    # Синяя кирка
+    draw.text((250, 520), str(caves), font=F_SMALL, fill="white")  # Фиолетовые пещеры
     
-    for text, y, x in mini_stats:
-        draw.text((x, y), text, font=F_SMALL, fill="white")
-    
-    # 6️⃣ Save to buffer and return
+    # 6️⃣ Сохраняем в буфер
     buf = BytesIO()
     bg.save(buf, format="PNG")
     buf.seek(0)
     
     return BufferedInputFile(buf.getvalue(), filename="profile.png")
 
-# Alternative function with more precise positioning based on your template
-async def render_profile_card_precise(bot,
-                                    uid: int,
-                                    nickname: str,
-                                    level: int, xp: int, next_xp: int,
-                                    energy: int, hunger: int,
-                                    money: int, fire: int,
-                                    pick_dur: str, caves: int) -> BufferedInputFile:
+
+# Альтернативная версия с более точным позиционированием
+async def render_profile_card_exact(bot,
+                                  uid: int,
+                                  nickname: str,
+                                  level: int, xp: int, next_xp: int,
+                                  energy: int, hunger: int,
+                                  money: int, fire: int,
+                                  pick_dur: str, caves: int) -> BufferedInputFile:
     
     bg = Image.open(BG_PATH).convert("RGBA")
     draw = ImageDraw.Draw(bg)
     
-    # Avatar handling (same as above)
-    avatar = Image.new("RGBA", (200, 200), (30, 30, 30, 255))
+    # Аватар
+    avatar = Image.new("RGBA", (140, 140), (50, 50, 50, 255))
     
     try:
         photos = await bot.get_user_profile_photos(uid, limit=1)
@@ -136,27 +107,28 @@ async def render_profile_card_precise(bot,
             file_info = await bot.get_file(fid)
             f = await bot.download_file(file_info.file_path)
             avatar = Image.open(f).convert("RGBA")
-            avatar = ImageOps.fit(avatar, (200, 200), Image.Resampling.LANCZOS)
+            avatar = ImageOps.fit(avatar, (140, 140), Image.Resampling.LANCZOS)
     except:
         pass
     
-    # Position avatar in the cyan frame area
-    bg.paste(avatar, (165, 140), avatar)
+    # Позиционируем аватар точно в рамку
+    bg.paste(avatar, (135, 125), avatar)
     
-    # Text positioning based on your template
-    # These coordinates are estimated from your image
-    draw.text((265, 370), nickname, font=F_BIG, fill="white", anchor="mm")
-    draw.text((265, 420), f"УРОВЕНЬ {level}", font=F_MED, fill="white", anchor="mm")
-    draw.text((265, 470), f"{xp}/{next_xp}", font=F_MED, fill="white", anchor="mm")
-    draw.text((265, 540), f"{energy}/100", font=F_MED, fill="white", anchor="mm")
-    draw.text((265, 590), f"{hunger}/100", font=F_MED, fill="white", anchor="mm")
+    # Текст - координаты основаны на втором изображении
+    draw.text((135, 280), nickname, font=F_MED, fill="white")
     
-    # Bottom stats - adjust these coordinates to match your icons
+    # Характеристики с иконками (позиции иконок уже есть в шаблоне)
+    draw.text((165, 320), f"УРОВЕНЬ {level}", font=F_SMALL, fill="white")
+    draw.text((165, 355), f"{xp}/{next_xp}", font=F_SMALL, fill="white")
+    draw.text((175, 400), f"{energy}/100", font=F_SMALL, fill="white")
+    draw.text((175, 435), f"{hunger}/100", font=F_SMALL, fill="white")
+    
+    # Нижние статистики
     money_text = f"{money//1000}k" if money >= 1000 else str(money)
-    draw.text((85, 680), money_text, font=F_SMALL, fill="white")
-    draw.text((245, 680), str(fire), font=F_SMALL, fill="white")
-    draw.text((85, 730), pick_dur, font=F_SMALL, fill="white")
-    draw.text((245, 730), str(caves), font=F_SMALL, fill="white")
+    draw.text((175, 485), money_text, font=F_SMALL, fill="white")
+    draw.text((290, 485), str(fire), font=F_SMALL, fill="white")
+    draw.text((175, 520), pick_dur, font=F_SMALL, fill="white")
+    draw.text((290, 520), str(caves), font=F_SMALL, fill="white")
     
     buf = BytesIO()
     bg.save(buf, format="PNG")
