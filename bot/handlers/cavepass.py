@@ -92,6 +92,7 @@ async def activate_pass_cmd(message: types.Message):
     dur_map = json.dumps({pick_key: pick_dur})
     dur_max_map = json.dumps({pick_key: pick_dur})
 
+    # Update progress_local table
     await db.execute(
         """
         UPDATE progress_local
@@ -110,6 +111,16 @@ async def activate_pass_cmd(message: types.Message):
             "cid": cid,
             "uid": uid
         }
+    )
+
+    # Update pass_progress table - Set is_premium to TRUE
+    await db.execute(
+        """
+        UPDATE pass_progress
+           SET is_premium = TRUE
+         WHERE chat_id = :cid AND user_id = :uid
+        """,
+        {"cid": cid, "uid": uid}
     )
 
     await db.execute(
@@ -131,5 +142,3 @@ async def activate_pass_cmd(message: types.Message):
         f"{emoji} Выдана кирка: <b>{name}</b> ({pick_dur}/{pick_dur})",
         parse_mode="HTML"
     )
-
-

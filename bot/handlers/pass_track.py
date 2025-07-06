@@ -15,6 +15,7 @@ from bot.utils.autodelete import register_msg_for_autodelete
 
 # Import ITEM_DEFS from bot.handlers.items
 from bot.handlers.items import ITEM_DEFS
+from bot.utils.unlockachievement import unlock_achievement
 
 router = Router()
 
@@ -121,7 +122,7 @@ async def deliver_reward(cid:int, uid:int, payload:dict):
         from bot.handlers.cases import give_case_to_user
         await give_case_to_user(cid, uid, payload["case"], payload.get("qty",1))
     elif "achievement" in payload:
-        from bot.utils.unlockachievement import unlock_achievement
+        # unlock_achievement is imported directly now
         await unlock_achievement(cid, uid, payload["achievement"])
     elif "badge" in payload:
         await db.execute("""
@@ -146,7 +147,7 @@ def get_reward_name(reward_payload: dict) -> str:
         return f"{reward_payload['coins']} Монет"
     elif "case" in reward_payload:
         case_key = reward_payload["case"]
-        name = ITEM_DEFS.get(case_key, {}).get("name", case_key) # Assuming cases are also in ITEM_DEFS
+        name = ITEM_DEFS.get(case_key, {}).get("name", case_key)
         qty = reward_payload.get("qty", 1)
         return f"{name} x{qty}"
     elif "achievement" in reward_payload:
@@ -168,8 +169,7 @@ async def trackpass_cmd(message: types.Message):
     lvl, xp, prem = row["lvl"], row["xp"], row["is_premium"]
 
     # ------- рисуем карточку -----------------
-    # Используйте ваш путь к фоновому изображению
-    bg = Image.open("bot/assets/PREMIUM_BG.png").convert("RGBA") # Убедитесь, что этот путь правильный
+    bg = Image.open("bot/assets/PREMIUM_BG.png").convert("RGBA")
     draw = ImageDraw.Draw(bg)
 
     # Заголовок
@@ -195,7 +195,6 @@ async def trackpass_cmd(message: types.Message):
     draw.text((40, 90), days_str, font=FONT_SMALL, fill="orange")
 
     # шкала прогресса
-    # Проверяем, чтобы избежать деления на ноль, если TOTAL_LVL = 0
     pct = (lvl + xp/XP_PER_LVL) / TOTAL_LVL if TOTAL_LVL > 0 else 0
     bar_x, bar_y, bar_w, bar_h = 40, 160, 620, 28
     draw.rounded_rectangle((bar_x, bar_y, bar_x+bar_w, bar_y+bar_h),
@@ -211,7 +210,7 @@ async def trackpass_cmd(message: types.Message):
     start_level_display = lvl
     lines = ["Следующие уровни:"]
     for i in range(start_level_display, min(start_level_display + 5, TOTAL_LVL)):
-        if i < len(REWARDS): # Проверяем, что индекс не выходит за пределы списка REWARDS
+        if i < len(REWARDS):
             f_reward, p_reward = REWARDS[i]
             free_reward_text = get_reward_name(f_reward)
             
@@ -219,21 +218,21 @@ async def trackpass_cmd(message: types.Message):
             if prem:
                 premium_reward_text = f" | Премиум: {get_reward_name(p_reward)}"
             
-            lines.append(f"Уровень {i+1}: Свободный: {free_reward_text}{premium_reward_text}")
+            lines.append(f"Уровень {i+1}: Бесплатный: {free_reward_text}{premium_reward_text}")
 
-    # Увеличьте интервал между строками для лучшей читаемости
-    line_height = 40 # Увеличьте это значение, если текст слишком плотный
+    line_height = 40
     for n, l in enumerate(lines):
         draw.text((40, 220 + n * line_height), l, font=FONT_SMALL, fill="white")
 
     # ---------- отправка ----------------------
     buf = BytesIO()
     bg.save(buf, format="PNG")
-    photo_bytes = buf.getvalue()                  # <- извлекаем байты
+    photo_bytes = buf.getvalue()
 
     photo = BufferedInputFile(photo_bytes, filename="cave_pass.png")
 
     await message.answer_photo(
         photo,
-        caption="Твой прогресс Cave Pass"
+        caption="Твой прогресс <b>Cave Pass</b>",
+        parse_mode="HTML",
     )

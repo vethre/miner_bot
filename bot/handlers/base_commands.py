@@ -459,9 +459,7 @@ async def profile_cmd(message: types.Message):
     pic = await render_profile_card(message.bot, uid, nickname_str, lvl, xp, next_xp)
 
     txt = (
-        f"👤 <b>{nickname_str}</b>\n"
         f"{weather_emoji} {weather_name}\n"
-        f"⭐ <u>L{lvl}</u> ({xp}/{next_xp})\n⭐ XP: {xp_bar}\n"
         f"🔋 {energy}/100 <code>{energy_bar}</code>\n"
         f"🍗 {hunger}/100 <code>{hunger_bar}</code>\n"
         f"{mine_status}\n"
