@@ -10,8 +10,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from PIL import Image, ImageDraw, ImageFont
 
 from bot.db_local import db, cid_uid, get_progress, add_item, add_money
-from bot.assets import PASS_IMG_ID          # добавьте фон-картинку в assets
+# from bot.assets import PASS_IMG_ID          # добавьте фон-картинку в assets - эта строка не нужна, так как изображение загружается локально
 from bot.utils.autodelete import register_msg_for_autodelete
+
+# Import ITEM_DEFS from bot.handlers.items
+from bot.handlers.items import ITEM_DEFS
 
 router = Router()
 
@@ -58,9 +61,13 @@ REWARDS = [
 ]
 
 # ---------- шрифты ---------------------------------------------------
-FONT_BIG   = ImageFont.load_default()
-FONT_SMALL = ImageFont.load_default()
+# Возможно, вам придется указать путь к файлу шрифта (.ttf) для использования пользовательских шрифтов.
+# Например: FONT_BIG = ImageFont.truetype("path/to/your/font.ttf", 36)
+# FONT_SMALL = ImageFont.truetype("path/to/your/font.ttf", 24)
+FONT_BIG   = ImageFont.truetype("arial.ttf", 36) # Пример: используем Arial, размер 36
+FONT_SMALL = ImageFont.truetype("arial.ttf", 24) # Пример: используем Arial, размер 24
 # --------------------------------------------------------------------
+
 async def ensure_row(cid:int, uid:int):
     await db.execute("""
         INSERT INTO pass_progress (chat_id,user_id)
@@ -128,6 +135,29 @@ async def deliver_reward(cid:int, uid:int, payload:dict):
         for sub in payload["extra"]:
             await deliver_reward(cid, uid, sub)
 
+def get_reward_name(reward_payload: dict) -> str:
+    """Извлекает читабельное название награды."""
+    if "item" in reward_payload:
+        item_key = reward_payload["item"]
+        name = ITEM_DEFS.get(item_key, {}).get("name", item_key)
+        qty = reward_payload.get("qty", 1)
+        return f"{name} x{qty}"
+    elif "coins" in reward_payload:
+        return f"{reward_payload['coins']} Монет"
+    elif "case" in reward_payload:
+        case_key = reward_payload["case"]
+        name = ITEM_DEFS.get(case_key, {}).get("name", case_key) # Assuming cases are also in ITEM_DEFS
+        qty = reward_payload.get("qty", 1)
+        return f"{name} x{qty}"
+    elif "achievement" in reward_payload:
+        # Здесь вы можете добавить сопоставление ID достижения с его названием, если оно есть
+        return "Достижение"
+    elif "badge" in reward_payload:
+        # Здесь вы можете добавить сопоставление ID значка с его названием
+        return "Значок"
+    return "Неизвестная награда"
+
+
 @router.message(Command("trackpass"))
 async def trackpass_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
@@ -138,16 +168,35 @@ async def trackpass_cmd(message: types.Message):
     lvl, xp, prem = row["lvl"], row["xp"], row["is_premium"]
 
     # ------- рисуем карточку -----------------
-    bg = Image.open("bot/assets/PREMIUM_BG.png").convert("RGBA")
+    # Используйте ваш путь к фоновому изображению
+    bg = Image.open("bot/assets/PREMIUM_BG.png").convert("RGBA") # Убедитесь, что этот путь правильный
     draw = ImageDraw.Draw(bg)
 
     # Заголовок
-    draw.text((40, 30), "Cave Pass • Season 1", font=FONT_BIG, fill="white")
-    draw.text((40, 90), f"До конца: {(PASS_END-dt.datetime.now(dt.timezone.utc)).days} дн.",
-              font=FONT_SMALL, fill="orange")
+    draw.text((40, 30), "Cave Pass • Сезон 1", font=FONT_BIG, fill="white")
+    
+    # Расчет оставшихся дней
+    now_utc = dt.datetime.now(dt.timezone.utc)
+    time_remaining = PASS_END - now_utc
+    days_remaining = time_remaining.days
+    
+    if days_remaining < 0:
+        days_str = "Завершен"
+    elif days_remaining == 0:
+        hours_remaining = int(time_remaining.total_seconds() // 3600)
+        minutes_remaining = int((time_remaining.total_seconds() % 3600) // 60)
+        if hours_remaining > 0:
+            days_str = f"До конца: {hours_remaining} ч. {minutes_remaining} мин."
+        else:
+            days_str = f"До конца: {minutes_remaining} мин."
+    else:
+        days_str = f"До конца: {days_remaining} дн."
+
+    draw.text((40, 90), days_str, font=FONT_SMALL, fill="orange")
 
     # шкала прогресса
-    pct = (lvl + xp/XP_PER_LVL) / TOTAL_LVL
+    # Проверяем, чтобы избежать деления на ноль, если TOTAL_LVL = 0
+    pct = (lvl + xp/XP_PER_LVL) / TOTAL_LVL if TOTAL_LVL > 0 else 0
     bar_x, bar_y, bar_w, bar_h = 40, 160, 620, 28
     draw.rounded_rectangle((bar_x, bar_y, bar_x+bar_w, bar_y+bar_h),
                            radius=12, outline="white", width=3)
@@ -159,18 +208,23 @@ async def trackpass_cmd(message: types.Message):
               font=FONT_SMALL, fill="white")
 
     # мини-список грядущих наград (5 следующих)
-    start = lvl
+    start_level_display = lvl
     lines = ["Следующие уровни:"]
-    for i in range(start, min(start+5, TOTAL_LVL)):
-        f, p = REWARDS[i]
-        tag = "⚡" if prem else "•"
-        lines.append(f"{i+1:02d}. {f.get('item','💰') or '💰'}"
-                     f"{'×'+str(f.get('qty',f.get('coins')))}"
-                     + (f"  {tag} {p.get('item','💰') or '💰'}×{p.get('qty',p.get('coins'))}"
-                        if prem else ""))
+    for i in range(start_level_display, min(start_level_display + 5, TOTAL_LVL)):
+        if i < len(REWARDS): # Проверяем, что индекс не выходит за пределы списка REWARDS
+            f_reward, p_reward = REWARDS[i]
+            free_reward_text = get_reward_name(f_reward)
+            
+            premium_reward_text = ""
+            if prem:
+                premium_reward_text = f" | Премиум: {get_reward_name(p_reward)}"
+            
+            lines.append(f"Уровень {i+1}: Свободный: {free_reward_text}{premium_reward_text}")
 
-    for n,l in enumerate(lines):
-        draw.text((40, 220+n*32), l, font=FONT_SMALL, fill="white")
+    # Увеличьте интервал между строками для лучшей читаемости
+    line_height = 40 # Увеличьте это значение, если текст слишком плотный
+    for n, l in enumerate(lines):
+        draw.text((40, 220 + n * line_height), l, font=FONT_SMALL, fill="white")
 
     # ---------- отправка ----------------------
     buf = BytesIO()
@@ -181,6 +235,5 @@ async def trackpass_cmd(message: types.Message):
 
     await message.answer_photo(
         photo,
-        caption="⚒️ Твой прогресс Cave Pass"
+        caption="Твой прогресс Cave Pass"
     )
-
