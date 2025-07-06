@@ -4,79 +4,81 @@ from io import BytesIO
 from pathlib import Path
 
 from aiogram.types import BufferedInputFile
-from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageResampling
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 ROOT   = Path(__file__).parent.parent
 ASSETS = ROOT / "assets"
-BG     = ASSETS / "profile_new.jpg"
 
-F_MED   = ImageFont.truetype(ASSETS / "Montserrat-Medium.ttf", 30)
-F_SMALL = ImageFont.truetype(ASSETS / "Montserrat-Medium.ttf", 26)
+BG_PATH       = ASSETS / "profile_new.jpg"
+FONT_MED_PATH = ASSETS / "Montserrat-Medium.ttf"
+FONT_BIG_PATH = ASSETS / "Montserrat-SemiBold.ttf"
 
-# Геометрия левой панели, «снята» по образцу
-COL_CX          = 208             # центр колонки-контента
-AVATAR_SZ       = 150
-AVATAR_TOP      = 120
-NICK_Y          = 305
-SLOT_W, SLOT_H  = 290, 42
-SLOT_CENTERS_Y  = (370, 420, 500, 550)       # lvl / xp / energy / hunger
-# нижние 2-ряда статистики
-STAT_Y1, STAT_Y2 = 685, 730
-X_L,   X_R       = 115, 300                  # money|pick  /  fire|caves
+F_MED = ImageFont.truetype(FONT_MED_PATH, 30)
+F_BIG = ImageFont.truetype(FONT_BIG_PATH, 40)
 
-def _center_txt(draw, text, cx, cy, font):
-    tw, th = draw.textbbox((0, 0), text, font=font)[2:]
-    draw.text((cx - tw // 2, cy - th // 2), text, font=font, fill='white')
+AVATAR_SIZE = (256, 256)
+AVATAR_POS  = (140, 165)        # ⇐ точка «лево-верх» в шаблоне
+PANEL_X0, PANEL_X1 = 0, 530     # область горизонтального центрирования
 
-async def render_profile_card(
-    bot,
-    uid:      int,
-    nickname: str,
-    level:    int, xp: int, next_xp: int,
-    energy:   int, hunger: int,
-    money:    int, fire: int,
-    pick_dur: str, caves: int
-) -> BufferedInputFile:
+def _center(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont,
+            y: int, x0: int = PANEL_X0, x1: int = PANEL_X1):
+    w, h = draw.textbbox((0, 0), text, font=font)[2:]
+    draw.text((x0 + (x1 - x0 - w)//2, y), text, font=font, fill="white")
 
-    bg  = Image.open(BG).convert('RGBA')
-    dr  = ImageDraw.Draw(bg)
+async def render_profile_card(bot,
+                              uid: int,
+                              nickname: str,
+                              level: int, xp: int, next_xp: int,
+                              energy: int, hunger: int,
+                              money: int, fire: int,
+                              pick_dur: str, caves: int) -> BufferedInputFile:
 
-    # ─── АВАТАР ──────────────────────────────────────────────
-    avatar = Image.new('RGBA', (AVATAR_SZ, AVATAR_SZ), (60,60,60,255))
-    try:
-        photos = await bot.get_user_profile_photos(uid, limit=1)
-        if photos.total_count:
-            f_id   = photos.photos[0][-1].file_id
-            file   = await bot.get_file(f_id)
-            stream = await bot.download_file(file.file_path)
-            avatar = Image.open(stream).convert('RGBA')
-    except Exception as e:
-        print("[profile/avatar]", e)
+    # 1️⃣ фон
+    bg   = Image.open(BG_PATH).convert("RGBA")
+    draw = ImageDraw.Draw(bg)
 
-    avatar = ImageOps.fit(avatar, (AVATAR_SZ, AVATAR_SZ), ImageResampling.LANCZOS)
-    avatar_x = COL_CX - AVATAR_SZ // 2
-    bg.paste(avatar, (avatar_x, AVATAR_TOP), avatar)
+    # 2️⃣ аватар (квадрат, обводка)
+    avatar = Image.new("RGBA", AVATAR_SIZE, (30, 30, 30, 255))
+    photos = await bot.get_user_profile_photos(uid, limit=1)
+    if photos.total_count:
+        fid    = photos.photos[0][-1].file_id
+        f      = await bot.download_file((await bot.get_file(fid)).file_path)
+        avatar = Image.open(f).convert("RGBA")
 
-    # ─── НИК ────────────────────────────────────────────────
-    _center_txt(dr, nickname, COL_CX, NICK_Y, F_MED)
+    avatar = ImageOps.fit(avatar, AVATAR_SIZE, Image.Resampling.LANCZOS)
 
-    # ─── 4 «капсулы» ────────────────────────────────────────
-    values = [
-        f"УРОВЕНЬ {level}",
-        f"{xp}/{next_xp}",
-        f"{energy}/100",
-        f"{hunger}/100",
+    # — рамка 4 px —─────────────────────────────────────────────
+    border = Image.new("RGBA", (AVATAR_SIZE[0]+8, AVATAR_SIZE[1]+8), (0,0,0,0))
+    bdraw  = ImageDraw.Draw(border)
+    bdraw.rectangle((0,0,*border.size), fill=(0,255,255,255))          # неон
+    bdraw.rectangle((4,4,4+AVATAR_SIZE[0],4+AVATAR_SIZE[1]), fill=(0,0,0,0))
+    bg.paste(border, (AVATAR_POS[0]-4, AVATAR_POS[1]-4), border)
+    bg.paste(avatar, AVATAR_POS)
+
+    # 3️⃣ ник
+    _center(draw, nickname, F_BIG, 445)
+
+    # 4️⃣ строки-метрики
+    rows = [
+        (f"УРОВЕНЬ {level}",  525),
+        (f"{xp}/{next_xp}",   595),
+        (f"{energy}/100",     687),
+        (f"{hunger}/100",     757),
     ]
-    for y, text in zip(SLOT_CENTERS_Y, values):
-        _center_txt(dr, text, COL_CX, y, F_SMALL)
+    for txt, y in rows:
+        _center(draw, txt, F_MED, y)
 
-    # ─── нижний блок статистики ─────────────────────────────
-    money_txt = f"{money//1000}k" if money >= 1_000 else str(money)
-    dr.text((X_L, STAT_Y1), money_txt, font=F_SMALL, fill='white')
-    dr.text((X_R, STAT_Y1), str(fire), font=F_SMALL,   fill='white')
-    dr.text((X_L, STAT_Y2), pick_dur,  font=F_SMALL,   fill='white')
-    dr.text((X_R, STAT_Y2), str(caves),font=F_SMALL,   fill='white')
+    # 5️⃣ мини-инфо-блок (два ряда ×2 иконки)
+    mini = [
+        (f"{money//1000}k",  875,  75),
+        (str(fire),          875, 305),
+        (pick_dur,           955,  75),
+        (str(caves),         955, 305),
+    ]
+    for txt, y, x in mini:
+        draw.text((x, y), txt, font=F_MED, fill="white")
 
-    # ─── ВЫВОД ──────────────────────────────────────────────
-    buf = BytesIO();  bg.save(buf, format='PNG');  buf.seek(0)
-    return BufferedInputFile(buf.getvalue(), filename='profile.png')
+    # 6️⃣ выдаём в буфер
+    buf = BytesIO()
+    bg.save(buf, format="PNG")
+    return BufferedInputFile(buf.getvalue(), filename="profile.png")
