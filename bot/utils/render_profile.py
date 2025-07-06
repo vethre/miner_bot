@@ -2,136 +2,81 @@
 from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
+
 from aiogram.types import BufferedInputFile
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageResampling
 
-ROOT = Path(__file__).parent.parent
+ROOT   = Path(__file__).parent.parent
 ASSETS = ROOT / "assets"
-BG_PATH = ASSETS / "profile_new.jpg"
-FONT_MED_PATH = ASSETS / "Montserrat-Medium.ttf"
-FONT_BIG_PATH = ASSETS / "Montserrat-SemiBold.ttf"
+BG     = ASSETS / "profile_new.jpg"
 
-# Правильные размеры шрифтов
-F_SMALL = ImageFont.truetype(FONT_MED_PATH, 24)
-F_MED = ImageFont.truetype(FONT_MED_PATH, 28)
-F_BIG = ImageFont.truetype(FONT_BIG_PATH, 32)
+F_MED   = ImageFont.truetype(ASSETS / "Montserrat-Medium.ttf", 30)
+F_SMALL = ImageFont.truetype(ASSETS / "Montserrat-Medium.ttf", 26)
 
-# Настройки аватара - НАМНОГО меньше!
-AVATAR_SIZE = (140, 140)  # Уменьшенный размер
-AVATAR_POS = (135, 125)   # Позиция в рамке
+# Геометрия левой панели, «снята» по образцу
+COL_CX          = 208             # центр колонки-контента
+AVATAR_SZ       = 150
+AVATAR_TOP      = 120
+NICK_Y          = 305
+SLOT_W, SLOT_H  = 290, 42
+SLOT_CENTERS_Y  = (370, 420, 500, 550)       # lvl / xp / energy / hunger
+# нижние 2-ряда статистики
+STAT_Y1, STAT_Y2 = 685, 730
+X_L,   X_R       = 115, 300                  # money|pick  /  fire|caves
 
-async def render_profile_card(bot,
-                            uid: int,
-                            nickname: str,
-                            level: int, xp: int, next_xp: int,
-                            energy: int, hunger: int,
-                            money: int, fire: int,
-                            pick_dur: str, caves: int) -> BufferedInputFile:
-    
-    # 1️⃣ Загружаем фон
-    bg = Image.open(BG_PATH).convert("RGBA")
-    draw = ImageDraw.Draw(bg)
-    
-    # 2️⃣ Обрабатываем аватар
-    avatar = Image.new("RGBA", AVATAR_SIZE, (50, 50, 50, 255))
-    
+def _center_txt(draw, text, cx, cy, font):
+    tw, th = draw.textbbox((0, 0), text, font=font)[2:]
+    draw.text((cx - tw // 2, cy - th // 2), text, font=font, fill='white')
+
+async def render_profile_card(
+    bot,
+    uid:      int,
+    nickname: str,
+    level:    int, xp: int, next_xp: int,
+    energy:   int, hunger: int,
+    money:    int, fire: int,
+    pick_dur: str, caves: int
+) -> BufferedInputFile:
+
+    bg  = Image.open(BG).convert('RGBA')
+    dr  = ImageDraw.Draw(bg)
+
+    # ─── АВАТАР ──────────────────────────────────────────────
+    avatar = Image.new('RGBA', (AVATAR_SZ, AVATAR_SZ), (60,60,60,255))
     try:
         photos = await bot.get_user_profile_photos(uid, limit=1)
-        if photos.total_count > 0:
-            fid = photos.photos[0][-1].file_id
-            file_info = await bot.get_file(fid)
-            f = await bot.download_file(file_info.file_path)
-            avatar = Image.open(f).convert("RGBA")
-            avatar = ImageOps.fit(avatar, AVATAR_SIZE, Image.Resampling.LANCZOS)
+        if photos.total_count:
+            f_id   = photos.photos[0][-1].file_id
+            file   = await bot.get_file(f_id)
+            stream = await bot.download_file(file.file_path)
+            avatar = Image.open(stream).convert('RGBA')
     except Exception as e:
-        print(f"Ошибка загрузки аватара: {e}")
-    
-    # Вставляем аватар БЕЗ рамки (рамка уже есть в шаблоне)
-    bg.paste(avatar, AVATAR_POS, avatar)
-    
-    # 3️⃣ Никнейм - под аватаром, выровнен по левому краю
-    draw.text((135, 280), nickname, font=F_MED, fill="white")
-    
-    # 4️⃣ Основные характеристики - точные позиции как во втором изображении
-    
-    # Уровень
-    draw.text((135, 320), f"УРОВЕНЬ {level}", font=F_SMALL, fill="white")
-    
-    # XP
-    draw.text((135, 355), f"{xp}/{next_xp}", font=F_SMALL, fill="white")
-    
-    # Энергия (с желтой молнией)
-    draw.text((175, 400), f"{energy}/100", font=F_SMALL, fill="white")
-    
-    # Голод (с коричневым бургером)
-    draw.text((175, 435), f"{hunger}/100", font=F_SMALL, fill="white")
-    
-    # 5️⃣ Нижний блок статистики - две строки
-    
-    # Первая строка: деньги и огонь
-    money_text = f"{money//1000}k" if money >= 1000 else str(money)
-    draw.text((135, 485), money_text, font=F_SMALL, fill="white")  # Зеленые деньги
-    draw.text((250, 485), str(fire), font=F_SMALL, fill="white")   # Желтый огонь
-    
-    # Вторая строка: кирка и пещеры  
-    draw.text((135, 520), pick_dur, font=F_SMALL, fill="white")    # Синяя кирка
-    draw.text((250, 520), str(caves), font=F_SMALL, fill="white")  # Фиолетовые пещеры
-    
-    # 6️⃣ Сохраняем в буфер
-    buf = BytesIO()
-    bg.save(buf, format="PNG")
-    buf.seek(0)
-    
-    return BufferedInputFile(buf.getvalue(), filename="profile.png")
+        print("[profile/avatar]", e)
 
+    avatar = ImageOps.fit(avatar, (AVATAR_SZ, AVATAR_SZ), ImageResampling.LANCZOS)
+    avatar_x = COL_CX - AVATAR_SZ // 2
+    bg.paste(avatar, (avatar_x, AVATAR_TOP), avatar)
 
-# Альтернативная версия с более точным позиционированием
-async def render_profile_card_exact(bot,
-                                  uid: int,
-                                  nickname: str,
-                                  level: int, xp: int, next_xp: int,
-                                  energy: int, hunger: int,
-                                  money: int, fire: int,
-                                  pick_dur: str, caves: int) -> BufferedInputFile:
-    
-    bg = Image.open(BG_PATH).convert("RGBA")
-    draw = ImageDraw.Draw(bg)
-    
-    # Аватар
-    avatar = Image.new("RGBA", (140, 140), (50, 50, 50, 255))
-    
-    try:
-        photos = await bot.get_user_profile_photos(uid, limit=1)
-        if photos.total_count > 0:
-            fid = photos.photos[0][-1].file_id
-            file_info = await bot.get_file(fid)
-            f = await bot.download_file(file_info.file_path)
-            avatar = Image.open(f).convert("RGBA")
-            avatar = ImageOps.fit(avatar, (140, 140), Image.Resampling.LANCZOS)
-    except:
-        pass
-    
-    # Позиционируем аватар точно в рамку
-    bg.paste(avatar, (135, 125), avatar)
-    
-    # Текст - координаты основаны на втором изображении
-    draw.text((135, 280), nickname, font=F_MED, fill="white")
-    
-    # Характеристики с иконками (позиции иконок уже есть в шаблоне)
-    draw.text((165, 320), f"УРОВЕНЬ {level}", font=F_SMALL, fill="white")
-    draw.text((165, 355), f"{xp}/{next_xp}", font=F_SMALL, fill="white")
-    draw.text((175, 400), f"{energy}/100", font=F_SMALL, fill="white")
-    draw.text((175, 435), f"{hunger}/100", font=F_SMALL, fill="white")
-    
-    # Нижние статистики
-    money_text = f"{money//1000}k" if money >= 1000 else str(money)
-    draw.text((175, 485), money_text, font=F_SMALL, fill="white")
-    draw.text((290, 485), str(fire), font=F_SMALL, fill="white")
-    draw.text((175, 520), pick_dur, font=F_SMALL, fill="white")
-    draw.text((290, 520), str(caves), font=F_SMALL, fill="white")
-    
-    buf = BytesIO()
-    bg.save(buf, format="PNG")
-    buf.seek(0)
-    
-    return BufferedInputFile(buf.getvalue(), filename="profile.png")
+    # ─── НИК ────────────────────────────────────────────────
+    _center_txt(dr, nickname, COL_CX, NICK_Y, F_MED)
+
+    # ─── 4 «капсулы» ────────────────────────────────────────
+    values = [
+        f"УРОВЕНЬ {level}",
+        f"{xp}/{next_xp}",
+        f"{energy}/100",
+        f"{hunger}/100",
+    ]
+    for y, text in zip(SLOT_CENTERS_Y, values):
+        _center_txt(dr, text, COL_CX, y, F_SMALL)
+
+    # ─── нижний блок статистики ─────────────────────────────
+    money_txt = f"{money//1000}k" if money >= 1_000 else str(money)
+    dr.text((X_L, STAT_Y1), money_txt, font=F_SMALL, fill='white')
+    dr.text((X_R, STAT_Y1), str(fire), font=F_SMALL,   fill='white')
+    dr.text((X_L, STAT_Y2), pick_dur,  font=F_SMALL,   fill='white')
+    dr.text((X_R, STAT_Y2), str(caves),font=F_SMALL,   fill='white')
+
+    # ─── ВЫВОД ──────────────────────────────────────────────
+    buf = BytesIO();  bg.save(buf, format='PNG');  buf.seek(0)
+    return BufferedInputFile(buf.getvalue(), filename='profile.png')
