@@ -18,7 +18,7 @@ F_MED   = ImageFont.truetype(FONT_MED_PATH, 28)
 
 # аватар
 AVATAR_SIZE = (226, 226)  # размер аватара
-AVATAR_POS  = (236, 242)
+AVATAR_POS  = (236, 240)
 
 NICK_POS   = (295, 459)
 
