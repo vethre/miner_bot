@@ -64,9 +64,9 @@ REWARDS = [
 # Возможно, вам придется указать путь к файлу шрифта (.ttf) для использования пользовательских шрифтов.
 # Например: FONT_BIG = ImageFont.truetype("path/to/your/font.ttf", 36)
 # FONT_SMALL = ImageFont.truetype("path/to/your/font.ttf", 24)
-FONT_BIG   = ImageFont.truetype("arial.ttf", 36) # Пример: используем Arial, размер 36
-FONT_SMALL = ImageFont.truetype("arial.ttf", 24) # Пример: используем Arial, размер 24
-# --------------------------------------------------------------------
+FONT_BIG   = ImageFont.truetype("bot/assets/Montserrat-SemiBold.ttf", 36) # Пример: используем Montserrat, размер 36
+FONT_SMALL = ImageFont.truetype("bot/assets/Montserrat-Medium.ttf", 24) # Пример: используем Montserrat, размер 24
+# --------------------------------------------------------------
 
 async def ensure_row(cid:int, uid:int):
     await db.execute("""
