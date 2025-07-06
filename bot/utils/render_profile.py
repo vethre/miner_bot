@@ -17,7 +17,7 @@ F_MED = ImageFont.truetype(FONT_MED_PATH, 30)
 F_BIG = ImageFont.truetype(FONT_BIG_PATH, 40)
 
 AVATAR_SIZE = (256, 256)
-AVATAR_POS  = (140, 165)        # ⇐ точка «лево-верх» в шаблоне
+AVATAR_POS  = (150, 175)        # ⇐ точка «лево-верх» в шаблоне
 PANEL_X0, PANEL_X1 = 0, 530     # область горизонтального центрирования
 
 def _center(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont,
@@ -60,20 +60,20 @@ async def render_profile_card(bot,
 
     # 4️⃣ строки-метрики
     rows = [
-        (f"УРОВЕНЬ {level}",  525),
-        (f"{xp}/{next_xp}",   595),
-        (f"{energy}/100",     687),
-        (f"{hunger}/100",     757),
+        (f"УРОВЕНЬ {level}",  535),   # +10 px
+        (f"{xp}/{next_xp}",   605),
+        (f"{energy}/100",     697),
+        (f"{hunger}/100",     767),
     ]
     for txt, y in rows:
         _center(draw, txt, F_MED, y)
 
     # 5️⃣ мини-инфо-блок (два ряда ×2 иконки)
     mini = [
-        (f"{money//1000}k",  875,  75),
-        (str(fire),          875, 305),
-        (pick_dur,           955,  75),
-        (str(caves),         955, 305),
+        (f"{money//1000}k",  885,  75),   # +10 px
+        (str(fire),          885, 305),
+        (pick_dur,           965,  75),
+        (str(caves),         965, 305),
     ]
     for txt, y, x in mini:
         draw.text((x, y), txt, font=F_MED, fill="white")
