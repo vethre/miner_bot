@@ -3,7 +3,7 @@ from aiogram.types import BufferedInputFile           # ← нужный кла�
 from PIL import Image, ImageDraw, ImageFont
 
 PROFILE_BG = "bot/assets/profile_bg.jpg"
-FONT_PATH   = "bot/assets/Roboto.ttf"
+FONT_PATH   = "bot/assets/Roboto-Regular.ttf"
 
 async def render_profile_card(bot, uid: int, nickname: str,
                               level: int, xp: int, next_xp: int):
