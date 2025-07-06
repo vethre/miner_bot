@@ -13,8 +13,8 @@ F_MED    = ImageFont.truetype(ASSETS / "Montserrat-Medium.ttf", 32)
 F_BIG    = ImageFont.truetype(ASSETS / "Montserrat-SemiBold.ttf", 42)
 
 # ──────────────────────────────────────────────────────────────────────────
-def _center(draw: ImageDraw.ImageDraw, txt: str, font, x0: int, x1: int, y: int):
-    """Нарисовать txt по центру между x0 и x1."""
+def _center(draw, txt, font, y):
+    x0, x1 = 60, 510           # ⬅︎ было (0, 530)
     w, h = draw.textbbox((0, 0), txt, font=font)[2:]
     draw.text((x0 + (x1 - x0 - w)//2, y), txt, font=font, fill="white")
 
@@ -39,28 +39,28 @@ async def render_profile_card(bot, uid: int, nickname: str,
     avatar = ImageOps.fit(avatar, (256, 256), Image.Resampling.LANCZOS)
     mask   = Image.new("L", (256, 256), 0)
     ImageDraw.Draw(mask).ellipse((0, 0, 256, 256), fill=255)
-    bg.paste(avatar, (137, 120), mask)
+    bg.paste(avatar, (175, 140), mask)
 
     # 3️⃣ ник (по центру панели 530 px) – координаты подбирались вручную
-    _center(draw, nickname, F_BIG, 0, 530, 400)
+    _center(draw, nickname, F_BIG, 400)
 
     # 4️⃣ строки-метрики (текст без иконок – сами плашки уже на фоне)
     #    координаты Y – из макета; X-центрируем в границах панели
     rows = [
-        (f"УРОВЕНЬ {level}",            475),
-        (f"{xp}/{next_xp}",             545),
-        (f"{energy}/100",               637),
-        (f"{hunger}/100",               707),
+        (f"УРОВЕНЬ {level}", 495),     # +20 px
+        (f"{xp}/{next_xp}",   565),
+        (f"{energy}/100",     657),
+        (f"{hunger}/100",     727),
     ]
     for txt, y in rows:
-        _center(draw, txt, F_MED, 0, 530, y)
+        _center(draw, txt, F_MED, y)
 
     # 5️⃣ мини-блок (два ряда по 2, координаты под макет)
     mini = [
-        (f"{money//1000}k",  825,  70),   # деньги
-        (str(fire),          825, 300),   # 🔥
-        (pick_dur,           905,  70),   # кирка
-        (str(caves),         905, 300),   # кейсы
+        (f"{money//1000}k",  845,  70),
+        (str(fire),          845, 300),
+        (pick_dur,           925,  70),
+        (str(caves),         925, 300),
     ]
     for txt, y, x in mini:
         draw.text((x, y), txt, font=F_MED, fill="white")
