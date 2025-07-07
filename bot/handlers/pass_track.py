@@ -19,7 +19,7 @@ XP_PER_LVL  = 300
 
 # -------- награды ---------------------------------------------------
 #   free[x]  / premium[x]  для уровня (index==lvl-1)
-REWARDS = [
+REWARDS: list[tuple[dict, dict]] = [
     ({"coins": 150},                      {"achievement": "eonite_owner"}),          #  1
     ({"item": "bread", "qty": 2},         {"coins": 400}),                           #  2
     ({"coins": 200},                      {"item": "voucher_sale", "qty": 1}),       #  3
@@ -118,6 +118,10 @@ def _bar(val: int, total: int, size: int = 20) -> str:
     return "▰" * filled + "▱" * (size - filled)
 
 def _name(p: dict) -> str:
+    """Читабельная строка для любой награды (учитывает extra)."""
+    if not p:
+        return "–"
+    
     if "coins" in p:
         base = f"{p['coins']} мон."
     if "item" in p:
