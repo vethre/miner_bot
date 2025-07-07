@@ -1143,9 +1143,9 @@ async def smelt_quantity(cb: CallbackQuery):
         )
 
     kb = InlineKeyboardBuilder()
-    kb.row(make_btn("−5", -5), make_btn("−1", -1),
+    kb.row(make_btn("−10", -10), make_btn("−1", -1),
            types.InlineKeyboardButton(text=f"{cur}/{max_cnt}", callback_data="noop"),
-           make_btn("+1", 1), make_btn("+5", 5))
+           make_btn("+1", 1), make_btn("+10", 10))
     kb.row(types.InlineKeyboardButton(
         text="➡️ Уголь",
         callback_data=f"smeltcoal:{ore}:{cur}:{orig_uid}"
