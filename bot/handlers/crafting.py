@@ -74,6 +74,11 @@ CRAFT_RECIPES.update({
         "out_key": "lapis_torch",
         "out_name": "🔵 Лазурный факел"
     },
+    "руда эонита": {
+        "in": {"eonite_shard": 3},
+        "out_key": "eonite_ore",
+        "out_name": "🧿 Руда Эонита"
+    },
     "железная рукоять": {
         "in": {
             "wood_handle": 3,
