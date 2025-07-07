@@ -15,7 +15,7 @@ PASS_START  = dt.datetime(2025, 7, 7, tzinfo=dt.timezone.utc)
 PASS_END    = dt.datetime(2025, 7, 27, tzinfo=dt.timezone.utc)
 PASS_DAYS   = (PASS_END - PASS_START).days      # 20 дн.
 TOTAL_LVL   = 20
-XP_PER_LVL  = 300
+XP_PER_LVL  = 150
 
 # -------- награды ---------------------------------------------------
 #   free[x]  / premium[x]  для уровня (index==lvl-1)
