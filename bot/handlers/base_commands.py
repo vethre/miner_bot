@@ -281,7 +281,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         """, {"c": cid, "u": uid})
         await unlock_achievement(cid, uid, "eonite_pioneer")
 
-    await add_pass_xp(bot, cid, uid, xp_gain)
+    await add_pass_xp(cid, uid, xp_gain)
     if prog.get("badge_active") == "recruit":
         await add_money(cid, uid, 30)   
 
@@ -369,6 +369,7 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     await add_clash_points(cid, uid, 1)
     xp_gain = cnt * 5
     await add_xp_with_notify(bot, cid, uid, xp_gain)
+    await add_pass_xp(cid, uid, xp_gain)
     member_name = await get_display_name(bot, cid, uid)
     msg = await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}\n🔥 +{xp_gain} XP", parse_mode="HTML")
     register_msg_for_autodelete(cid, msg.message_id)
