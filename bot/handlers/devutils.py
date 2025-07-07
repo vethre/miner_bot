@@ -331,6 +331,26 @@ async def emoji_id_cmd(message: types.Message):
 
     txt = "🔎 Найдено custom_emoji_id:\n" + "\n".join(f"`{e}`" for e in ids)
     await message.reply(txt, parse_mode="Markdown")
+    
+@router.message(Command("run_season_now"))
+async def run_season_now(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("⛔ Нет прав")
+    from bot.handlers.cave_clash import _season_job
+    await _season_job(message.bot)
+    await message.reply("🔁 Clash сезон пересчитан.")
+    
+@router.message(Command("force_clash_reset"))
+async def force_clash_reset(message: types.Message):
+    if message.chat.type != "supergroup":
+        return await message.reply("⚠️ Только в группах.")
+
+    if message.from_user.id not in ADMINS:
+        return await message.reply("❌ Нет прав")
+
+    from bot.handlers.cave_clash import _process_chat
+    await _process_chat(message.bot, message.chat.id)
+    await message.reply("✅ Clash Rewards вручную выданы.")
 
 TECH_PAUSE_KEY = "tech_pause"
 DEFAULT_ALLOWED_CHAT = -1001987529426               # чат, где бот «живой» даже в паузе
