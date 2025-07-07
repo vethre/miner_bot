@@ -89,9 +89,12 @@ async def invoice_cb(cb: types.CallbackQuery):
     )
 
 # ─────────── обработчик успешной оплаты ─────────────────────────────────
-@router.successful_payment(F.successful_payment.invoice_payload == "cavepass_purchase")
+@router.message(F.successful_payment)
 async def pass_paid(msg: types.Message):
     cid, uid = msg.chat.id, msg.from_user.id
+
+    if msg.successful_payment.invoice_payload != "cavepass_purchase":
+        return 
 
     # 1. В progress_local
     await db.execute("""
