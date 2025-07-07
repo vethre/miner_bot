@@ -20,8 +20,6 @@ XP_PER_LVL  = 300
 # -------- награды ---------------------------------------------------
 #   free[x]  / premium[x]  для уровня (index==lvl-1)
 REWARDS = [
-# lvl  free-track                         , premium-track
-# ───────────────────────────────────────────────────────────────
     ({"coins": 150},                      {"achievement": "eonite_owner"}),          #  1
     ({"item": "bread", "qty": 2},         {"coins": 400}),                           #  2
     ({"coins": 200},                      {"item": "voucher_sale", "qty": 1}),       #  3
@@ -49,44 +47,104 @@ REWARDS = [
                                                {"case": "cave_cases", "qty": 5},
                                                {"item": "eonite_shard", "qty": 3}
                                            ]}),                                      # 20
-# ───────────────────────────────────────────────────────────────
-    # … и так далее до 30-го уровня – заполняйте по своему вкусу
 ]
 
-def _bar(value: int, total: int, size: int = 20) -> str:
-    """▰▰▰▱-бар из Unicode‐блоков."""
-    filled = min(size, int(round(value / total * size)))
-    return "▰" * filled + "▱" * (size - filled)
-
-def _name(payload: dict) -> str:
-    """Читабельное имя награды (для списка уровней)."""
-    if "coins" in payload:
-        return f"{payload['coins']} мон."
-    if "item" in payload:
-        meta = ITEM_DEFS.get(payload["item"], {})
-        qty  = payload.get("qty", 1)
-        return f"{meta.get('emoji','')} {meta.get('name', payload['item'])}×{qty}"
-    if "case" in payload:
-        meta = ITEM_DEFS.get(payload["case"], {})
-        qty  = payload.get("qty", 1)
-        return f"{meta.get('emoji','🎁')} {meta.get('name','Кейс')}×{qty}"
-    if "achievement" in payload:
-        return "Достижение"
-    if "badge" in payload:
-        return "Бейдж"
-    return "?"
-
-# ───────────────── команда /trackpass ─────────────
-@router.message(Command("trackpass"))
-async def trackpass_cmd(m: types.Message):
-    cid, uid = await cid_uid(m)
-
-    # гарантируем, что строка есть
+async def ensure_row(cid: int, uid: int):
     await db.execute(
         "INSERT INTO pass_progress (chat_id,user_id) VALUES (:c,:u) "
         "ON CONFLICT DO NOTHING",
         {"c": cid, "u": uid},
     )
+
+async def deliver_reward(cid: int, uid: int, payload: dict):
+    if not payload:
+        return
+    if "item" in payload:
+        await add_item(cid, uid, payload["item"], payload.get("qty", 1))
+    elif "coins" in payload:
+        await add_money(cid, uid, payload["coins"])
+    elif "case" in payload:
+        from bot.handlers.cases import give_case_to_user
+        await give_case_to_user(cid, uid, payload["case"], payload.get("qty", 1))
+    elif "achievement" in payload:
+        await unlock_achievement(cid, uid, payload["achievement"])
+    elif "badge" in payload:
+        await db.execute(
+            "UPDATE progress_local SET badge_active=:b "
+            "WHERE chat_id=:c AND user_id=:u",
+            {"b": payload["badge"], "c": cid, "u": uid},
+        )
+    if "extra" in payload:
+        for sub in payload["extra"]:
+            await deliver_reward(cid, uid, sub)
+
+async def grant_level_reward(cid: int, uid: int, lvl: int):
+    free, prem = REWARDS[lvl - 1]
+    await deliver_reward(cid, uid, free)
+
+    row = await db.fetch_one(
+        "SELECT is_premium FROM pass_progress WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid},
+    )
+    if row and row["is_premium"]:
+        await deliver_reward(cid, uid, prem)
+
+async def add_pass_xp(cid: int, uid: int, delta: int):
+    await ensure_row(cid, uid)
+
+    # прибавляем XP и читаем новую пару (xp,lvl)
+    row = await db.fetch_one(
+        "UPDATE pass_progress SET xp = xp + :d "
+        "WHERE chat_id=:c AND user_id=:u "
+        "RETURNING xp, lvl",
+        {"d": delta, "c": cid, "u": uid},
+    )
+    xp, lvl = row["xp"], row["lvl"]
+
+    # прокачиваем, пока хватает опыта
+    while lvl < TOTAL_LVL and xp >= XP_PER_LVL:
+        lvl += 1
+        xp -= XP_PER_LVL
+        await grant_level_reward(cid, uid, lvl)
+
+    await db.execute(
+        "UPDATE pass_progress SET xp=:x, lvl=:l WHERE chat_id=:c AND user_id=:u",
+        {"x": xp, "l": lvl, "c": cid, "u": uid},
+    )
+
+# ────────── helper’ы рендера ──────────
+def _bar(val: int, total: int, size: int = 20) -> str:
+    filled = min(size, int(round(val / total * size)))
+    return "▰" * filled + "▱" * (size - filled)
+
+def _name(p: dict) -> str:
+    if "coins" in p:
+        base = f"{p['coins']} мон."
+    if "item" in p:
+        meta = ITEM_DEFS.get(p["item"], {})
+        base = f"{meta.get('emoji','')} {meta.get('name', p['item'])}×{p.get('qty',1)}"
+    if "case" in p:
+        meta = ITEM_DEFS.get(p["case"], {})
+        base = f"{meta.get('emoji','🎁')} {meta.get('name','Кейс')}×{p.get('qty',1)}"
+    if "achievement" in p:
+        base = "Достижение"
+    elif "badge" in p:
+        base = "Бейдж"
+    else:
+        base = "?"
+
+    # 2) если есть extra – добавляем короткий список «+ …»
+    if "extra" in p:
+        extras = ", ".join(_name(x) for x in p["extra"])
+        base += f"  (+ {extras})"
+
+    return base
+
+# ────────── команда /trackpass ──────────
+@router.message(Command("trackpass"))
+async def trackpass_cmd(m: types.Message):
+    cid, uid = await cid_uid(m)
+    await ensure_row(cid, uid)
 
     row = await db.fetch_one(
         "SELECT lvl, xp, is_premium FROM pass_progress "
@@ -95,35 +153,29 @@ async def trackpass_cmd(m: types.Message):
     )
     lvl, xp, prem = row["lvl"], row["xp"], row["is_premium"]
 
-    # ───── заголовок / счётчик дней ─────
     now = dt.datetime.now(dt.timezone.utc)
-    days_left = max(0, (PASS_END.date() - now.date()).days)
+    d_left = max(0, (PASS_END.date() - now.date()).days)
+
     header = (
         "🎫 <b>Cave Pass • Сезон 1</b>\n"
-        f"⏳ До конца: <b>{'последний день!' if days_left == 0 else str(days_left)+' дн.'}</b>\n"
+        f"⏳ До конца: <b>{'последний день!' if d_left == 0 else str(d_left)+' дн.'}</b>\n"
         f"{'⭐ Премиум активен' if prem else '🔒 Премиум не куплен'}\n"
         "───────────────\n"
     )
 
-    # ───── ваш текущий прогресс ─────
-    bar = _bar(xp, XP_PER_LVL)
     body = (
         f"Уровень <b>{lvl}</b>\n"
-        f"<code>{bar}</code>\n"
+        f"<code>{_bar(xp, XP_PER_LVL)}</code>\n"
         f"XP {xp}/{XP_PER_LVL}\n"
         "───────────────\n"
     )
 
-    # ───── ближайшие 5 уровней ─────
-    upcoming = ["<b>Ближайшие награды:</b>"]
+    near = ["<b>Ближайшие уровни:</b>"]
     for i in range(lvl, min(lvl + 5, TOTAL_LVL)):
-        free, prem_r = REWARDS[i]
-        line = f"{i+1:02d}. {_name(free)}"
+        fr, pr = REWARDS[i]
+        line = f"{i+1:02d}. {_name(fr)}"
         if prem:
-            line += f" | ⭐ {_name(prem_r)}"
-        upcoming.append(line)
+            line += f" | ⭐ {_name(pr)}"
+        near.append(line)
 
-    await m.answer(
-        header + body + "\n".join(upcoming),
-        parse_mode="HTML",
-    )
+    await m.answer(header + body + "\n".join(near), parse_mode="HTML")
