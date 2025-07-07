@@ -466,6 +466,12 @@ async def profile_cmd(message: types.Message):
     xp_bar      = mono_bar(xp, next_xp)
     energy_bar  = color_bar(energy, 100)
     hunger_bar  = color_bar(hunger, 100)
+    has_pass    = prog.get("cave_pass", False)
+    expires     = prog.get("pass_expires")
+    if has_pass and expires:
+        pass_str = expires.strftime("%d.%m.%Y")
+    else:
+        pass_str = "Не активирован"
 
     weather_emoji, weather_name = random.choice(WEATHERS)
     mine_end = prog.get("mining_end")
@@ -492,6 +498,7 @@ async def profile_cmd(message: types.Message):
         f"<u>Уровень {lvl}</u>\n"
         f"{xp_bar} <code>{xp}/{next_xp}</code>\n"
         f"{weather_emoji} {weather_name}\n"
+        f"💎 <b>Cave Pass:</b> {pass_str}\n"
         f"🔋 {energy}/100 <code>{energy_bar}</code>\n"
         f"🍗 {hunger}/100 <code>{hunger_bar}</code>\n"
         f"{mine_status}\n"

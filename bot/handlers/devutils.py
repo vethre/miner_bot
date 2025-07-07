@@ -60,95 +60,111 @@ async def id_cmd(message: types.Message):
     await message.reply(text, parse_mode="HTML")
 
 class Ann(StatesGroup):
-    text = State()
-    choose = State()
+    wait_media = State()   # ждём шаблон-сообщение
+    choose     = State()   # выбираем группы
 
-# util — получить список групп, где «живёт» бот
-async def _all_chats() -> list[tuple[int,str]]:
+# ───── утилиты ────────────────────────────────────────────
+async def _all_chats() -> list[tuple[int, str]]:
     rows = await db.fetch_all("SELECT chat_id, title FROM groups")
-    # title может быть NULL → str(chat_id)
     return [(r["chat_id"], r["title"] or str(r["chat_id"])) for r in rows]
 
-# ────────────────────────────────────────────
-@router.message(Command("announce"))
-async def announce_entry(msg: types.Message, state: FSMContext):
-    if msg.from_user.id not in ADMINS:
-        return await msg.reply("⛔️ Только для разработчика")
-
-    await state.update_data(src_chat=msg.chat.id, src_msg=msg.message_id)
-
-    # строим список групп
-    kb = InlineKeyboardBuilder()
-    for cid, title in await _all_chats():
-        kb.button(text=f"❌ {title}", callback_data=f"ann:{cid}:0")
-    kb.adjust(1)
-    kb.button(text="➡️ Отправить", callback_data="ann_send")
-
-    await msg.reply(
-        "✅ Пришли медиа-сообщение (текст/фото/гиф/стикер/emoji) — потом выбери чаты.",
-        reply_markup=kb.as_markup()
-    )
-    await state.set_state(Ann.choose)
-
-# переключаем «✅/❌»
-@router.callback_query(Ann.choose, F.data.startswith("ann:"))
-async def ann_toggle(cb: types.CallbackQuery, state: FSMContext):
-    _, cid_str, flag = cb.data.split(":")
-    cid = int(cid_str)
-    data = await state.get_data()
-    chosen: set[int] = data.get("choosen", set())
-    if flag == "0":
-        chosen.add(cid)
-        new_flag, mark = "1", "✅"
-    else:
-        chosen.discard(cid)
-        new_flag, mark = "0", "❌"
-    await state.update_data(choosen=chosen)
-
-    # меняем подпись кнопки
-    await cb.message.edit_reply_markup(
-        reply_markup=_rebuild_kb(cb.message.reply_markup, cid, new_flag, mark)
-    )
-    await cb.answer()
-
-# отправка
-@router.callback_query(Ann.choose, F.data == "ann_send")
-async def ann_send(cb: types.CallbackQuery, state: FSMContext, bot: Bot):
-    data = await state.get_data()
-    text = data["text"]
-    chats = list(data["choosen"])
-    await _broadcast(bot, chats, text, cb.message)
-    await state.clear()
-
-# ─── helper: массовая рассылка ─────────────────────
-async def _broadcast(bot: Bot, chats: list[int], text: str, origin_msg: types.Message):
-    ok = fail = 0
-    for cid in chats:
-        try:
-            await bot.send_message(cid, text, parse_mode="HTML")
-            ok += 1
-        except Exception:
-            fail += 1
-    await origin_msg.reply(f"📣 Разослано: {ok}, ошибок: {fail}")
-
-# ─── helper: перестроить инлайн-клаву ──────────────
-def _rebuild_kb(markup: types.InlineKeyboardMarkup, cid: int, new_flag:str, mark:str):
+def _rebuild_kb(markup: types.InlineKeyboardMarkup,
+                cid: int, flag: str, mark: str):
+    """Обновляем одну кнопку ✅/❌ без перестройки всей клавы."""
     new_rows = []
     for row in markup.inline_keyboard:
         new_row = []
         for btn in row:
             if btn.callback_data and btn.callback_data.startswith(f"ann:{cid}:"):
-                title = btn.text[2:].strip()        # отрезаем старый ❌/✅
+                title = btn.text[2:].strip()
                 new_row.append(
                     types.InlineKeyboardButton(
                         text=f"{mark} {title}",
-                        callback_data=f"ann:{cid}:{new_flag}"
+                        callback_data=f"ann:{cid}:{flag}"
                     )
                 )
             else:
                 new_row.append(btn)
         new_rows.append(new_row)
     return types.InlineKeyboardMarkup(inline_keyboard=new_rows)
+
+# ───── /announce ──────────────────────────────────────────
+@router.message(Command("announce"))
+async def announce_start(msg: types.Message, state: FSMContext):
+    if msg.from_user.id not in ADMINS:
+        return await msg.reply("⛔️ Только для разработчика")
+
+    await msg.reply(
+        "📢 Пришли ОДНО сообщение-шаблон (текст/картинку/гиф/стикер/emoji).\n"
+        "После этого выберешь, куда разослать."
+    )
+    await state.set_state(Ann.wait_media)
+
+# ───── ловим шаблон-сообщение ─────────────────────────────
+@router.message(Ann.wait_media)
+async def ann_got_media(msg: types.Message, state: FSMContext):
+    # сохраняем chat_id + message_id для copy_message
+    await state.update_data(src_chat=msg.chat.id,
+                            src_msg=msg.message_id,
+                            choosen=set())
+
+    # строим клавиатуру чатов
+    kb = InlineKeyboardBuilder()
+    for cid, title in await _all_chats():
+        kb.button(text=f"❌ {title}", callback_data=f"ann:{cid}:0")
+    kb.adjust(1)
+    kb.button(text="➡️ Отправить", callback_data="ann_send")
+
+    prompt = await msg.reply(
+        "✅ Теперь отметь чаты, куда слать:",
+        reply_markup=kb.as_markup()
+    )
+    register_msg_for_autodelete(prompt.chat.id, prompt.message_id)
+    await state.set_state(Ann.choose)
+
+# ───── переключаем ✅/❌ ──────────────────────────────────
+@router.callback_query(Ann.choose, F.data.startswith("ann:"))
+async def ann_toggle(cb: types.CallbackQuery, state: FSMContext):
+    _, cid_str, cur_flag = cb.data.split(":")
+    cid = int(cid_str)
+
+    data = await state.get_data()
+    chosen: set[int] = data.get("choosen", set())
+
+    if cur_flag == "0":
+        chosen.add(cid)
+        new_flag, mark = "1", "✅"
+    else:
+        chosen.discard(cid)
+        new_flag, mark = "0", "❌"
+
+    await state.update_data(choosen=chosen)
+    await cb.message.edit_reply_markup(
+        reply_markup=_rebuild_kb(cb.message.reply_markup,
+                                 cid, new_flag, mark)
+    )
+    await cb.answer()
+
+# ───── отправка ───────────────────────────────────────────
+@router.callback_query(Ann.choose, F.data == "ann_send")
+async def ann_send(cb: types.CallbackQuery, state: FSMContext, bot: types.Bot):
+    data = await state.get_data()
+    src_chat = data["src_chat"]
+    src_msg  = data["src_msg"]
+    chats    = list(data["choosen"])
+
+    ok = fail = 0
+    for cid in chats:
+        try:
+            # copy_message сохраняет оригинальный вид медиа/текста
+            await bot.copy_message(cid, src_chat, src_msg)
+            ok += 1
+        except Exception as e:
+            fail += 1
+            print(f"[announce] copy to {cid} failed: {e!r}")
+
+    await cb.message.answer(f"📣 Разослано: {ok}, ошибок: {fail}")
+    await state.clear()
 
 # ───────────── Команда /debug ─────────────
 @router.message(Command("debug"))
