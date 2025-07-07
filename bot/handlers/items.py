@@ -115,6 +115,7 @@ ITEM_DEFS["roundstone"]       = {"name": "Булыжник",        "emoji": "�
 ITEM_DEFS["iron_ingot"]       = {"name": "Железный слиток", "emoji": "⛏️"}
 ITEM_DEFS["gold_ingot"]       = {"name": "Золотой слиток",  "emoji": "🪙"}
 ITEM_DEFS["amethyst_ingot"]   = {"name": "Аметистовый слиток", "emoji": "💜"}
+ITEM_DEFS["eonite_shard"]      = {"name": "Эонитовый осколок",  "emoji": "🔮"}
 
 # кирки-готовые
 ITEM_DEFS["iron_pickaxe"]["emoji"]    = "⛏️"
