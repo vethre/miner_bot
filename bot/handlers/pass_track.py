@@ -30,7 +30,7 @@ REWARDS = [
 # ───────────────────────────────────────────────────────────────
     ({"item": "energy_drink", "qty": 2},  {"coins": 600}),                           #  6
     ({"coins": 300},                      {"item": "bread", "qty": 4}),              #  7
-    ({"case": "cave_case", "qty": 1},     {"coins": 700}),                           #  8
+    ({"case": "cave_cases", "qty": 1},     {"coins": 700}),                           #  8
     ({"coins": 350},                      {"item": "bomb", "qty": 2}),               #  9
     ({"item": "energy_drink", "qty": 1},  {"item": "proto_eonite_pickaxe", "qty": 1}),# 10
 # ───────────────────────────────────────────────────────────────
@@ -38,15 +38,15 @@ REWARDS = [
     ({"item": "bomb", "qty": 1},          {"item": "voucher_borsch", "qty": 1}),     # 12
     ({"coins": 450},                      {"coins": 900}),                           # 13
     ({"item": "bread", "qty": 2},         {"item": "energy_drink", "qty": 3}),       # 14
-    ({"coins": 500},                      {"case": "cave_case", "qty": 3}),          # 15
+    ({"coins": 500},                      {"case": "cave_cases", "qty": 3}),          # 15
 # ───────────────────────────────────────────────────────────────
     ({"item": "bomb", "qty": 1},          {"coins": 1100}),                          # 16
     ({"coins": 550},                      {"item": "bomb", "qty": 2}),               # 17
     ({"item": "energy_drink", "qty": 2},  {"coins": 1200}),                          # 18
     ({"coins": 600},                      {"item": "bread", "qty": 5}),              # 19
-    ({"case": "cave_case", "qty": 1},     {"item": "voucher_sale", "qty": 1,
+    ({"case": "cave_cases", "qty": 1},     {"item": "voucher_sale", "qty": 1,
                                            "extra": [
-                                               {"case": "cave_case", "qty": 5},
+                                               {"case": "cave_cases", "qty": 5},
                                                {"item": "eonite_shard", "qty": 3}
                                            ]}),                                      # 20
 # ───────────────────────────────────────────────────────────────
