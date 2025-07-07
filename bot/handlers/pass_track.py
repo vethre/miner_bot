@@ -23,7 +23,7 @@ PASS_START  = dt.datetime(2025, 7, 7, tzinfo=dt.timezone.utc)
 PASS_END    = dt.datetime(2025, 7, 27, tzinfo=dt.timezone.utc)
 PASS_DAYS   = (PASS_END - PASS_START).days      # 20 дн.
 TOTAL_LVL   = 20
-XP_PER_LVL  = 100
+XP_PER_LVL  = 300
 
 # -------- награды ---------------------------------------------------
 #   free[x]  / premium[x]  для уровня (index==lvl-1)
@@ -160,79 +160,49 @@ def get_reward_name(reward_payload: dict) -> str:
 
 
 @router.message(Command("trackpass"))
-async def trackpass_cmd(message: types.Message):
-    cid, uid = await cid_uid(message)
-    await ensure_row(cid,uid)
+async def trackpass_cmd(m: types.Message):
+    cid, uid = await cid_uid(m)
+    await ensure_row(cid, uid)
+
     row = await db.fetch_one("""
         SELECT lvl,xp,is_premium FROM pass_progress
-        WHERE chat_id=:c AND user_id=:u""", {"c":cid,"u":uid})
+        WHERE chat_id=:c AND user_id=:u
+    """, {"c":cid,"u":uid})
     lvl, xp, prem = row["lvl"], row["xp"], row["is_premium"]
 
-    # ------- рисуем карточку -----------------
     bg = Image.open("bot/assets/PREMIUM_BG.png").convert("RGBA")
-    draw = ImageDraw.Draw(bg)
+    d  = ImageDraw.Draw(bg)
 
-    # Заголовок
-    draw.text((40, 30), "Cave Pass • Сезон 1", font=FONT_BIG, fill="white")
-    
-    # Расчет оставшихся дней
-    now_utc = dt.datetime.now(dt.timezone.utc)
-    time_remaining = PASS_END - now_utc
-    days_remaining = time_remaining.days
-    
-    if days_remaining < 0:
-        days_str = "Завершен"
-    elif days_remaining == 0:
-        hours_remaining = int(time_remaining.total_seconds() // 3600)
-        minutes_remaining = int((time_remaining.total_seconds() % 3600) // 60)
-        if hours_remaining > 0:
-            days_str = f"До конца: {hours_remaining} ч. {minutes_remaining} мин."
-        else:
-            days_str = f"До конца: {minutes_remaining} мин."
-    else:
-        days_str = f"До конца: {days_remaining} дн."
+    d.text((40, 30), "Cave Pass • Season 1", font=FONT_BIG, fill="white")
+    left = max(0, (PASS_END.date() - dt.datetime.now(dt.timezone.utc).date()).days)
+    d.text((40, 90), f"До конца: {left} дн." if left else "Последний день!",
+           font=FONT_SMALL, fill="orange")
 
-    draw.text((40, 90), days_str, font=FONT_SMALL, fill="orange")
+    # прогресс-бар
+    pct = (lvl + xp/XP_PER_LVL)/TOTAL_LVL
+    bar_x,bar_y,w,h = 40,160,620,28
+    d.rounded_rectangle((bar_x,bar_y,bar_x+w,bar_y+h), radius=12,
+                        outline="white", width=3)
+    d.rounded_rectangle((bar_x,bar_y,bar_x+int(w*pct),bar_y+h),
+                        radius=12, fill="#4caf50")
+    d.text((bar_x, bar_y-36), f"Уровень {lvl} • XP {xp}/{XP_PER_LVL}",
+           font=FONT_SMALL, fill="white")
 
-    # шкала прогресса
-    pct = (lvl + xp/XP_PER_LVL) / TOTAL_LVL if TOTAL_LVL > 0 else 0
-    bar_x, bar_y, bar_w, bar_h = 40, 160, 620, 28
-    draw.rounded_rectangle((bar_x, bar_y, bar_x+bar_w, bar_y+bar_h),
-                           radius=12, outline="white", width=3)
-    draw.rounded_rectangle((bar_x, bar_y,
-                            bar_x+int(bar_w*pct), bar_y+bar_h),
-                           radius=12, fill="#4caf50")
-    draw.text((bar_x, bar_y-36),
-              f"Уровень {lvl}  •  XP {xp}/{XP_PER_LVL}",
-              font=FONT_SMALL, fill="white")
-
-    # мини-список грядущих наград (5 следующих)
-    start_level_display = lvl
+    # следующие 5 уровней
     lines = ["Следующие уровни:"]
-    for i in range(start_level_display, min(start_level_display + 5, TOTAL_LVL)):
-        if i < len(REWARDS):
-            f_reward, p_reward = REWARDS[i]
-            free_reward_text = get_reward_name(f_reward)
-            
-            premium_reward_text = ""
-            if prem:
-                premium_reward_text = f" | Премиум: {get_reward_name(p_reward)}"
-            
-            lines.append(f"Уровень {i+1}: Бесплатный: {free_reward_text}{premium_reward_text}")
+    for i in range(lvl, min(lvl+5, TOTAL_LVL)):
+        fr, pr = REWARDS[i]
+        fr_name = fr.get("coins") and f"{fr['coins']} мон." \
+                  or ITEM_DEFS.get(fr.get("item") or fr.get("case",""), {}).get("name","")
+        pr_name = ""
+        if prem:
+            pr_name = pr.get("coins") and f"{pr['coins']} мон." \
+                   or ITEM_DEFS.get(pr.get("item") or pr.get("case",""),{}).get("name","")
+        lines.append(f"{i+1:02d}. {fr_name}" + (f" | ⭐ {pr_name}" if prem else ""))
 
-    line_height = 40
-    for n, l in enumerate(lines):
-        draw.text((40, 220 + n * line_height), l, font=FONT_SMALL, fill="white")
+    for n,l in enumerate(lines):
+        d.text((40, 220+n*34), l, font=FONT_SMALL, fill="white")
 
-    # ---------- отправка ----------------------
-    buf = BytesIO()
-    bg.save(buf, format="PNG")
-    photo_bytes = buf.getvalue()
-
-    photo = BufferedInputFile(photo_bytes, filename="cave_pass.png")
-
-    await message.answer_photo(
-        photo,
-        caption="Твой прогресс <b>Cave Pass</b>",
-        parse_mode="HTML",
-    )
+    buf = BytesIO(); bg.save(buf, "PNG")
+    photo = BufferedInputFile(buf.getvalue(), "pass.png")
+    await m.answer_photo(photo, caption="📈 Прогресс Cave Pass", parse_mode="HTML")

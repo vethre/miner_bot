@@ -1,144 +1,145 @@
-# bot/handlers/cavepass.py
-
-import datetime as dt
-import json
-import logging
+from __future__ import annotations
+import datetime as dt, json
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from bot.db_local import cid_uid, get_progress, add_money, add_item, db, get_money
+from bot.db_local import db, cid_uid, get_progress
 from bot.handlers.items import ITEM_DEFS
-from bot.assets import PASS_IMG_ID
 from bot.handlers.use import PICKAXES
 from bot.utils.unlockachievement import unlock_achievement
 
 router = Router()
 
-PASS_PRICE_COINS = 1000           # якщо все ж хочете альтернативно за внутрішню валюту
-PASS_PRICE_UAH = 53               # реальна ціна в гривнях
-PAYMENT_LINK = "https://send.monobank.ua/jar/A8ew2aMM3S"  # замініть на ваш
+# ─────────── сезон и сроки ───────────────────────────────────────────────
+PASS_START  = dt.datetime(2025, 7, 7, 0, 0, tzinfo=dt.timezone.utc)
+PASS_END    = dt.datetime(2025, 7, 27, 23, 59, 59, tzinfo=dt.timezone.utc)
+PASS_DAYS   = (PASS_END.date() - PASS_START.date()).days            # 20
+PASS_PRICE_STARS = 130                                             # ≈ 53 ₴
 
-PASS_DURATION_DAYS = 20
-EX_KEY = "proto_eonite_pickaxe"
-EX_NAME = "Прототип Эонитовой Кирки"
+# ─────────── эксклюзивная кирка и метаданные ────────────────────────────
+EX_KEY   = "proto_eonite_pickaxe"
 EX_EMOJI = "🧿"
-ITEM_DEFS[EX_KEY] = {"name": EX_NAME, "emoji": EX_EMOJI}
+EX_NAME  = "Прототип Эонитовой Кирки"
+PICKAXES.setdefault(EX_KEY,
+    {"name": EX_NAME, "emoji": EX_EMOJI, "bonus": 1.0, "dur": 250})
+ITEM_DEFS.setdefault(EX_KEY,
+    {"name": EX_NAME, "emoji": EX_EMOJI})
 
+# ─────────── /cavepass ──────────────────────────────────────────────────
 @router.message(Command("cavepass"))
-async def cavepass_cmd(message: types.Message):
-    cid, uid = await cid_uid(message)
+async def cavepass_cmd(m: types.Message):
+    cid, uid = await cid_uid(m)
     prog = await get_progress(cid, uid)
-    now = dt.datetime.utcnow()
-    expires = prog.get("pass_expires")
-    has = prog.get("cave_pass", False)
+    now = dt.datetime.now(dt.timezone.utc)
 
-    builder = InlineKeyboardBuilder()
-    if not has or (expires and expires < now):
-        # кнопка на зовнішню оплату
-        builder.button(
-            text=f"💳 Купить за ₴{PASS_PRICE_UAH}",
-            url=PAYMENT_LINK
+    has_pass  = prog.get("cave_pass")
+    expires   = prog.get("pass_expires") or PASS_END
+    active    = has_pass and expires > now
+
+    kb = InlineKeyboardBuilder()
+
+    if not active:
+        # кнопка-инвойс (Stars)
+        kb.button(
+            text=f"💳 Купить за {PASS_PRICE_STARS} ⭐",
+            callback_data=f"buy_pass:{uid}"
         )
-        builder.adjust(1)
-        text = (
-            "<b>СКОРО</b> — 7.7.2025\n"
-            "<b>Cave Pass</b> — Пробуждение Эонита:\n"
-            f" • Эксклюзивная {EX_EMOJI} <b>{EX_NAME}</b>\n"
-            " • ×1.5 XP при добывании\n"
-            " • +10 пассивного XP каждый час!\n"
-            " • Премиальные награды на пути Pass\n"
-            f"<i>Цена: {PASS_PRICE_UAH} ₴ (оплата вне)</i>\n"
-            "<i>После оплаты сообщите мне через /report 'сообщение'</i>"
+        txt = (
+            "<b>Cave Pass S-1 • Пробуждение Эонита</b>\n\n"
+            f"{EX_EMOJI} Экскл. кирка — <b>{EX_NAME}</b>\n"
+            "×1.5 XP за копку • +10 XP/ч\n"
+            "Премиальные награды на пути (30 ур.)\n\n"
+            f"Стоимость: <b>{PASS_PRICE_STARS} ⭐</b>"
         )
     else:
-        days = max(0, (expires.date() - now.date()).days)
-        text = (
-            "<b>Ваш Cave Pass активирован!</b>\n"
-            f"Эксклюзивная кирка: {EX_EMOJI} <b>{EX_NAME}</b>\n"
-            f"Термин действия остался: <b>{days} дн.</b>"
+        left = (expires.date() - now.date()).days
+        txt = (
+            "✅ <b>Cave Pass активирован</b>\n"
+            f"Действует ещё <b>{left}</b> дн.\n"
+            f"Кирка: {EX_EMOJI} <b>{EX_NAME}</b>"
         )
-    await message.answer_photo(
-        PASS_IMG_ID,
-        caption=text,
-        parse_mode="HTML",
-        reply_markup=builder.as_markup()
+
+    await m.answer_photo(
+        "bot/assets/pass_banner.jpg",      # статичный баннер-картинка
+        caption=txt, parse_mode="HTML",
+        reply_markup=kb.as_markup()
     )
 
-# тільки для адмінів
-ADMINS = {700929765, 988127866}
+# ─────────── invoice генератор ───────────────────────────────────────────
+@router.callback_query(F.data.startswith("buy_pass:"))
+async def invoice_cb(cb: types.CallbackQuery):
+    await cb.answer()
+    _, uid_str = cb.data.split(":")
+    if cb.from_user.id != int(uid_str):
+        return await cb.answer("Не для тебя 🤚", show_alert=True)
 
-@router.message(Command("activate_pass"))
-async def activate_pass_cmd(message: types.Message):
-    if message.from_user.id not in ADMINS:
-        return await message.reply("⚠️ У вас нет прав")
+    title = "Cave Pass • Season 1"
+    desc  = "Доступ к премиальному пути + эксклюзивная кирка"
+    prices = [types.LabeledPrice(label="Cave Pass", amount=PASS_PRICE_STARS*100)]
 
-    parts = message.text.strip().split()
-    if len(parts) != 3:
-        return await message.reply("Использование: /activate_pass 'user_id' 'chat_id'")
+    await cb.message.answer_invoice(
+        title=title,
+        description=desc,
+        provider_token="",
+        payload="cavepass_purchase",
+        currency="XTR",
+        prices=prices,
+        max_tip_amount=0
+    )
 
-    try:
-        uid = int(parts[1])
-        cid = int(parts[2])
-    except ValueError:
-        return await message.reply("❌ user_id и chat_id должны быть числами.")
+# ─────────── обработчик успешной оплаты ─────────────────────────────────
+@router.successful_payment(F.successful_payment.invoice_payload == "cavepass_purchase")
+async def pass_paid(msg: types.Message):
+    cid, uid = msg.chat.id, msg.from_user.id
 
-    pick_key = "crystal_pickaxe"
-    if pick_key not in PICKAXES:
-        return await message.reply("❌ Кирка не найдена.")
-
-    exp = dt.datetime(2025, 7, 27, 21, 59, 59)
-    pick_dur = PICKAXES[pick_key]["dur"]
-    dur_map = json.dumps({pick_key: pick_dur})
-    dur_max_map = json.dumps({pick_key: pick_dur})
-
-    # Update progress_local table
-    await db.execute(
-        """
+    # 1. В progress_local
+    await db.execute("""
         UPDATE progress_local
-           SET cave_pass = TRUE,
-               pass_expires = :exp,
-               current_pickaxe = :pick,
-               pick_dur_map = :dmap,
-               pick_dur_max_map = :dmax
-         WHERE chat_id = :cid AND user_id = :uid
-        """,
-        {
-            "exp": exp,
-            "pick": pick_key,
-            "dmap": dur_map,
-            "dmax": dur_max_map,
-            "cid": cid,
-            "uid": uid
-        }
-    )
+           SET cave_pass     = TRUE,
+               pass_expires  = :exp
+         WHERE chat_id=:c AND user_id=:u
+    """, {"exp": PASS_END, "c": cid, "u": uid})
 
-    # Update pass_progress table - Set is_premium to TRUE
-    await db.execute(
-        """
-        UPDATE pass_progress
-           SET is_premium = TRUE
-         WHERE chat_id = :cid AND user_id = :uid
-        """,
-        {"cid": cid, "uid": uid}
-    )
+    # 2. В pass_progress
+    await db.execute("""
+        INSERT INTO pass_progress (chat_id,user_id,is_premium)
+             VALUES (:c,:u,TRUE)
+        ON CONFLICT (chat_id,user_id)
+        DO UPDATE SET is_premium = TRUE
+    """, {"c": cid, "u": uid})
 
-    await db.execute(
-        """
-        INSERT INTO inventory_local (chat_id, user_id, item, qty)
-             VALUES (:cid, :uid, :item, 1)
-           ON CONFLICT DO NOTHING
-        """,
-        {"cid": cid, "uid": uid, "item": pick_key}
-    )
+    # 3. Выдаём кирку (если нет) и чиним/ставим
+    await db.execute("""
+        INSERT INTO inventory_local (chat_id,user_id,item,qty)
+             VALUES (:c,:u,:it,1)
+        ON CONFLICT (chat_id,user_id,item)
+        DO NOTHING
+    """, {"c": cid, "u": uid, "it": EX_KEY})
 
-    emoji = PICKAXES[pick_key]["emoji"]
-    name = PICKAXES[pick_key]["name"]
+    dur = PICKAXES[EX_KEY]["dur"]
+    await db.execute("""
+        UPDATE progress_local
+           SET current_pickaxe=:it,
+               pick_dur_map = jsonb_set(
+                     COALESCE(pick_dur_map,'{}'::jsonb),
+                     '{%s}',       
+                     to_jsonb(:d)::jsonb, 
+                     TRUE),
+               pick_dur_max_map = jsonb_set(
+                     COALESCE(pick_dur_max_map,'{}'::jsonb),
+                     '{%s}',
+                     to_jsonb(:d)::jsonb,
+                     TRUE),
+               pick_dur_max_map = jsonb_set(
+                     COALESCE(pick_dur_max_map,'{}'::jsonb),
+                     '{%s}',
+                     to_jsonb(:d)::jsonb,
+                     TRUE)
+         WHERE chat_id=:c AND user_id=:u
+    """ % (EX_KEY, EX_KEY), {"it": EX_KEY, "d": dur, "c": cid, "u": uid})
 
-    await unlock_achievement(cid, uid, "pre_pass")
+    # 4. Ачивка
+    await unlock_achievement(cid, uid, "eonite_owner")
 
-    await message.reply(
-        f"✅ Cave Pass активирован для user_id={uid} в чате {cid} до {exp.date()}\n"
-        f"{emoji} Выдана кирка: <b>{name}</b> ({pick_dur}/{pick_dur})",
-        parse_mode="HTML"
-    )
+    await msg.reply("🎉 Cave Pass активирован! Приятной игры ☺️")

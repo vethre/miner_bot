@@ -70,44 +70,24 @@ async def _all_chats() -> list[tuple[int,str]]:
     return [(r["chat_id"], r["title"] or str(r["chat_id"])) for r in rows]
 
 # ────────────────────────────────────────────
-
 @router.message(Command("announce"))
-async def announce_entry(msg: types.Message, state: FSMContext, bot: Bot):
+async def announce_entry(msg: types.Message, state: FSMContext):
     if msg.from_user.id not in ADMINS:
         return await msg.reply("⛔️ Только для разработчика")
 
-    args = msg.text.split(maxsplit=2)
+    await state.update_data(src_chat=msg.chat.id, src_msg=msg.message_id)
 
-    # ── Быстрый режим: /announce all …  или  /announce <id1,id2> …
-    if len(args) >= 3:
-        dest_raw, text = args[1], args[2]
-        if dest_raw.lower() == "all":
-            chats = [cid for cid, _ in await _all_chats()]
-        else:
-            chats = [int(x) for x in dest_raw.split(",") if x.strip().isdigit()]
-        await _broadcast(bot, chats, text, msg)
-        return
-
-    # ─────────────────────────────── интерактив
-    if len(args) == 1:
-        await state.set_state(Ann.text)
-        await msg.reply("📝 Пришли текст объявления одним сообщением.")
-    else:
-        await msg.reply("❗️ Формат: /announce all 'текст'  или  /announce 'id,id' 'текст'")
-
-# получаем текст
-@router.message(Ann.text)
-async def ann_got_text(msg: types.Message, state: FSMContext):
-    await state.update_data(text=msg.html_text)
-    # строим клавиатуру
-    chats = await _all_chats()
+    # строим список групп
     kb = InlineKeyboardBuilder()
-    for cid, title in chats:
+    for cid, title in await _all_chats():
         kb.button(text=f"❌ {title}", callback_data=f"ann:{cid}:0")
     kb.adjust(1)
     kb.button(text="➡️ Отправить", callback_data="ann_send")
-    await msg.reply("✅ Выбери чаты (клик меняет статус):", reply_markup=kb.as_markup())
-    await state.update_data(choosen=set())
+
+    await msg.reply(
+        "✅ Пришли медиа-сообщение (текст/фото/гиф/стикер/emoji) — потом выбери чаты.",
+        reply_markup=kb.as_markup()
+    )
     await state.set_state(Ann.choose)
 
 # переключаем «✅/❌»
@@ -351,3 +331,66 @@ async def emoji_id_cmd(message: types.Message):
 
     txt = "🔎 Найдено custom_emoji_id:\n" + "\n".join(f"`{e}`" for e in ids)
     await message.reply(txt, parse_mode="Markdown")
+
+TECH_PAUSE_KEY = "tech_pause"
+DEFAULT_ALLOWED_CHAT = -1001987529426               # чат, где бот «живой» даже в паузе
+
+
+async def _is_paused() -> bool:
+    row = await db.fetch_one("SELECT value FROM bot_flags WHERE key=:k",
+                             {"k": TECH_PAUSE_KEY})
+    return bool(row and row["value"])
+
+
+async def _set_pause(flag: bool):
+    await db.execute("""
+        INSERT INTO bot_flags(key,value) VALUES(:k,:v)
+        ON CONFLICT (key) DO UPDATE SET value=:v
+    """, {"k": TECH_PAUSE_KEY, "v": flag})
+
+
+@router.message(Command("techpause"))
+async def techpause_cmd(msg: types.Message):
+    if msg.from_user.id not in ADMINS:
+        return
+    args = msg.text.split(maxsplit=1)
+    if len(args) != 2 or args[1] not in ("on", "off"):
+        return await msg.reply("Использование: <code>/techpause on|off</code>",
+                               parse_mode="HTML")
+
+    flag = args[1] == "on"
+    await _set_pause(flag)
+    await msg.reply("🛠 Тех-режим: ВКЛ" if flag else "✅ Тех-режим снят")
+
+
+# ───────────────────── middleware “глушилка” ──────────────────────
+from aiogram import BaseMiddleware
+from typing import Dict, Any, Callable, Awaitable
+
+
+class TechPauseMiddleware(BaseMiddleware):
+    async def __call__(
+        self,
+        handler: Callable[[types.TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: types.TelegramObject,
+        data: Dict[str, Any]
+    ):
+        # пропускаем апдейты, которые не являются сообщениями/колбэками
+        chat_id = None
+        if isinstance(event, types.Message):
+            chat_id = event.chat.id
+        elif isinstance(event, types.CallbackQuery):
+            chat_id = event.message.chat.id
+
+        if chat_id is None:
+            return await handler(event, data)
+
+        if await _is_paused() and chat_id != DEFAULT_ALLOWED_CHAT:
+            # отвечаем тем, кто пишет
+            if isinstance(event, types.Message):
+                await event.reply("🔧 Бот на техническом перерыве. Попробуйте позже.")
+            elif isinstance(event, types.CallbackQuery):
+                await event.answer("🔧 Тех. перерыв – попробуйте позже", show_alert=True)
+            return  # глушим остальные хендлеры
+
+        return await handler(event, data)

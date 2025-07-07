@@ -8,6 +8,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
+from bot.handlers.devutils import TechPauseMiddleware
 from bot.middlewares.antiflood import AntiFlood
 
 from bot.handlers.cave_clash import setup_weekly_reset
@@ -46,6 +47,8 @@ async def main():
     dp.callback_query.middleware.register(
         AntiFlood(limit=12, window=15, mute_seconds=5)
     )
+    dp.message.middleware(TechPauseMiddleware())
+    dp.callback_query.middleware(TechPauseMiddleware())
 
     aiocron.crontab(
         '0 7 * * *',          # 07:00 UTC ≈ 09:00 CEST

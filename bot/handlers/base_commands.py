@@ -57,9 +57,10 @@ from bot.handlers.shop import shop_cmd
 from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
 from bot.utils.autodelete import register_msg_for_autodelete, reply_clean
 from bot.handlers.use import _json2dict
-from bot.handlers.cave_clash import add_clash_points
+from bot.handlers.cave_clash import add_clash_points, clashrank
 from bot.utils.render_profile import render_profile_card
 from bot.utils.unlockachievement import unlock_achievement
+from bot.handlers.pass_track import add_pass_xp, trackpass_cmd
 
 router = Router()
 
@@ -112,6 +113,13 @@ def get_mine_duration(tier:int)->int:
 
 def get_smelt_duration(cnt:int, torch_mult:float=1.0)->int:
     return round(BASE_SMELT_SEC * cnt * torch_mult)
+
+async def is_event_active(code: str) -> bool:
+    row = await db.fetchrow("""
+        SELECT 1 FROM events
+        WHERE code = :c AND start_at < now() AND end_at > now() AND is_active
+    """, {"c": code})
+    return row is not None
 
 # ─────────────── “Картки шансу” ───────────────
 ChanceEvent = tuple[str, str, str, int]    
@@ -253,7 +261,27 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         # Дополнительный текст
         proto_txt += f"\n🔮 Прототип эонита активировался!\n" \
                     f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
+        
+    GOOD_PICKAXES = {"gold_pickaxe", "amethyst_pickaxe", "diamond_pickaxe", "crystal_pickaxe", "proto_eonite_pickaxe", "greater_eonite_pickaxe"}
+    if pick_key in GOOD_PICKAXES and is_event_active("eonite"):
+        if random.random() < 0.125:
+            eonite_qty = random.randint(1, 2)
+            await add_item(cid, uid, "eonite_shard", eonite_qty)
+            extra_txt += f"\n🧿 <b>Ты нашёл {eonite_qty}× Эонитовых осколков!</b>"
 
+        if random.random() < 0.01:  # 1% шанс
+            await add_item(cid, uid, "eonite_ore", 1)
+            extra_txt += "\n🌑 <b>Ты выдолбил саму руду Эонита! Что за удача…</b>"
+
+    if await is_event_active("eonite"):
+        await db.execute("""
+            INSERT INTO event_participation (event_id, chat_id, user_id, got_achievement)
+            SELECT id, :c, :u, TRUE FROM events WHERE code = 'eonite'
+            ON CONFLICT DO NOTHING
+        """, {"c": cid, "u": uid})
+        await unlock_achievement(cid, uid, "eonite_pioneer")
+
+    await add_pass_xp(bot, cid, uid, xp_gain)
     if prog.get("badge_active") == "recruit":
         await add_money(cid, uid, 30)   
 
@@ -686,6 +714,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     kb = InlineKeyboardBuilder()
     kb.button(text="⏳ Осталось", callback_data=f"mine_left:{uid}")
     kb.button(text="🚫 Отмена",   callback_data=f"mine_stop:{uid}")
+    kb.button(text=f"⚡ Мгновенно (5⭐)", callback_data=f"mine_instant:{uid}")
     kb.adjust(2)
 
     msg = await message.reply(
@@ -737,6 +766,71 @@ async def mine_stop_cb(cb: types.CallbackQuery):
 
     await cb.message.edit_text("🚫 Копка прервана.")
     await cb.answer("Ок, остановили ⛏")
+
+@router.callback_query(F.data.startswith("mine_instant:"))
+async def mine_instant_cb(cb: types.CallbackQuery):
+    cid, uid = cb.message.chat.id, cb.from_user.id
+    _, orig_uid = cb.data.split(":")
+    if uid != int(orig_uid):
+        return await cb.answer("Не твоё копание 😼", show_alert=True)
+
+    # 1) перевіряємо, чи ще є активна копка
+    mins_left = await _minutes_left(cid, uid)
+    if mins_left == 0:
+        return await cb.answer("На поверхности ✋", show_alert=True)
+
+    # 2) надсилаємо інвойс на 5 ⭐
+    title = "⚡ Мгновенная копка"
+    desc  = f"Копка завершается за 1 минуту вместо {mins_left} минут."
+    payload = f"instant:{cid}:{uid}"
+    price  = types.LabeledPrice(label="Instant Mine", amount=5 * 100)  # 5 зірок = 500 XTR
+
+    await cb.message.answer_invoice(
+        title=title,
+        description=desc,
+        payload=payload,
+        provider_token="",
+        currency="XTR",          # «зіркова» валюта
+        prices=[price],
+        start_parameter="instant_mine",
+        max_tip_amount=0, tip_prices=[]
+    )
+    # Telegram сам відкриє вікно оплати
+    await cb.answer()
+
+@router.pre_checkout_query()
+async def process_pre_checkout(pre_q: types.PreCheckoutQuery):
+    # якщо payload підходить – просто підтверджуємо
+    if pre_q.invoice_payload.startswith("instant:"):
+        await pre_q.answer(ok=True)
+    else:
+        await pre_q.answer(ok=False, error_message="Неизвестный платеж")
+
+# ─── Успішна оплата ──────────────────────────────────────────────
+@router.message(F.successful_payment)
+async def successful_payment(msg: types.Message):
+    payload = msg.successful_payment.invoice_payload
+    if not payload.startswith("instant:"):
+        return  # інші платежі, якщо є
+
+    _, cid_str, uid_str = payload.split(":")
+    cid, uid = int(cid_str), int(uid_str)
+
+    # ставимо mining_end = now + 60 sec
+    await db.execute(
+        """
+        UPDATE progress_local
+           SET mining_end = :end
+         WHERE chat_id=:c AND user_id=:u
+        """,
+        {
+            "end": dt.datetime.utcnow() + dt.timedelta(seconds=60),
+            "c": cid,
+            "u": uid
+        }
+    )
+
+    await msg.answer("⚡ Готово! Копка завершится за 1 минуту.")
 
 @router.callback_query(F.data.startswith("badge:use:"))
 async def badge_use_cb(cb: types.CallbackQuery):
@@ -1170,6 +1264,7 @@ async def craft_cmd(message: types.Message):
         await unlock_achievement(cid, uid, "cobble_player")
     await add_clash_points(cid, uid, 2)
     await add_xp_with_notify(bot, cid, uid, xp_gain)
+    await add_pass_xp(cid, uid, xp_gain)
     msg = await message.reply(f"🎉 Создано: {recipe['out_name']}!\n🎉 +{xp_gain} XP")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
@@ -1694,3 +1789,11 @@ async def seals_msg_cmd(message: types.Message):
 @router.message(lambda msg: re.match(r"шахта\s+(печати|печать)", msg.text, re.IGNORECASE))
 async def choose_seals_msg_cmd(message: types.Message):
     return await choose_seal(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+клеш", msg.text, re.IGNORECASE))
+async def clash_msg_cmd(message: types.Message):
+    return await clashrank(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+трекпасс", msg.text, re.IGNORECASE))
+async def trackpass_msg_cmd(message: types.Message):
+    return await trackpass_cmd(message)

@@ -57,7 +57,7 @@ CRAFT_RECIPES = {
         "out_name": "💎 Аметистовая кирка",
     },
     "старшая эонитовая кирка": {
-        "in": {"iron_handle": 1, "eonite_ingot": 3, "eonite_ore": 1},
+        "in": {"iron_handle": 5, "eonite_ingot": 3, "eonite_ore": 6},
         "out_key": "greater_eonite_pickaxe",
         "out_name": "🔮 Старшая эонитовая кирка",
     },
