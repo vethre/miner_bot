@@ -259,7 +259,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         await add_xp(cid, uid, amount2)
 
         # Дополнительный текст
-        proto_txt += f"\n🔮 Прототип эонита активировался!\n" \
+        extra_txt += f"\n🔮 Прототип эонита активировался!\n" \
                     f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
         
     GOOD_PICKAXES = {"gold_pickaxe", "amethyst_pickaxe", "diamond_pickaxe", "obsidian_pickaxe", "proto_eonite_pickaxe", "greater_eonite_pickaxe"}
