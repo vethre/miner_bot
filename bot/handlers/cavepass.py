@@ -32,7 +32,7 @@ ITEM_DEFS.setdefault(EX_KEY,
 async def cavepass_cmd(m: types.Message):
     cid, uid = await cid_uid(m)
     prog = await get_progress(cid, uid)
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.utcnow()
 
     has_pass  = prog.get("cave_pass")
     expires   = prog.get("pass_expires") or PASS_END

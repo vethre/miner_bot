@@ -1,19 +1,11 @@
 # bot/handlers/pass_track.py
 from __future__ import annotations
-import datetime as dt, json
-from io import BytesIO
 
-from aiogram import Router, types, F
-from aiogram.types import BufferedInputFile
+import datetime as dt
+from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from PIL import Image, ImageDraw, ImageFont
 
-from bot.db_local import db, cid_uid, get_progress, add_item, add_money
-# from bot.assets import PASS_IMG_ID          # добавьте фон-картинку в assets - эта строка не нужна, так как изображение загружается локально
-from bot.utils.autodelete import register_msg_for_autodelete
-
-# Import ITEM_DEFS from bot.handlers.items
+from bot.db_local import db, cid_uid, add_item, add_money
 from bot.handlers.items import ITEM_DEFS
 from bot.utils.unlockachievement import unlock_achievement
 
@@ -61,148 +53,77 @@ REWARDS = [
     # … и так далее до 30-го уровня – заполняйте по своему вкусу
 ]
 
-# ---------- шрифты ---------------------------------------------------
-# Возможно, вам придется указать путь к файлу шрифта (.ttf) для использования пользовательских шрифтов.
-# Например: FONT_BIG = ImageFont.truetype("path/to/your/font.ttf", 36)
-# FONT_SMALL = ImageFont.truetype("path/to/your/font.ttf", 24)
-FONT_BIG   = ImageFont.truetype("bot/assets/Montserrat-SemiBold.ttf", 36) # Пример: используем Montserrat, размер 36
-FONT_SMALL = ImageFont.truetype("bot/assets/Montserrat-Medium.ttf", 24) # Пример: используем Montserrat, размер 24
-# --------------------------------------------------------------
+def _bar(value: int, total: int, size: int = 20) -> str:
+    """▰▰▰▱-бар из Unicode‐блоков."""
+    filled = min(size, int(round(value / total * size)))
+    return "▰" * filled + "▱" * (size - filled)
 
-async def ensure_row(cid:int, uid:int):
-    await db.execute("""
-        INSERT INTO pass_progress (chat_id,user_id)
-        VALUES (:c,:u)
-        ON CONFLICT DO NOTHING""", {"c":cid,"u":uid})
-
-async def add_pass_xp(cid:int, uid:int, delta:int):
-    await ensure_row(cid,uid)
-    row = await db.fetch_one("""
-        UPDATE pass_progress
-           SET xp = xp + :d
-         WHERE chat_id=:c AND user_id=:u
-     RETURNING xp, lvl""",
-        {"d":delta,"c":cid,"u":uid})
-    xp, lvl = row["xp"], row["lvl"]
-    # левел-ап
-    while lvl < TOTAL_LVL and xp >= XP_PER_LVL:
-        lvl += 1
-        xp  -= XP_PER_LVL
-        await grant_level_reward(cid, uid, lvl)
-    await db.execute(
-        "UPDATE pass_progress SET xp=:x,lvl=:l WHERE chat_id=:c AND user_id=:u",
-        {"x":xp,"l":lvl,"c":cid,"u":uid})
-
-async def grant_level_reward(cid:int, uid:int, lvl:int):
-    free, prem = REWARDS[lvl-1]
-    await deliver_reward(cid, uid, free)
-    row = await db.fetch_one("SELECT is_premium FROM pass_progress "
-                             "WHERE chat_id=:c AND user_id=:u",
-                             {"c":cid,"u":uid})
-    if row["is_premium"]:
-        await deliver_reward(cid, uid, prem)
-
-async def deliver_reward(cid:int, uid:int, payload:dict):
-    """
-    Понимает:
-      item/qty    – обычный предмет
-      coins       – деньги
-      case/qty    – вызвать give_case_to_user
-      achievement – unlock_achievement
-      badge       – выдать бейдж (badge_active)
-      extra       – список payload-ов поверх основного
-    """
-    if not payload:
-        return
+def _name(payload: dict) -> str:
+    """Читабельное имя награды (для списка уровней)."""
+    if "coins" in payload:
+        return f"{payload['coins']} мон."
     if "item" in payload:
-        await add_item(cid, uid, payload["item"], payload.get("qty",1))
-    elif "coins" in payload:
-        await add_money(cid, uid, payload["coins"])
-    elif "case" in payload:
-        from bot.handlers.cases import give_case_to_user
-        await give_case_to_user(cid, uid, payload["case"], payload.get("qty",1))
-    elif "achievement" in payload:
-        # unlock_achievement is imported directly now
-        await unlock_achievement(cid, uid, payload["achievement"])
-    elif "badge" in payload:
-        await db.execute("""
-            UPDATE progress_local
-               SET badge_active = :b
-             WHERE chat_id=:c AND user_id=:u
-        """, {"b": payload["badge"], "c": cid, "u": uid})
-
-    # рекурсивно обрабатываем вложенный список
-    if "extra" in payload and isinstance(payload["extra"], list):
-        for sub in payload["extra"]:
-            await deliver_reward(cid, uid, sub)
-
-def get_reward_name(reward_payload: dict) -> str:
-    """Извлекает читабельное название награды."""
-    if "item" in reward_payload:
-        item_key = reward_payload["item"]
-        name = ITEM_DEFS.get(item_key, {}).get("name", item_key)
-        qty = reward_payload.get("qty", 1)
-        return f"{name} x{qty}"
-    elif "coins" in reward_payload:
-        return f"{reward_payload['coins']} Монет"
-    elif "case" in reward_payload:
-        case_key = reward_payload["case"]
-        name = ITEM_DEFS.get(case_key, {}).get("name", case_key)
-        qty = reward_payload.get("qty", 1)
-        return f"{name} x{qty}"
-    elif "achievement" in reward_payload:
-        # Здесь вы можете добавить сопоставление ID достижения с его названием, если оно есть
+        meta = ITEM_DEFS.get(payload["item"], {})
+        qty  = payload.get("qty", 1)
+        return f"{meta.get('emoji','')} {meta.get('name', payload['item'])}×{qty}"
+    if "case" in payload:
+        meta = ITEM_DEFS.get(payload["case"], {})
+        qty  = payload.get("qty", 1)
+        return f"{meta.get('emoji','🎁')} {meta.get('name','Кейс')}×{qty}"
+    if "achievement" in payload:
         return "Достижение"
-    elif "badge" in reward_payload:
-        # Здесь вы можете добавить сопоставление ID значка с его названием
-        return "Значок"
-    return "Неизвестная награда"
+    if "badge" in payload:
+        return "Бейдж"
+    return "?"
 
-
+# ───────────────── команда /trackpass ─────────────
 @router.message(Command("trackpass"))
 async def trackpass_cmd(m: types.Message):
     cid, uid = await cid_uid(m)
-    await ensure_row(cid, uid)
 
-    row = await db.fetch_one("""
-        SELECT lvl,xp,is_premium FROM pass_progress
-        WHERE chat_id=:c AND user_id=:u
-    """, {"c":cid,"u":uid})
+    # гарантируем, что строка есть
+    await db.execute(
+        "INSERT INTO pass_progress (chat_id,user_id) VALUES (:c,:u) "
+        "ON CONFLICT DO NOTHING",
+        {"c": cid, "u": uid},
+    )
+
+    row = await db.fetch_one(
+        "SELECT lvl, xp, is_premium FROM pass_progress "
+        "WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid},
+    )
     lvl, xp, prem = row["lvl"], row["xp"], row["is_premium"]
 
-    bg = Image.open("bot/assets/PREMIUM_BG.png").convert("RGBA")
-    d  = ImageDraw.Draw(bg)
+    # ───── заголовок / счётчик дней ─────
+    now = dt.datetime.now(dt.timezone.utc)
+    days_left = max(0, (PASS_END.date() - now.date()).days)
+    header = (
+        "🎫 <b>Cave Pass • Сезон 1</b>\n"
+        f"⏳ До конца: <b>{'последний день!' if days_left == 0 else str(days_left)+' дн.'}</b>\n"
+        f"{'⭐ Премиум активен' if prem else '🔒 Премиум не куплен'}\n"
+        "───────────────\n"
+    )
 
-    d.text((40, 30), "Cave Pass • Season 1", font=FONT_BIG, fill="white")
-    left = max(0, (PASS_END.date() - dt.datetime.now(dt.timezone.utc).date()).days)
-    d.text((40, 90), f"До конца: {left} дн." if left else "Последний день!",
-           font=FONT_SMALL, fill="orange")
+    # ───── ваш текущий прогресс ─────
+    bar = _bar(xp, XP_PER_LVL)
+    body = (
+        f"Уровень <b>{lvl}</b>\n"
+        f"<code>{bar}</code>\n"
+        f"XP {xp}/{XP_PER_LVL}\n"
+        "───────────────\n"
+    )
 
-    # прогресс-бар
-    pct = (lvl + xp/XP_PER_LVL)/TOTAL_LVL
-    bar_x,bar_y,w,h = 40,160,620,28
-    d.rounded_rectangle((bar_x,bar_y,bar_x+w,bar_y+h), radius=12,
-                        outline="white", width=3)
-    d.rounded_rectangle((bar_x,bar_y,bar_x+int(w*pct),bar_y+h),
-                        radius=12, fill="#4caf50")
-    d.text((bar_x, bar_y-36), f"Уровень {lvl} • XP {xp}/{XP_PER_LVL}",
-           font=FONT_SMALL, fill="white")
-
-    # следующие 5 уровней
-    lines = ["Следующие уровни:"]
-    for i in range(lvl, min(lvl+5, TOTAL_LVL)):
-        fr, pr = REWARDS[i]
-        fr_name = fr.get("coins") and f"{fr['coins']} мон." \
-                  or ITEM_DEFS.get(fr.get("item") or fr.get("case",""), {}).get("name","")
-        pr_name = ""
+    # ───── ближайшие 5 уровней ─────
+    upcoming = ["<b>Ближайшие награды:</b>"]
+    for i in range(lvl, min(lvl + 5, TOTAL_LVL)):
+        free, prem_r = REWARDS[i]
+        line = f"{i+1:02d}. {_name(free)}"
         if prem:
-            pr_name = pr.get("coins") and f"{pr['coins']} мон." \
-                   or ITEM_DEFS.get(pr.get("item") or pr.get("case",""),{}).get("name","")
-        lines.append(f"{i+1:02d}. {fr_name}" + (f" | ⭐ {pr_name}" if prem else ""))
+            line += f" | ⭐ {_name(prem_r)}"
+        upcoming.append(line)
 
-    for n,l in enumerate(lines):
-        d.text((40, 220+n*34), l, font=FONT_SMALL, fill="white")
-
-    buf = BytesIO(); bg.save(buf, "PNG")
-    photo = BufferedInputFile(buf.getvalue(), "pass.png")
-    await m.answer_photo(photo, caption="📈 Прогресс Cave Pass", parse_mode="HTML")
+    await m.answer(
+        header + body + "\n".join(upcoming),
+        parse_mode="HTML",
+    )
