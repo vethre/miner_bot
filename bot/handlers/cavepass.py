@@ -4,6 +4,7 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from bot.assets import PASS_IMG_ID
 from bot.db_local import db, cid_uid, get_progress
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.use import PICKAXES
@@ -61,7 +62,7 @@ async def cavepass_cmd(m: types.Message):
         )
 
     await m.answer_photo(
-        "bot/assets/pass_banner.jpg",      # статичный баннер-картинка
+        PASS_IMG_ID,      # статичный баннер-картинка
         caption=txt, parse_mode="HTML",
         reply_markup=kb.as_markup()
     )
