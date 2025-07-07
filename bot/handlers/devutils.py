@@ -147,7 +147,7 @@ async def ann_toggle(cb: types.CallbackQuery, state: FSMContext):
 
 # ───── отправка ───────────────────────────────────────────
 @router.callback_query(Ann.choose, F.data == "ann_send")
-async def ann_send(cb: types.CallbackQuery, state: FSMContext, bot: types.Bot):
+async def ann_send(cb: types.CallbackQuery, state: FSMContext, bot: Bot):
     data = await state.get_data()
     src_chat = data["src_chat"]
     src_msg  = data["src_msg"]
