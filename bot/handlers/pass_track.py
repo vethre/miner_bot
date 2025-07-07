@@ -124,13 +124,13 @@ def _name(p: dict) -> str:
     
     if "coins" in p:
         base = f"{p['coins']} мон."
-    if "item" in p:
+    elif "item" in p:
         meta = ITEM_DEFS.get(p["item"], {})
         base = f"{meta.get('emoji','')} {meta.get('name', p['item'])}×{p.get('qty',1)}"
-    if "case" in p:
+    elif "case" in p:
         meta = ITEM_DEFS.get(p["case"], {})
         base = f"{meta.get('emoji','🎁')} {meta.get('name','Кейс')}×{p.get('qty',1)}"
-    if "achievement" in p:
+    elif "achievement" in p:
         base = "Достижение"
     elif "badge" in p:
         base = "Бейдж"
