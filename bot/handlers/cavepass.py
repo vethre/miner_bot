@@ -16,7 +16,7 @@ router = Router()
 PASS_START  = dt.datetime(2025, 7, 7, 0, 0, tzinfo=dt.timezone.utc)
 PASS_END    = dt.datetime(2025, 7, 27, 23, 59, 59, tzinfo=dt.timezone.utc)
 PASS_DAYS   = (PASS_END.date() - PASS_START.date()).days            # 20
-PASS_PRICE_STARS = 130                                             # ≈ 53 ₴
+PASS_PRICE_STARS = 75                                             # ≈ 53 ₴
 
 # ─────────── эксклюзивная кирка и метаданные ────────────────────────────
 EX_KEY   = "proto_eonite_pickaxe"
@@ -77,7 +77,7 @@ async def invoice_cb(cb: types.CallbackQuery):
 
     title = "Cave Pass • Season 1"
     desc  = "Доступ к премиальному пути + эксклюзивная кирка"
-    prices = [types.LabeledPrice(label="Cave Pass", amount=PASS_PRICE_STARS*100)]
+    prices = [types.LabeledPrice(label="Cave Pass", amount=PASS_PRICE_STARS)]
 
     await cb.message.answer_invoice(
         title=title,

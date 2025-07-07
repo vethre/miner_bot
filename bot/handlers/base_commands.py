@@ -783,7 +783,7 @@ async def mine_instant_cb(cb: types.CallbackQuery):
     title = "⚡ Мгновенная копка"
     desc  = f"Копка завершается за 1 минуту вместо {mins_left} минут."
     payload = f"instant:{cid}:{uid}"
-    price  = types.LabeledPrice(label="Instant Mine", amount=5 * 100)  # 5 зірок = 500 XTR
+    price  = types.LabeledPrice(label="Instant Mine", amount=5)  # 5 зірок = 500 XTR
 
     await cb.message.answer_invoice(
         title=title,
