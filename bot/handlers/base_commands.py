@@ -115,7 +115,7 @@ def get_smelt_duration(cnt:int, torch_mult:float=1.0)->int:
     return round(BASE_SMELT_SEC * cnt * torch_mult)
 
 async def is_event_active(code: str) -> bool:
-    row = await db.fetchrow("""
+    row = await db.fetch_one("""
         SELECT 1 FROM events
         WHERE code = :c AND start_at < now() AND end_at > now() AND is_active
     """, {"c": code})
@@ -194,7 +194,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
             "Тебя облапошили! Это была учебная шахта для стажёров.",
             "Ты спустился в шахту, но шахта спустилась в депрессию и ничего не дала.",
             "Ты вернулся домой с пустыми руками. Кирка смотрит на тебя с разочарованием.",
-            "Тебе грустно, передохни, ты устал."
+            "Тебе грустно, передохни, ты устал.",
             "FATAL ERROR",
             "Шахту затопил ливень, подожди немного."
         ]
@@ -266,7 +266,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
                 f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
             extra_txt += proto_txt
         
-    GOOD_PICKAXES = {"gold_pickaxe", "amethyst_pickaxe", "diamond_pickaxe", "crystal_pickaxe", "proto_eonite_pickaxe", "greater_eonite_pickaxe"}
+    GOOD_PICKAXES = {"gold_pickaxe", "amethyst_pickaxe", "diamond_pickaxe", "obsidian_pickaxe", "proto_eonite_pickaxe", "greater_eonite_pickaxe"}
     if pick_key in GOOD_PICKAXES and is_event_active("eonite"):
         if random.random() < 0.125:
             eonite_qty = random.randint(1, 2)
@@ -285,7 +285,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         """, {"c": cid, "u": uid})
         await unlock_achievement(cid, uid, "eonite_pioneer")
 
-    await add_pass_xp(bot, cid, uid, xp_gain)
+    await add_pass_xp(cid, uid, xp_gain)
     if prog.get("badge_active") == "recruit":
         await add_money(cid, uid, 30)   
 
@@ -383,6 +383,7 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     await add_clash_points(cid, uid, 1)
     xp_gain = cnt * 5
     await add_xp_with_notify(bot, cid, uid, xp_gain)
+    await add_pass_xp(cid, uid, xp_gain)
     member_name = await get_display_name(bot, cid, uid)
     msg = await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}\n🔥 +{xp_gain} XP", parse_mode="HTML")
     register_msg_for_autodelete(cid, msg.message_id)
@@ -1162,9 +1163,9 @@ async def smelt_quantity(cb: CallbackQuery):
         )
 
     kb = InlineKeyboardBuilder()
-    kb.row(make_btn("−5", -5), make_btn("−1", -1),
+    kb.row(make_btn("−10", -10), make_btn("−1", -1),
            types.InlineKeyboardButton(text=f"{cur}/{max_cnt}", callback_data="noop"),
-           make_btn("+1", 1), make_btn("+5", 5))
+           make_btn("+1", 1), make_btn("+10", 10))
     kb.row(types.InlineKeyboardButton(
         text="➡️ Уголь",
         callback_data=f"smeltcoal:{ore}:{cur}:{orig_uid}"

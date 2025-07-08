@@ -111,7 +111,16 @@ ITEM_DEFS.update({
     "water_bottle": {
         "name": "Фляга с водой",
         "emoji": "💧"
+    },
+    "eonite_ore": {
+        "name": "Руда Эонита",
+        "emoji": "🧿"
+    },
+    "eonite_ingot": {
+        "name": "Слиток Эонита",
+        "emoji": "🪬"
     }
+    
 })
 # bot/handlers/items.py  (где собирается ITEM_DEFS)
 
