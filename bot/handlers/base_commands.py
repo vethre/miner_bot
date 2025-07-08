@@ -246,21 +246,25 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     streak=await update_streak(cid,uid)
     mine_count = prog.get("mine_count", 0)
 
-    if pick_key == "proto_eonite_pickaxe" and random.random() < 0.30:
-        ore2 = random.choice(ores)
-        ore_def = ORE_ITEMS[ore2]
-        amount2 = random.randint(*ore_def["drop_range"])
-        
-        if prog.get("hunger", 100) <= 30:
-            amount2 = int(amount2 * 0.5)
-        amount2 = max(1, int(amount2 * total_bonus))
+    if pick_key in ("proto_eonite_pickaxe", "greater_eonite_pickaxe"):
+        chance = 0.30 if pick_key == "proto_eonite_pickaxe" else 0.50
+        if random.random() < chance:
+            ore2 = random.choice(ores)
+            ore_def = ORE_ITEMS[ore2]
+            amount2 = random.randint(*ore_def["drop_range"])
 
-        await add_item(cid, uid, ore2, amount2)
-        await add_xp(cid, uid, amount2)
+            if prog.get("hunger", 100) <= 30:
+                amount2 = int(amount2 * 0.5)
+            amount2 = max(1, int(amount2 * total_bonus))
 
-        # Дополнительный текст
-        proto_txt += f"\n🔮 Прототип эонита активировался!\n" \
-                    f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
+            await add_item(cid, uid, ore2, amount2)
+            await add_xp(cid, uid, amount2)
+
+            proto_txt = "\n🔮 " + (
+                "Прототип" if pick_key == "proto_eonite_pickaxe" else "Старшая ЭК"
+            ) + " активировался!\n" \
+                f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
+            extra_txt += proto_txt
         
     GOOD_PICKAXES = {"gold_pickaxe", "amethyst_pickaxe", "diamond_pickaxe", "crystal_pickaxe", "proto_eonite_pickaxe", "greater_eonite_pickaxe"}
     if pick_key in GOOD_PICKAXES and is_event_active("eonite"):
@@ -289,10 +293,20 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     broken = False
     if cur := prog.get("current_pickaxe"):
         if seal == "seal_durability" and mine_count % 3 == 0:
-            pass 
+            pass
         else:
             dur, dur_max = await change_dur(cid, uid, cur, -1)
             broken = dur == 0
+
+        # ♦️ Реген «Старшої ЕК»
+        if cur == "greater_eonite_pickaxe" and (mine_count + 1) % 20 == 0:
+            # повертаємо +10, але не вище max
+            add_val = 10 if dur_max else 0
+            if broken:          # якщо була зламана — фіксуємо повністю
+                add_val = dur_max
+            await change_dur(cid, uid, cur, add_val)
+            extra_txt += "\n♻️ Старшая ЭК восстановила прочность!"
+            broken = False
 
     # ---- випадкова подія ----
     ev = pick_chance_event()
@@ -612,9 +626,13 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     user = await get_user(uid)
     if not user:
         return await message.reply("Сперва /start")
+    prog = await get_progress(cid, uid)
 
     energy = await update_energy(cid, uid)
     hunger = await update_hunger(cid, uid)
+    energy_cost = BASE_EN_COST
+    hunger_cost = BASE_HU_COST
+    mine_count = prog.get("mine_count", 0)
     if energy <= 15:
         return await message.reply(f"😴 Недостаточно энергии {energy} (15 - минимум). Отдохни.")
     if hunger <= 0:
@@ -633,7 +651,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
             return await message.reply(
                 f"🍽️ Ты слишком голоден {hunger}, сперва /eat!"
             )
-    prog = await get_progress(cid, uid)
+
     if prog.get("badge_active") == "hungrycave":
         await db.execute("""
             UPDATE progress_local
@@ -641,6 +659,10 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
              WHERE chat_id=:c AND user_id=:u
         """, {"c": cid, "u": uid})
         hunger += 5 
+
+    if prog.get("badge_active") == "eonite_beacon" and (mine_count + 1) % 3 == 0:
+        hunger_cost = 0
+        energy_cost = 0
 
     raw_map = prog.get("pick_dur_map") or "{}"
     try:
@@ -666,9 +688,6 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     ores = TIER_TABLE[tier - 1]["ores"]
     sec = get_mine_duration(tier)
     seal_boost = False
-
-    energy_cost = BASE_EN_COST
-    hunger_cost = BASE_HU_COST
 
     seal = prog.get("seal_active")
     if seal == "seal_energy":          # (была скорость → оставим)
@@ -950,6 +969,7 @@ ALIASES.update({
     "железный слиток": "iron_ingot",
     "золотой слиток": "gold_ingot",
     "аметистовый слиток": "amethyst_ingot",
+    "hdd": "old_hdd"
 })
 
 @router.message(Command("sell"))

@@ -103,6 +103,11 @@ ITEM_DEFS.update({
         "name": "Лазурный факел",
         "emoji": "🔵"
     },
+    "old_hdd": {
+        "name": "HDD",
+        "emoji": "💽",
+        "price": 512
+    },
     "water_bottle": {
         "name": "Фляга с водой",
         "emoji": "💧"

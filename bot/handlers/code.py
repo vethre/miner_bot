@@ -41,6 +41,8 @@ async def promo_code_cmd(message: types.Message):
 
     coins = reward.get("coins", 0)
     xp    = reward.get("xp", 0)
+    energy  = reward.get("energy",  0)
+    hunger  = reward.get("hunger",  0)
     items = reward.get("items", {})  # {"item_id": qty}
 
     if coins < 0:
@@ -51,31 +53,32 @@ async def promo_code_cmd(message: types.Message):
         await add_money(cid, uid, coins)
     if xp:
         await add_xp(cid, uid, xp)
+    if energy or hunger:
+        await db.execute("""
+            UPDATE progress_local
+               SET energy = energy + :en,
+                   hunger = hunger + :hu
+             WHERE chat_id=:c AND user_id=:u
+        """, {"en": energy, "hu": hunger, "c": cid, "u": uid})
     for item_id, qty in items.items():
-        await add_item(cid, uid, item_id, qty)
+        if item_id in ("cave_case", "cave_cases"):
+            await give_case_to_user(cid, uid, "cave_case", qty)
+        else:
+            await add_item(cid, uid, item_id, qty)
 
     await db.execute(
         "UPDATE promo_codes SET used_by = :used WHERE code = :code",
         {"used": json.dumps(used_by), "code": code}
     )
 
-    msg = ["🎉 <b>Промокод активирован!</b>\n"]
-    if coins:
-        msg.append(f"💰 +{coins} монет")
-    if xp:
-        msg.append(f"📘 +{xp} XP")
-
+    msg = ["🎉 <b>Промокод активирован!</b>"]
+    if coins:   msg.append(f"💰 +{coins}")
+    if xp:      msg.append(f"📘 +{xp} XP")
+    if energy:  msg.append(f"🔋 +{energy} энергии")
+    if hunger:  msg.append(f"🍗 +{hunger} голода")
     for item_id, qty in items.items():
-        # Випадок для Cave Case
-        if item_id == "cave_cases":
-            await give_case_to_user(cid, uid, "cave_case", qty)
-            msg.append(f"+📦 Cave Case ×{qty}")
-        else:
-            await add_item(cid, uid, item_id, qty)
-            meta = ITEM_DEFS.get(item_id, {"name": item_id, "emoji": "📦"})
-            name = meta["name"]
-            emoji = meta.get("emoji", "")
-            msg.append(f"+{emoji} {name} ×{qty}")
+        meta = ITEM_DEFS.get(item_id, {"name": item_id, "emoji": "📦"})
+        msg.append(f"+{meta.get('emoji','📦')} {meta['name']} ×{qty}")
 
     msg_code = await message.reply("\n".join(msg), parse_mode="HTML")
     register_msg_for_autodelete(message.chat.id, msg_code.message_id)

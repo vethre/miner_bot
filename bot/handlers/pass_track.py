@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 from aiogram import Router, types
 from aiogram.filters import Command
 
@@ -70,9 +71,30 @@ async def deliver_reward(cid: int, uid: int, payload: dict):
         await unlock_achievement(cid, uid, payload["achievement"])
     elif "badge" in payload:
         await db.execute(
-            "UPDATE progress_local SET badge_active=:b "
+            "UPDATE progress_local "
+            "SET badge_active = :b "
             "WHERE chat_id=:c AND user_id=:u",
             {"b": payload["badge"], "c": cid, "u": uid},
+        )
+
+        # ➕ кладемо в badges_owned
+        row = await db.fetch_one(
+            "SELECT badges_owned FROM progress_local "
+            "WHERE chat_id=:c AND user_id=:u",
+            {"c": cid, "u": uid},
+        )
+        owned = set()
+        if row and row["badges_owned"]:
+            try:
+                owned = set(json.loads(row["badges_owned"]))
+            except Exception:
+                pass
+        owned.add(payload["badge"])
+        await db.execute(
+            "UPDATE progress_local "
+            "SET badges_owned = :o "
+            "WHERE chat_id=:c AND user_id=:u",
+            {"o": json.dumps(list(owned)), "c": cid, "u": uid},
         )
     if "extra" in payload:
         for sub in payload["extra"]:
