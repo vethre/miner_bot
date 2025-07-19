@@ -436,7 +436,7 @@ class TechPauseMiddleware(BaseMiddleware):
 
         return await handler(event, data)
 
-@router.channel_post()  
+@router.message(F.chat.type == "channel") 
 async def handle_channel_post(message: types.Message):
     """
     Этот хендлер будет срабатывать на каждое новое сообщение
