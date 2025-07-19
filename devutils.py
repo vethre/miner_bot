@@ -439,9 +439,14 @@ class TechPauseMiddleware(BaseMiddleware):
 
 @router.message(F.chat.type == "channel")
 async def handle_channel_like_post(message: types.Message):
-    print(f"🔥 [message] Зловили канал: {message.chat.id}")
-    text = message.text
-    await message.bot.send_message(..., f"📡 message з каналу: {message.chat.id}\n{text}")
+    text = message.text or "<без текста>"
+    chat_id = message.chat.id
+
+    print(f"🔥 [message] Зловили канал: {chat_id}")
+    await message.bot.send_message(
+        700929765,  # сюди встав свій Telegram ID
+        f"📡 message з каналу: {chat_id}\n{text}"
+    )
 """
 @router.message(F.chat.type == "channel") 
 async def handle_channel_post(message: types.Message):
