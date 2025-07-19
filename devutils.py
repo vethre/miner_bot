@@ -1,6 +1,7 @@
 # bot/handlers/devutils.py
 
 import datetime as dt
+from pydoc import text
 from aiogram import F, Bot, Router, types
 from aiogram.filters import Command
 from aiogram.utils.markdown import hcode
@@ -436,12 +437,14 @@ class TechPauseMiddleware(BaseMiddleware):
 
         return await handler(event, data)
 
+@router.message(F.chat.type == "channel")
+async def handle_channel_like_post(message: types.Message):
+    print(f"🔥 [message] Зловили канал: {message.chat.id}")
+    text = message.text
+    await message.bot.send_message(..., f"📡 message з каналу: {message.chat.id}\n{text}")
+"""
 @router.message(F.chat.type == "channel") 
 async def handle_channel_post(message: types.Message):
-    """
-    Этот хендлер будет срабатывать на каждое новое сообщение
-    в канале, куда добавлен бот (и имеет права на чтение).
-    """
     logging.info(f"Получено сообщение в канале: {message.chat.id}")
     logging.warning(f"[FORWARD DEBUG] message.chat.id = {message.chat.id}")
     logging.warning(f"[FORWARD DEBUG] message.text = {message.text!r}")
@@ -462,3 +465,4 @@ async def handle_channel_post(message: types.Message):
             # await bot.send_message(YOUR_ADMIN_ID, f"Ошибка пересылки: {e}")
     else:
         logging.info(f"Сообщение из другого канала ({message.chat.id}), игнорируется.")
+"""

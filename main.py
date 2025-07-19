@@ -42,7 +42,7 @@ async def main():
     register_handlers(dp)
     setup_weekly_reset(BOT)
 
-    dp.channel_post.register(handle_channel_post)
+    #dp.channel_post.register(handle_channel_post)
     dp.message.middleware.register(
         AntiFlood(limit=20, window=15, mute_seconds=10)     # настройки «под себя»
     )
