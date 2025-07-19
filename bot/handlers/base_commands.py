@@ -268,14 +268,14 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         
     GOOD_PICKAXES = {"gold_pickaxe", "amethyst_pickaxe", "diamond_pickaxe", "obsidian_pickaxe", "proto_eonite_pickaxe", "greater_eonite_pickaxe"}
     if pick_key in GOOD_PICKAXES and is_event_active("eonite"):
-        if random.random() < 0.125:
-            eonite_qty = random.randint(1, 2)
+        if random.random() < 0.3:
+            eonite_qty = random.randint(1, 3)
             await add_item(cid, uid, "eonite_shard", eonite_qty)
             extra_txt += f"\n🧿 <b>Ты нашёл {eonite_qty}× Эонитовых осколков!</b>"
 
-        if random.random() < 0.01:  # 1% шанс
-            await add_item(cid, uid, "eonite_ore", 1)
-            extra_txt += "\n🌑 <b>Ты выдолбил саму руду Эонита! Что за удача…</b>"
+        if random.random() < 0.05:  # 1% шанс
+            await add_item(cid, uid, "eonite_ore", 2)
+            extra_txt += "\n🌑 <b>Ты выдолбил 2 руды Эонита! Что за удача…</b>"
 
     if await is_event_active("eonite"):
         await db.execute("""
@@ -970,7 +970,9 @@ ALIASES.update({
     "железный слиток": "iron_ingot",
     "золотой слиток": "gold_ingot",
     "аметистовый слиток": "amethyst_ingot",
-    "hdd": "old_hdd"
+    "hdd": "old_hdd",
+    "руда эонита": "eonite_ore",
+    "слиток эонита": "eonite_ingot"
 })
 
 @router.message(Command("sell"))
