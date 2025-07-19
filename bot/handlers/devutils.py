@@ -430,3 +430,21 @@ class TechPauseMiddleware(BaseMiddleware):
             return  # глушим остальные хендлеры
 
         return await handler(event, data)
+        
+        
+SOURCE_CHANNEL_ID = -1001976943087       # ID вашого каналу
+TARGET_GROUP_ID   = -1001603288596       # ID групи, куди пересилати
+
+@router.channel_post(F.chat.id == SOURCE_CHANNEL_ID)
+async def relay_channel_post(msg: types.Message, bot: Bot):
+    """
+    Копіює кожен новий пост із каналу SOURCE_CHANNEL_ID у групу TARGET_GROUP_ID.
+    """
+    try:
+        await bot.copy_message(
+            chat_id     = TARGET_GROUP_ID,
+            from_chat_id= msg.chat.id,
+            message_id  = msg.message_id,
+        )
+    except Exception as e:
+        logging.warning("[relay] copy post failed: %s", e)
