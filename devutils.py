@@ -435,13 +435,16 @@ class TechPauseMiddleware(BaseMiddleware):
             return  # глушим остальные хендлеры
 
         return await handler(event, data)
-    
+
+@router.channel_post   
 async def handle_channel_post(message: types.Message):
     """
     Этот хендлер будет срабатывать на каждое новое сообщение
     в канале, куда добавлен бот (и имеет права на чтение).
     """
     logging.info(f"Получено сообщение в канале: {message.chat.id}")
+    logging.warning(f"[FORWARD DEBUG] message.chat.id = {message.chat.id}")
+    logging.warning(f"[FORWARD DEBUG] message.text = {message.text!r}")
 
     # Проверяем, что сообщение пришло именно из нашего исходного канала
     if message.chat.id == SOURCE_CHANNEL_ID:
