@@ -114,11 +114,13 @@ ITEM_DEFS.update({
     },
     "eonite_ore": {
         "name": "Руда Эонита",
-        "emoji": "🧿"
+        "emoji": "🧿",
+        "price": 95
     },
     "eonite_ingot": {
         "name": "Слиток Эонита",
-        "emoji": "🪬"
+        "emoji": "🪬",
+        "price": 125
     }
     
 })
