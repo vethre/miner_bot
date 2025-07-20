@@ -441,10 +441,10 @@ async def relay_channel_post(msg: types.Message, bot: Bot):
     Копіює кожен новий пост із каналу SOURCE_CHANNEL_ID у групу TARGET_GROUP_ID.
     """
     try:
-        await bot.copy_message(
+        await bot.forward_message(
             chat_id     = TARGET_GROUP_ID,
             from_chat_id= msg.chat.id,
             message_id  = msg.message_id,
         )
     except Exception as e:
-        logging.warning("[relay] copy post failed: %s", e)
+        logging.warning("[relay] forward post failed: %s", e)
