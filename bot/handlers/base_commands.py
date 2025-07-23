@@ -78,16 +78,18 @@ HUNGER_LIMIT = 20
 
 # ────────── Руди  + Tiers ──────────
 ORE_ITEMS = {
-    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (10, 16), "price": 2},
-    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (8, 14),  "price": 5},
-    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (6, 12),  "price": 9},
-    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (4, 10),  "price": 13},
-    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (3, 8),  "price": 18},
-    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (1, 2),  "price": 57},
-    "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1, 3),  "price": 38},
-    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (3, 6),  "price": 30},
-    "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (1, 4),  "price": 45},
-    "obsidian_shard": {"name": "Обсидиановый осколок", "emoji": "🟣", "drop_range": (1, 3), "price": 85},
+    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (40, 53), "price": 2},
+    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (32, 50),  "price": 5},
+    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (30, 43),  "price": 9},
+    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (28, 35),  "price": 13},
+    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (25, 32),  "price": 18},
+    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (3, 8),  "price": 57},
+    "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (5, 10),  "price": 38},
+    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (10, 14),  "price": 30},
+    "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (3, 6),  "price": 45},
+    "obsidian_shard": {"name": "Обсидиановый осколок", "emoji": "🟣", "drop_range": (2, 4), "price": 85},
+    "void_crystal": {"name": "Войд-хрусталь", "emoji": "🤍", "drop_range": (1, 3), "price": 100},
+    "star_quartz": {"name": "Звездный квартц", "emoji": "🩷", "drop_range": (1, 3), "price": 155},
 }
 
 TIER_TABLE = [
@@ -98,6 +100,8 @@ TIER_TABLE = [
     {"level_min": 18, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby"]},
     {"level_min": 23, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby", "diamond"]},
     {"level_min": 28, "ores": ["stone","coal","iron","gold","amethyst","lapis", "emerald","ruby","diamond","obsidian_shard"]},
+    {"level_min": 40, "ores": ["coal","iron","amethyst","emerald","ruby","diamond","obsidian_shard","void_crystal"]},
+    {"level_min": 55, "ores": ["coal","iron","emerald","ruby","diamond","obsidian_shard","void_crystal","star_quartz"]},
 ]
 BONUS_BY_TIER = {i + 1: 1.0 + i * 0.2 for i in range(len(TIER_TABLE))}
 
@@ -358,7 +362,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     helmet_effect = None
     if helmet_row:
         code = helmet_row["effect_code"]
-        kind, n = code.split("_", 1)
+        kind, n = code.rsplit("_", 1)
         n = int(n)
         helmet_effect = (kind, n)
         if kind == "ore_bonus":
@@ -1015,17 +1019,15 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
     ore_limit = INVENTORY_CAPS.get(inventory_level, 60)
     inventory_name = INVENTORY_NAMES.get(inventory_level, "Сумка")
 
-    # Категории
     categories = {
         "ores": [],
         "ingots": [],
         "pickaxes": [],
         "food": [],
-        "waxes": [],
+        "coal": [],       # категория для угля/топлива
         "misc": []
     }
 
-    # Визначення категорії по item_key
     def get_category(item_key):
         if item_key.endswith("_ingot") or item_key == "roundstone":
             return "ingots"
@@ -1033,8 +1035,8 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
             return "pickaxes"
         elif item_key in ("meat", "bread", "coffee", "borsch", "energy_drink"):
             return "food"
-        elif item_key in ("waxes", "wax", "lapis_torch"):
-            return "waxes"
+        elif item_key == "coal":
+            return "coal"
         elif item_key in ORE_ITEMS:
             return "ores"
         return "misc"
@@ -1045,12 +1047,10 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
             continue
         meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": "❔"})
         cat = get_category(row["item"])
-        # Считаем только руды
         if cat == "ores":
             ore_count += row["qty"]
         categories[cat].append((meta, row["qty"]))
 
-    # Добавляем лимит и прогресс-бар
     ore_bar = f"{ore_count}/{ore_limit}"
     if ore_count >= ore_limit:
         ore_bar += " ⚠️ ЛИМИТ!"
@@ -1077,16 +1077,15 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         lines.append("\n<b>🍖 Еда:</b>")
         for meta, qty in categories["food"]:
             lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
-    if categories["waxes"]:
-        lines.append("\n<b>🕯️ Воск:</b>")
-        for meta, qty in categories["waxes"]:
+    if categories["coal"]:
+        lines.append("\n<b>🪨 Угольные:</b>")
+        for meta, qty in categories["coal"]:
             lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
     if categories["misc"]:
         lines.append("\n<b>🎒 Прочее:</b>")
         for meta, qty in categories["misc"]:
             lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
 
-    # Лимитный ворнинг
     if ore_count >= ore_limit:
         lines.append("\n⚠️ Внимание! Достигнут лимит руды для текущего уровня инвентаря.\nПрокачай инвентарь через /upgrade_inventory!")
 
