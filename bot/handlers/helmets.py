@@ -154,13 +154,13 @@ async def upgrade_helmet_cmd(m: types.Message, command: CommandObject = None):
 @router.message(Command("auction_helmet"))
 async def auction_helmet_cmd(m: types.Message, cmd: CommandObject = None):
     cid, uid = await cid_uid(m)
-    
+
     if not (cmd and cmd.args):
-        return await m.reply("Использование: /auction_helmet <номер> <цена>")
+        return await m.reply("Использование: /auction_helmet <code>номер цена</code>")
 
     args = cmd.args.split()
     if len(args) != 2:
-        return await m.reply("Использование: /auction_helmet <номер> <цена>")
+        return await m.reply("Использование: /auction_helmet <code>номер цена</code>")
 
     serial, price = args[0].strip().upper(), int(args[1])
     # Найти каску игрока
@@ -181,7 +181,7 @@ async def auction_helmet_cmd(m: types.Message, cmd: CommandObject = None):
 async def buy_helmet_cmd(m: types.Message, cmd: CommandObject = None):
     cid, uid = await cid_uid(m)
     if not cmd.args:
-        return await m.reply("Использование: /buy_helmet <номер>")
+        return await m.reply("Использование: /buy_helmet <code>номер</code>")
     serial = cmd.args.strip().upper()
     row = await db.fetch_one(
         "SELECT * FROM helmets WHERE serial=:s AND on_auction=TRUE",
@@ -212,7 +212,7 @@ async def buy_helmet_cmd(m: types.Message, cmd: CommandObject = None):
 async def unauction_helmet_cmd(m: types.Message, cmd: CommandObject = None):
     cid, uid = await cid_uid(m)
     if not cmd.args:
-        return await m.reply("Использование: /unauction_helmet <номер>")
+        return await m.reply("Использование: /unauction_helmet <code>номер</code>")
     serial = cmd.args.strip().upper()
     row = await db.fetch_one(
         "SELECT * FROM helmets WHERE chat_id=:c AND user_id=:u AND serial=:s AND on_auction=TRUE",
