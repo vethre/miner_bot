@@ -1962,18 +1962,26 @@ KISS_PHRASES = [
 async def social_action(message, action_type, action_phrases):
     cid, uid = await cid_uid(message)
     args = message.text.split()
-    if len(args) < 2:
-        return await message.reply(f"Используй: /{action_type} @username или user_id")
+    target_id = None
 
-    target = args[1].replace("@", "")
-    if target.isdigit():
-        target_id = int(target)
-    else:
-        try:
-            member = await message.bot.get_chat_member(cid, target)
-            target_id = member.user.id
-        except Exception:
-            return await message.reply("Не удалось найти пользователя. Укажи username или user_id!")
+    # 1. Если есть reply — берем id из него
+    if message.reply_to_message:
+        target_id = message.reply_to_message.from_user.id
+
+    # 2. Если есть второй аргумент — пытаемся его распарсить
+    elif len(args) >= 2:
+        target = args[1].replace("@", "")
+        if target.isdigit():
+            target_id = int(target)
+        else:
+            try:
+                member = await message.bot.get_chat_member(cid, target)
+                target_id = member.user.id
+            except Exception:
+                return await message.reply("Не удалось найти пользователя. Укажи username или user_id!")
+
+    if not target_id:
+        return await message.reply(f"Укажи пользователя: /{action_type} @username или ответь на сообщение!")
 
     if target_id == uid:
         return await message.reply("🤨 Сам с собой нельзя, ты не настолько одинок!")

@@ -109,13 +109,13 @@ async def list_helmets_cmd(m: types.Message):
     await m.reply("\n\n".join(parts), parse_mode="HTML")
 
 @router.message(Command("upgrade_helmet"))
-async def upgrade_helmet_cmd(m: types.Message, cmd: CommandObject):
+async def upgrade_helmet_cmd(m: types.Message, command: CommandObject = None):
     cid, uid = await cid_uid(m)
 
-    if not cmd.args:
+    if not command.args:
         return await m.reply("Использование: /upgrade_helmet CM-1234")
 
-    serial = cmd.args.strip().upper()
+    serial = command.args.strip().upper()
 
     row = await db.fetch_one(
         "SELECT * FROM helmets WHERE chat_id=:c AND user_id=:u AND serial=:s",
