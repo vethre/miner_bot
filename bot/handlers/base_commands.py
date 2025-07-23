@@ -827,7 +827,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     helmet_effect = None
     if helmet_row:
         code = helmet_row["effect_code"]
-        kind, n = code.split("_", 1)
+        kind, n = code.rsplit("_", 1)
         n = int(n)
         helmet_effect = (kind, n)
         # Применяем эффекты уменьшения затрат
