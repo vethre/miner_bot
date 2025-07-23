@@ -53,7 +53,7 @@ def _rand_effect() -> tuple[str, str]:
 def _effect_readable(code: str) -> str:
     if "_" not in code:
         return "❓ Неизвестный эффект"
-    kind, n = code.split("_", 1)
+    kind, n = code.rsplit("_", 1)
     tpl = EFFECT_TEMPLATES.get(kind, ("❓", (0, 0)))[0]
     return tpl.format(n=n)
 
@@ -236,3 +236,27 @@ async def my_auctioned_helmets_cmd(m: types.Message):
         return await m.reply("У тебя нет касок на аукционе.")
     lines = [f"{r['serial']} — {r['auction_price']} монет" for r in rows]
     await m.reply("\n".join(lines))
+
+@router.message(Command("activate_helmet"))
+async def activate_helmet_cmd(m: types.Message, command: CommandObject = None):
+    if not (command and command.args):
+        return await m.reply("Использование: /activate_helmet CM-1234")
+    serial = command.args.strip().upper()
+    cid, uid = await cid_uid(m)
+    row = await db.fetch_one(
+        "SELECT * FROM helmets WHERE chat_id=:c AND user_id=:u AND serial=:s",
+        {"c": cid, "u": uid, "s": serial}
+    )
+    if not row:
+        return await m.reply("❌ Каска не найдена.")
+    # Деактивировать все
+    await db.execute(
+        "UPDATE helmets SET active=FALSE WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
+    )
+    # Активировать выбранную
+    await db.execute(
+        "UPDATE helmets SET active=TRUE WHERE chat_id=:c AND user_id=:u AND serial=:s",
+        {"c": cid, "u": uid, "s": serial}
+    )
+    await m.reply(f"🪖 Каска <b>{serial}</b> активирована!", parse_mode="HTML")
