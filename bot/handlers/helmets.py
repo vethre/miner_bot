@@ -131,7 +131,7 @@ async def upgrade_helmet_cmd(m: types.Message, command: CommandObject = None):
 
     # 10 % шанс получить новый случайный эффект
     new_effect = row["effect_code"]
-    if random.random() < 0.10:
+    if random.random() < 0.80:
         new_effect, _ = _rand_effect()
 
     row = await db.fetch_one(
@@ -152,7 +152,7 @@ async def upgrade_helmet_cmd(m: types.Message, command: CommandObject = None):
     register_msg_for_autodelete(cid, msg.message_id)
 
 @router.message(Command("auction_helmet"))
-async def auction_helmet_cmd(m: types.Message, cmd: CommandObject):
+async def auction_helmet_cmd(m: types.Message, cmd: CommandObject = None):
     cid, uid = await cid_uid(m)
     args = (cmd.args or "").split()
     if len(args) != 2:
@@ -173,7 +173,7 @@ async def auction_helmet_cmd(m: types.Message, cmd: CommandObject):
     await m.reply(f"🪖 Каска {serial} выставлена на аукцион за {price} монет.")
 
 @router.message(Command("buy_helmet"))
-async def buy_helmet_cmd(m: types.Message, cmd: CommandObject):
+async def buy_helmet_cmd(m: types.Message, cmd: CommandObject = None):
     cid, uid = await cid_uid(m)
     if not cmd.args:
         return await m.reply("Использование: /buy_helmet <номер>")
@@ -204,7 +204,7 @@ async def buy_helmet_cmd(m: types.Message, cmd: CommandObject):
     await m.reply(f"Покупка прошла успешно! Ты приобрёл каску {serial} за {price} монет.")
 
 @router.message(Command("unauction_helmet"))
-async def unauction_helmet_cmd(m: types.Message, cmd: CommandObject):
+async def unauction_helmet_cmd(m: types.Message, cmd: CommandObject = None):
     cid, uid = await cid_uid(m)
     if not cmd.args:
         return await m.reply("Использование: /unauction_helmet <номер>")
