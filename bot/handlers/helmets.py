@@ -154,9 +154,14 @@ async def upgrade_helmet_cmd(m: types.Message, command: CommandObject = None):
 @router.message(Command("auction_helmet"))
 async def auction_helmet_cmd(m: types.Message, cmd: CommandObject = None):
     cid, uid = await cid_uid(m)
-    args = (cmd.args or "").split()
+    
+    if not (cmd and cmd.args):
+        return await m.reply("Использование: /auction_helmet <номер> <цена>")
+
+    args = cmd.args.split()
     if len(args) != 2:
         return await m.reply("Использование: /auction_helmet <номер> <цена>")
+
     serial, price = args[0].strip().upper(), int(args[1])
     # Найти каску игрока
     row = await db.fetch_one(
