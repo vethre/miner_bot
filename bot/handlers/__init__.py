@@ -14,6 +14,7 @@ from .seals import router as seals_router
 from .cave_clash import router as clash_router, setup_weekly_reset
 from .choice_events import router as choice_events_router
 from .pass_track import router as pass_track_router
+from .helmets import router as helmets_router
 
 def register_handlers(dp):
     dp.include_router(base_router)
@@ -31,5 +32,6 @@ def register_handlers(dp):
     dp.include_router(clash_router)
     dp.include_router(choice_events_router)
     dp.include_router(pass_track_router)
+    dp.include_router(helmets_router)
 
     setup_weekly_reset(bot)

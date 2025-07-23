@@ -49,6 +49,7 @@ from bot.handlers.badge_defs import BADGES
 from bot.handlers.badges import badges_menu, get_badge_effect
 from bot.handlers.choice_events import maybe_send_choice_card
 from bot.handlers.eat import eat_cmd
+from bot.handlers.helmets import list_helmets_cmd, my_auctioned_helmets_cmd
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.crafting import RECIPES_BY_ID, SMELT_RECIPES, SMELT_INPUT_MAP, CRAFT_RECIPES
 from bot.handlers.seals import SEALS, choose_seal, show_seals
@@ -99,6 +100,21 @@ TIER_TABLE = [
     {"level_min": 28, "ores": ["stone","coal","iron","gold","amethyst","lapis", "emerald","ruby","diamond","obsidian_shard"]},
 ]
 BONUS_BY_TIER = {i + 1: 1.0 + i * 0.2 for i in range(len(TIER_TABLE))}
+
+INVENTORY_CAPS = {
+    1: 60,    # Сумка
+    2: 120,   # Рюкзак
+    3: 240,   # Мешок
+    4: 480,   # Хранилище
+    5: 9999   # Склад
+}
+INVENTORY_NAMES = {
+    1: "Сумка",
+    2: "Рюкзак",
+    3: "Мешок",
+    4: "Хранилище",
+    5: "Склад"
+}
 
 # ────────── Helper ──────────
 
@@ -189,6 +205,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
 
     if random.random() < 0.05:
         fail_messages = [
+            # Обычные кринжовые и мемные
             "Ты пошёл копать в новую шахту, но она оказалась пустой. Даже пауки сбежали.",
             "Ты копал с энтузиазмом, но нашёл только старые носки и сырость.",
             "Тебя облапошили! Это была учебная шахта для стажёров.",
@@ -196,7 +213,52 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
             "Ты вернулся домой с пустыми руками. Кирка смотрит на тебя с разочарованием.",
             "Тебе грустно, передохни, ты устал.",
             "FATAL ERROR",
-            "Шахту затопил ливень, подожди немного."
+            "Шахту затопил ливень, подожди немного.",
+            "Сегодня шахта отказала тебе в доступе. Похоже, у неё плохое настроение.",
+            "Камни отказались сотрудничать. Не твой день!",
+            "Ты нашёл только пустую бутылку и чекушку. Бонусных очков — 0.",
+            "В шахте пахнет неудачей... или это просто твои носки?",
+            "Ты старался — но только твоё эхо слышно в этой шахте.",
+
+            # Зумерские, интернет-мемные
+            "Да уж, тут только вайб и кринж.",
+            "Кринжанул на копке… Попробуй мемную кирку.",
+            "Вот это копка… 0 баллов из 10.",
+            "Ещё немного и был бы улов, а так — мемчик.",
+            "Грустно, но не больно… Надо брать с собой пета для удачи.",
+            "Давай честно — сегодня шахта затильтовала.",
+            "Ну это просто забей… Удача не на твоей стороне.",
+            "Зря смотрел тут ТикТок — энергия ушла на флекс.",
+            "Ты упал в шахту... и твой пет убежал.",
+
+            # Лёгкие отсылки на Petropolis
+            "В темноте ты слышишь мяуканье… Это не твой питомец?",
+            "Кажется, из-за угла смотрел кот с ножом. Или показалось…",
+            "Питомцы в шахте бы не заблудились — приходи в метрополис.",
+            "Тут был Qfuspqpmjt... но ты его не нашёл.",
+            "Где-то рядом двое петов спорят, кто главный. Может, найдёшь их позже?",
+
+            # Криповые фразы, тизер сезона/мероприятий
+            "Шахта стала подозрительно тихой… Как будто что-то ждёт.",
+            "На стене кто-то нацарапал: 'В следующий раз забери всё.'",
+            "Чей-то взгляд в темноте… Ты ускоряешь шаг.",
+            "Cave Bot умер... он поглотил твою добычу.",
+            "В этот раз тьма победила. Следующий сезон будет особенным.",
+            "Ты слышал шёпот… 'Время близко.'",
+            "Где-то далеко эхо: 'Не забывай Cave Pass...' ",
+            "Рядом промелькнул силуэт. Шахта живёт своей жизнью.",
+            "Ты почувствовал чьё-то присутствие… Возможно, новый питомец рядом?",
+            "На потолке мимолётная надпись: 'P3тг0№011с ждёт тебя.'",
+            "Из тьмы кто-то сказал: 'В следующий раз удача улыбнётся… может быть.'",
+            "Ты почти почувствовал на плечах мягкие лапки…",
+
+            # Мем-тизеры и "пасхалки"
+            "Он шепчет: 'Всё будет ано.'",
+            "Шахта ушла на перерыв. Призови нового пета — вдруг поможет!",
+            "Ты услышал мемную песню и отвлёкся — кирка обиделась.",
+            "Похоже, на этой копке стоял 'антидроп'.",
+            "В шахте обнаружен QR-код… Но он исчез, когда ты моргнул.",
+            "Шахта подсказала: 'Жди новое обновление…'",
         ]
         fail_msg = random.choice(fail_messages)
 
@@ -287,7 +349,55 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
 
     await add_pass_xp(cid, uid, xp_gain)
     if prog.get("badge_active") == "recruit":
-        await add_money(cid, uid, 30)   
+        await add_money(cid, uid, 30) 
+
+    helmet_row = await db.fetch_one(
+        "SELECT * FROM helmets WHERE chat_id=:c AND user_id=:u AND active=TRUE",
+        {"c": cid, "u": uid}
+    )
+    helmet_effect = None
+    if helmet_row:
+        code = helmet_row["effect_code"]
+        kind, n = code.split("_", 1)
+        n = int(n)
+        helmet_effect = (kind, n)
+        if kind == "ore_bonus":
+            amount = int(amount * (1 + n / 100))
+        if kind == "xp_bonus":
+            xp_gain = int(xp_gain * (1 + n / 100))
+        if kind == "crit_mine":
+            if random.randint(1, 100) <= n:
+                amount *= 2
+                extra_txt += f"\n💥 <b>Каска: КРИТ! Добыча ×2</b>"
+        if kind == "coin_bonus":
+            # Применяется только к бонусным монетам из событий (см. apply_chance_event)
+            pass
+        if kind == "extra_case":
+            if random.randint(1, 100) <= n:
+                await add_item(cid, uid, "cave_case", 1)
+                extra_txt += f"\n📦 <b>Каска: кейс найден!</b>"
+        if kind == "regen_pick":
+            if random.randint(1, 100) <= n:
+                cur_pick = prog.get("current_pickaxe")
+                await change_dur(cid, uid, cur_pick, 1)
+                extra_txt += f"\n♻️ <b>Каска: кирка восстановила прочность!</b>"
+        if kind == "lucky_miner":
+            if random.randint(1, 100) <= n:
+                rare_ore = "emerald"  # или другая, по логике
+                await add_item(cid, uid, rare_ore, 1)
+                extra_txt += f"\n🍀 <b>Каска: найдена редкая руда!</b>"  
+
+    inventory_level = prog.get("inventory_level", 1)
+    ore_limit = INVENTORY_CAPS.get(inventory_level, 60)
+    inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
+    ore_count = sum(inv.get(k, 0) for k in ORE_ITEMS)
+    add_amount = min(amount, max(ore_limit - ore_count, 0))
+    dropped = amount - add_amount
+
+    if add_amount > 0:
+        await add_item(cid, uid, ore_id, add_amount)
+    if dropped > 0:
+        extra_txt += f"\n⚠️ <b>Переполнение!</b> В инвентарь добавлено только {add_amount} руды, {dropped} ушло в никуда."
 
     # ---- прочність конкретної кирки (JSON-мапа) ----
     broken = False
@@ -706,6 +816,22 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         await add_item(cid, uid, "bomb", -1)   # списуємо одразу
         bomb_mult = 1.50      
 
+    helmet_row = await db.fetch_one(
+        "SELECT * FROM helmets WHERE chat_id=:c AND user_id=:u AND active=TRUE",
+        {"c": cid, "u": uid}
+    )
+    helmet_effect = None
+    if helmet_row:
+        code = helmet_row["effect_code"]
+        kind, n = code.split("_", 1)
+        n = int(n)
+        helmet_effect = (kind, n)
+        # Применяем эффекты уменьшения затрат
+        if kind == "hunger_slow":
+            hunger_cost = int(hunger_cost * (1 - n / 100))
+        if kind == "fatigue_resist":
+            energy_cost = int(energy_cost * (1 - n / 100))
+
     # списуємо енергію/голод + ставимо таймер
     await db.execute("""
         UPDATE progress_local
@@ -885,8 +1011,11 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
     balance = await get_money(cid, uid)
     progress = await get_progress(cid, uid)
     current_pick = progress.get("current_pickaxe")
+    inventory_level = progress.get("inventory_level", 1)
+    ore_limit = INVENTORY_CAPS.get(inventory_level, 60)
+    inventory_name = INVENTORY_NAMES.get(inventory_level, "Сумка")
 
-    # Категорії
+    # Категории
     categories = {
         "ores": [],
         "ingots": [],
@@ -910,15 +1039,27 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
             return "ores"
         return "misc"
 
-    # Розкид по категоріях
+    ore_count = 0
     for row in inv:
         if row["item"] == current_pick:
             continue
         meta = ITEM_DEFS.get(row["item"], {"name": row["item"], "emoji": "❔"})
         cat = get_category(row["item"])
+        # Считаем только руды
+        if cat == "ores":
+            ore_count += row["qty"]
         categories[cat].append((meta, row["qty"]))
 
-    lines = [f"🧾 Баланс: {balance} монет", ""]
+    # Добавляем лимит и прогресс-бар
+    ore_bar = f"{ore_count}/{ore_limit}"
+    if ore_count >= ore_limit:
+        ore_bar += " ⚠️ ЛИМИТ!"
+
+    lines = [
+        f"🧾 Баланс: {balance} монет",
+        f"📦 <b>Инвентарь:</b> {inventory_name} ({ore_bar})",
+        ""
+    ]
 
     if categories["ores"]:
         lines.append("<b>⛏️ Руды:</b>")
@@ -945,6 +1086,10 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         for meta, qty in categories["misc"]:
             lines.append(f"{meta['emoji']} {meta['name']}: {qty}")
 
+    # Лимитный ворнинг
+    if ore_count >= ore_limit:
+        lines.append("\n⚠️ Внимание! Достигнут лимит руды для текущего уровня инвентаря.\nПрокачай инвентарь через /upgrade_inventory!")
+
     msg = await message.answer_photo(
         INV_IMG_ID,
         caption="\n".join(lines),
@@ -952,6 +1097,28 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
         reply_to_message_id=message.message_id,
     )
     register_msg_for_autodelete(cid, msg.message_id)
+
+INVENTORY_UPGRADE_COST = [0, 1500, 3800, 7000, 12000]  # для уровней 1→5
+
+@router.message(Command("upgrade_inventory"))
+async def upgrade_inventory_cmd(message: types.Message):
+    cid, uid = await cid_uid(message)
+    prog = await get_progress(cid, uid)
+    lvl = prog.get("inventory_level", 1)
+    if lvl >= 5:
+        return await message.reply("🔝 Склад — максимальный уровень инвентаря!")
+    cost = INVENTORY_UPGRADE_COST[lvl]
+    balance = await get_money(cid, uid)
+    if balance < cost:
+        return await message.reply(f"❌ Нужно {cost} монет для улучшения. У тебя только {balance} монет.")
+    await add_money(cid, uid, -cost)
+    await db.execute(
+        "UPDATE progress_local SET inventory_level = inventory_level + 1 WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
+    )
+    new_name = INVENTORY_NAMES.get(lvl+1, "???")
+    await message.reply(f"🎉 Поздравляем! Теперь твой инвентарь: <b>{new_name}</b>.\nЛимит руды: {INVENTORY_CAPS[lvl+1]} шт.", parse_mode="HTML")
+
 
 # ────────── /sell (локальний) ──────────
 ALIASES = {k: k for k in ITEM_DEFS}
@@ -1695,42 +1862,41 @@ async def progress_cmd(message: types.Message):
 @router.message(Command("cavebot"))
 async def cavebot_cmd(message: types.Message):
     replies = [
-        "⚙️ CaveBot v0.1 (2022) — восстановление памяти... <code>[FAILED]</code>\nПроект Unity недоступен. Каталог отсутствует.",
-        "🧠 EONIT::ThreadWarning — ⚠️ Последняя синхронизация: <b>06.08.2023</b>\nЗагрузка backup...\n<code>load(cavebot-legacy)</code> ➝ <b>Файл повреждён</b>",
-        "<b>⚠️ SYSTEM OVERRIDE</b>\ntrace(legacy_link):\n→ UnityBuild.exe [CaveGame] = ❌\n→ bot_deploy.sh = ❌\n→ AI_CoPilot = ???\n\n<code>REBOOTING...</code>",
-        "<code>[ERR] Promo 'unreleased2023'</code> → -1 монета списана. Это шутка... или?",
-        "🔧 <b>CaveBot v1.0.0-RC</b>\n<code>error: eonite_shard not initialized</code>\n⏳ Обновление через █ дней\n<code>sys.msg: prepare for awaken</code>",
-        "🕳️ <i>06.08.2023 — день молчания</i>\n<code>LOG BACKUP → /failed_deploys/cavebot_beta</code>\n«иногда лучше не пытаться...»",
-        "🧬 <b>Eonit Signal</b>: <code>01 00 11 01 10 10 01 01</code>\n<code>Legacy transmission unstable.</code>",
-        "📀 <b>Промокод:</b> cavebot-legacy → 🪓 Legacy Pickaxe (прочность 1)\n🪦 <i>Прах был заложен в корни Eonit</i>",
-        "⚙️ <code>aiogram.dispatcher: Polling stopped (code: UNSTABLE)</code>\n🌀 Cave Core не отвечает.",
-        "<b>[ALERT] CORE NULLIFIED</b>\nОшибка связи с ядром Эонита. Текущий канал: /null",
-        "💾 <code>~$ unity_export.sh → permission denied</code>\n🧠 «если ты это читаешь — значит кто-то выжил»",
-        "<code>01000101 01001111 01001110 01001001 01010100 01000101</code>"
-        "🔄 <code>fetch_update(“Eonit Awakens”)</code> → доступ запрещён.\nПричина: доступ возможен только при наличии <b>Legacy Token</b>",
-        "🗿 <b>Tribute patch 0.9</b>\n<code>collect(tithes) ➝ 7/99</code>\n⚠️ Квота дани не выполнена • августовый пропуск заблокирован.",
-        "🌌 <i>Cave Pass S3:</i> «Tribute to the Core»\n<code>ticket_status = WAITING_FOR_RITUAL</code>",
-        "🔒 <code>/pass activate tribute</code> → ERROR 451\n<b>Reason:</b> pending Sacrifice Protocol.",
-        # ——— Cave Game link ———
-        "🎮 CaveGame.exe -autostart\n→ <code>Missing DLC “Bot Convergence”</code>\nℹ️ Подробности — в августовском Dev-Log.",
-        "🌐 <code>GET https://eonit.cave/game/v3')</code>\n⏳ 504 Gateway Timeout — сервер отвечает криками.",
-        # ——— глючные промики ———
-        "<code>[PROMO]</code> tribute-august-2024 → ✨ 0 монет… но почему полоска XP дрогнула?",
-        "🗳️ <i>Награда сезона:</i> ???\n<b>hint:</b> obsidian + legacy ashes + ???",
-        # ——— баг-логи ———
-        "<b>STACKTRACE</b>\npass.core > vault > tithe.py:84\n<code>ValueError: soul hash overflow</code>",
-        "📡 EONIT-Ping(Tribute) → 12 115 ms\nsignal integrity DOWN ▃▃▃▃▂▂▁",
-        # ——— крипто-HEX ———
-        "<code>0x54 0x52 0x42 0x54 0x00</code>  // TRBT – ключ шифрования сезона",
-        # ——— поломки Bot-side ———
-        "⚙️ CaveBot-Alpha[Tribute]\n<code>cron.tithe_collector()</code> → permission denied • admin required.",
-        "🛑 <code>upgrade_pass --channel stable</code>\n<b>Result:</b> downgraded to <s>0.1-beta</s> 0.0-prealpha.",
-        # ——— «живой» камень ———
-        "🪨 Обработчик StoneSoul: <code>consume()</code> ожидает…\n☠️ last heartbeat 66 h ago.",
-        # ——— пасхалочка ———
-        "👁‍🗨 Whisper: «Отдай кирку… и получи ∞-бутыр борща» — <i>сообщение самоудалится…</i>",
-        # ——— Eonit tribute alert ———
-        "<b>[EONIT]</b> Требуется очередная дань.\nДедлайн: 08-08-24 08:08 UTC\n<code>submit_tithe --ore ruby --qty 88</code>",
+        # Legacy отсылки, Cave Bot
+        "⚙️ CaveBot v0.1 (2022) — восстановление памяти... <code>[FAILED]</code>\nАрхив Legacy не найден. Путь утерян навсегда.",
+        "🧠 <b>NULL_THREAD::Legacy</b> — ⚠️ Последний сигнал: <b>07.08.2025</b>\nПытаюсь расшифровать...\n<code>load(cave-game-legacy)</code> ➝ <b>Доступ заблокирован</b>",
+        "<b>⚠️ SYSTEM OVERRIDE</b>\ntrace(legacy_link):\n→ GameCore.dll = ❌\n→ bot_restore.sh = ❌\n→ PETS_AI = ...\n\n<code>REBOOTING...</code>",
+        "<code>[ERR] Promo 'petro-dawn'</code> → -1 петкойн списан. Это шутка... или сигнал?",
+        "🔧 <b>CaveBot v2.0.0</b>\n<code>error: PETROPOLIS_KEY not initialized</code>\n⏳ Система ждет отклика от вторичного ядра...",
+        "<b>[ALERT] CORE NULLIFIED</b>\nОшибка связи с ядром CaveGame. Канал переключен: /null",
+        "💾 <code>~$ legacy_export.sh → permission denied</code>\n🧠 <i>Кто-то помнит… но никто не скажет.</i>",
+        "<code>01010000 01000101 01010100 01010011</code>\n<code>01100011 01100001 01110110 01100101</code>\n<code>[OK]</code>",
+        # Тизеры и пасхалки
+        "<b>[TEASER]</b> system.transmit(🐾...) → ⏳ SNEAK_PEEK_LOADED\n<code>Decode: https://t.me/cavenew</code>",
+        "🗝️ <code>PETRO-CORE: 0x50455452</code>\n…сигнал принят… Вход разрешён только избранным.",
+        "⛏️ Поговаривают, что скоро откроется новый туннель. Код доступа: PETRO-??",
+        "🌌 Кто-то шепчет из глубины: «Рядом проснулись питомцы…»",
+        "🐾 В твоём рюкзаке что-то зашевелилось. Странно…",
+        "<code>[LEGACY] PROMO: [P***O-P***S]</code> — пока что строка обрывается.",
+        "🕳️ <i>Архивы Petropolis запечатаны… Только для тех, кто ищет.</i>",
+        # Зашифрованные коды и намёки
+        "<code>01010000 01000101 01010100 01010010 01001111</code>\n…Может быть, это важно для следующего сезона?",
+        "<b>[PetroCore]</b> Питомцы не спят. Кто-то уже рядом.",
+        "🐾 <i>Тайный архив: /petro-legacy — доступ закрыт</i>",
+        "<code>AI_EVENT: cavebot-petropolis-fusion()</code> → <b>Event Not Started</b>",
+        # Лёгкий мем
+        "🦦 Ты слышишь шёпот: «Petro…pol…is…»\n<code>bot_passphrase = ???</code>",
+        "🪄 <i>Удача для питомца загружается…</i> Вход в Petropolis возможен только через шахту.",
+        "🐾 🛠️ Лапы оставили следы в твоём коде…",
+        "💿 <code>PETRO_INSTALLER.EXE — NOT FOUND</code>",
+        "🕳️ Кто-то оставил QR-код на стене. Ты не успел его расшифровать.",
+        "🦦 Кто-то выронил ключ от клетки... но найти его сможет только шахтёр с питомцем.",
+        "<code>PETRO-QR: 4f2d...</code> — изображение повреждено.",
+        # Криповые тизеры нового сезона
+        "🌑 Тьма сгущается. В глубине слышен топот маленьких лап.",
+        "🐾 <i>Следы ведут к следующей главе...</i>",
+        "⚙️ Протокол Fusion активирован. Жди новостей на канале.",
+        "🐾 Petropolis ждет своего героя. Ты слышишь это?",
     ]
 
     await unlock_achievement(message.chat.id, message.from_user.id, "cave_bot")
@@ -1763,6 +1929,88 @@ async def pickaxes_cmd(message: types.Message):
 
     msg = await message.answer("\n".join(lines), parse_mode="HTML")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
+
+HUG_PHRASES = [
+    "🫂 {from_user} обнял(а) {to_user} — стало теплее в шахте!",
+    "🥰 {from_user} дарит объятие {to_user}. В этой шахте теперь больше любви.",
+    "🤗 {from_user} обнял(а) {to_user} так сильно, что даже кирка согрелась.",
+    "❤️ {from_user} и {to_user} теперь лучшие друзья (по версии шахты).",
+    "😏 {from_user} решил(а) поддержать {to_user} мемным обнимашем."
+]
+PUSH_PHRASES = [
+    "🙃 {from_user} толкнул(а) {to_user} в руду. Ой, кто-то стал грязнее!",
+    "😈 {from_user} незаметно поддел(а) {to_user} локтем — ну ты шутник.",
+    "😂 {from_user} устроил(а) мини-драку с {to_user} (шуточно).",
+    "🤸 {from_user} устроил(а) мемный подкат под {to_user}.",
+    "🦶 {from_user} дал(а) леща {to_user} (не по-настоящему)."
+]
+THROWPICK_PHRASES = [
+    "🪓 {from_user} метнул(а) кирку в {to_user}, но она вернулась обратно — майнерская магия!",
+    "⚡️ {from_user} кинул(а) кирку в {to_user}. Кирка исчезла, но потом нашлась в инвентаре.",
+    "🤪 {from_user} попытался(лась) метнуть кирку в {to_user}, но промазал(а) — теперь ржака в шахте.",
+    "🔄 {from_user} и {to_user} устроили битву кирками! Победила... дружба.",
+    "💥 {from_user} кинул(а) кирку, {to_user} увернулся(лась) как ниндзя."
+]
+KISS_PHRASES = [
+    "😘 {from_user} поцеловал(а) {to_user} в шахтёрский лобик.",
+    "💋 {from_user} оставил(а) след поцелуя на щеке {to_user}.",
+    "😍 {from_user} отправил(а) воздушный поцелуй {to_user}.",
+    "🥰 {from_user} показал(а), что в шахте тоже есть любовь — поцеловал(а) {to_user}.",
+    "👄 {from_user} сделал(а) шахтёрский чмок {to_user}."
+]
+
+async def social_action(message, action_type, action_phrases):
+    cid, uid = await cid_uid(message)
+    args = message.text.split()
+    if len(args) < 2:
+        return await message.reply(f"Используй: /{action_type} @username или user_id")
+
+    target = args[1].replace("@", "")
+    if target.isdigit():
+        target_id = int(target)
+    else:
+        try:
+            member = await message.bot.get_chat_member(cid, target)
+            target_id = member.user.id
+        except Exception:
+            return await message.reply("Не удалось найти пользователя. Укажи username или user_id!")
+
+    if target_id == uid:
+        return await message.reply("🤨 Сам с собой нельзя, ты не настолько одинок!")
+
+    try:
+        member = await message.bot.get_chat_member(cid, target_id)
+        mention = f"@{member.user.username}" if member.user.username \
+            else f'<a href="tg://user?id={target_id}">{member.user.full_name}</a>'
+    except Exception:
+        mention = f'<a href="tg://user?id={target_id}">{target_id}</a>'
+
+    from_member = await message.bot.get_chat_member(cid, uid)
+    from_name = f"@{from_member.user.username}" if from_member.user.username \
+        else f'<a href="tg://user?id={uid}">{from_member.user.full_name}</a>'
+
+    phrase = random.choice(action_phrases).format(
+        from_user=from_name,
+        to_user=mention
+    )
+    msg = await message.answer(phrase, parse_mode="HTML")
+    register_msg_for_autodelete(cid, msg.message_id)
+
+@router.message(Command("hug"))
+async def hug_cmd(message: types.Message):
+    await social_action(message, "hug", HUG_PHRASES)
+
+@router.message(Command("push"))
+async def push_cmd(message: types.Message):
+    await social_action(message, "push", PUSH_PHRASES)
+
+@router.message(Command("throwpick"))
+async def throwpick_cmd(message: types.Message):
+    await social_action(message, "throwpick", THROWPICK_PHRASES)
+
+@router.message(Command("kiss"))
+async def kiss_cmd(message: types.Message):
+    await social_action(message, "kiss", KISS_PHRASES)
 
 @router.message(lambda msg: re.match(r"шахта\s+профиль", msg.text, re.IGNORECASE))
 async def profile_msg_cmd(message: types.Message):
@@ -1827,3 +2075,13 @@ async def clash_msg_cmd(message: types.Message):
 @router.message(lambda msg: re.match(r"шахта\s+трекпасс", msg.text, re.IGNORECASE))
 async def trackpass_msg_cmd(message: types.Message):
     return await trackpass_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+каска", msg.text, re.IGNORECASE))
+async def list_helmets_msg_cmd(message: types.Message):
+    return await list_helmets_cmd(message)
+
+@router.message(lambda msg: re.match(r"шахта\s+мойаук", msg.text, re.IGNORECASE))
+async def my_auctioned_helmets_msg_cmd(message: types.Message):
+    return await my_auctioned_helmets_cmd(message)
+
+
