@@ -152,13 +152,13 @@ async def upgrade_helmet_cmd(m: types.Message, command: CommandObject = None):
     register_msg_for_autodelete(cid, msg.message_id)
 
 @router.message(Command("auction_helmet"))
-async def auction_helmet_cmd(m: types.Message, cmd: CommandObject = None):
+async def auction_helmet_cmd(m: types.Message, command: CommandObject = None):
     cid, uid = await cid_uid(m)
 
-    if not (cmd and cmd.args):
+    if not (command and command.args):
         return await m.reply("Использование: /auction_helmet <code>номер цена</code>")
 
-    args = cmd.args.split()
+    args = command.args.split()
     if len(args) != 2:
         return await m.reply("Использование: /auction_helmet <code>номер цена</code>")
 
@@ -178,11 +178,11 @@ async def auction_helmet_cmd(m: types.Message, cmd: CommandObject = None):
     await m.reply(f"🪖 Каска {serial} выставлена на аукцион за {price} монет.")
 
 @router.message(Command("buy_helmet"))
-async def buy_helmet_cmd(m: types.Message, cmd: CommandObject = None):
+async def buy_helmet_cmd(m: types.Message, command: CommandObject = None):
     cid, uid = await cid_uid(m)
-    if not cmd.args:
+    if not command.args:
         return await m.reply("Использование: /buy_helmet <code>номер</code>")
-    serial = cmd.args.strip().upper()
+    serial = command.args.strip().upper()
     row = await db.fetch_one(
         "SELECT * FROM helmets WHERE serial=:s AND on_auction=TRUE",
         {"s": serial},
@@ -209,11 +209,11 @@ async def buy_helmet_cmd(m: types.Message, cmd: CommandObject = None):
     await m.reply(f"Покупка прошла успешно! Ты приобрёл каску {serial} за {price} монет.")
 
 @router.message(Command("unauction_helmet"))
-async def unauction_helmet_cmd(m: types.Message, cmd: CommandObject = None):
+async def unauction_helmet_cmd(m: types.Message, command: CommandObject = None):
     cid, uid = await cid_uid(m)
-    if not cmd.args:
+    if not command.args:
         return await m.reply("Использование: /unauction_helmet <code>номер</code>")
-    serial = cmd.args.strip().upper()
+    serial = command.args.strip().upper()
     row = await db.fetch_one(
         "SELECT * FROM helmets WHERE chat_id=:c AND user_id=:u AND serial=:s AND on_auction=TRUE",
         {"c": cid, "u": uid, "s": serial},
