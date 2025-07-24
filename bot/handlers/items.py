@@ -121,7 +121,17 @@ ITEM_DEFS.update({
         "name": "Слиток Эонита",
         "emoji": "🪬",
         "price": 125
-    }
+    },
+    "void_crystal": {
+        "name": "Войд-хрусталь", 
+        "emoji": "🤍", 
+        "price": 100
+    },
+    "star_quartz": {
+        "name": "Звездный квартц", 
+        "emoji": "🩷", 
+        "price": 155
+    },
     
 })
 # bot/handlers/items.py  (где собирается ITEM_DEFS)

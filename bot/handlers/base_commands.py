@@ -93,15 +93,15 @@ ORE_ITEMS = {
 }
 
 TIER_TABLE = [
-    {"level_min": 1,  "ores": ["stone", "coal"]},
-    {"level_min": 4,  "ores": ["stone", "coal", "iron"]},
-    {"level_min": 8, "ores": ["stone", "coal", "iron", "gold"]},
-    {"level_min": 13, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis"]},
-    {"level_min": 18, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby"]},
-    {"level_min": 23, "ores": ["stone", "coal", "iron", "gold", "amethyst", "lapis", "emerald", "ruby", "diamond"]},
-    {"level_min": 28, "ores": ["stone","coal","iron","gold","amethyst","lapis", "emerald","ruby","diamond","obsidian_shard"]},
-    {"level_min": 40, "ores": ["coal","iron","amethyst","emerald","ruby","diamond","obsidian_shard","void_crystal"]},
-    {"level_min": 55, "ores": ["coal","iron","emerald","ruby","diamond","obsidian_shard","void_crystal","star_quartz"]},
+    {"level_min": 1,  "ores": ["stone"]},
+    {"level_min": 4,  "ores": ["stone", "iron"]},
+    {"level_min": 8, "ores": ["stone", "iron", "gold"]},
+    {"level_min": 13, "ores": ["stone", "iron", "gold", "amethyst", "lapis"]},
+    {"level_min": 18, "ores": ["stone", "iron", "gold", "amethyst", "lapis", "emerald", "ruby"]},
+    {"level_min": 23, "ores": ["stone", "iron", "gold", "amethyst", "lapis", "emerald", "ruby", "diamond"]},
+    {"level_min": 28, "ores": ["stone","iron","gold","amethyst","lapis", "emerald","ruby","diamond","obsidian_shard"]},
+    {"level_min": 40, "ores": ["iron","amethyst","emerald","ruby","diamond","obsidian_shard","void_crystal"]},
+    {"level_min": 55, "ores": ["iron","emerald","ruby","diamond","obsidian_shard","void_crystal","star_quartz"]},
 ]
 BONUS_BY_TIER = {i + 1: 1.0 + i * 0.2 for i in range(len(TIER_TABLE))}
 
@@ -147,12 +147,44 @@ ChanceEvent = tuple[str, str, str, int]
 
 CHANCE_EVENTS: list[ChanceEvent] = [
     ("found_coins",   "Ты нашёл кошелёк 💰  +{n} монет",  "coins:+", 100),
-    ("pet_cat",       "Погладил кошку 😸     +{n} XP",      "xp:+",    30),
-    ("robbery",       "Тебя ограбили! −{n} монет",       "coins:-", 20),
-    ("miner_snack",   "Шахтёрский перекус 🥪   +{n} энергии",  "energy:+",10),
+    ("pet_cat",       "Погладил кота 😸     +{n} XP",      "xp:+",    30),
+    ("robbery",       "Тебя облапошили шахтёры! −{n} монет",       "coins:-", 20),
+    ("miner_snack",   "Нашёл борщ 🥣   +{n} энергии",  "energy:+",15),
     ("emergency_exit",   "Выход из шахты засыпало!   -{n} энергии",  "energy:-",8),
-    ("emergency_exit_2",   "Выход из шахты засыпало! Но ты смог выбраться вовремя,   +{n} XP",  "xp:+",20),
-    ("pet_cat",       "Погладил кошку 😸, но ей это не понравилось.     -{n} энергии",      "energy:-",    12),
+    ("emergency_exit_2", "Выход из шахты засыпало! Но ты успел выбраться — +{n} XP",  "xp:+",15),
+    ("pet_cat",       "Погладил кота 😸, но он царапнул тебя.     -{n} энергии", "energy:-", 14),
+    ("super_find",    "Ты нашёл спрятанный тайник! 🎁  +{n} монет",  "coins:+", 25),
+    ("shady_trader",  "Странный торговец забрал у тебя {n} монет и выдал ничего взамен. Кринж!", "coins:-", 10),
+    ("streak_luck",   "Тебе улыбнулась шахтёрская удача! +{n} XP", "xp:+", 20),
+    ("chad_bread",    "Ты нашёл мемный хлеб и восстановил силы! +{n} энергии", "energy:+", 13),
+    ("tnt_boom",      "Под ногами взорвалась динамитная шашка! −{n} энергии", "energy:-", 7),
+    ("cat_coins",     "Котик нашёл для тебя {n} монет, кайф!", "coins:+", 12),
+    ("old_map",       "Ты нашёл древнюю карту. +{n} XP и уважение", "xp:+", 12),
+    ("drunk_miner",   "Тебя подпоил весёлый шахтёр — −{n} энергии", "energy:-", 8),
+    ("mega_bag",      "Случайно нашёл тайник с монетами! +{n} монет", "coins:+", 10),
+    ("rat_steal",     "Шахтёрская крыса украла {n} монет!", "coins:-", 10),
+    ("pickaxe_bless", "Дух шахты благословил тебя: +{n} XP", "xp:+", 10),
+    ("happy_accident","Ты споткнулся, но нашёл бонус. +{n} энергии", "energy:+", 10),
+    ("minus_xp",      "Ты заблудился и потерял опыт — −{n} XP", "xp:-", 6),
+    ("minus_energy",  "В шахте сквозняк. −{n} энергии", "energy:-", 7),
+    ("ghost_miner",   "Тень шахтёра вдохновила тебя! +{n} XP", "xp:+", 7),
+    ("ore_curse",     "Проклятие руды — потерял {n} XP", "xp:-", 5),
+    ("random_debt",   "Ты случайно взял кредит у гоблинов — −{n} монет", "coins:-", 4),
+    ("random_bless",  "Фортуна улыбнулась — +{n} монет", "coins:+", 7),
+    ("epic_luck",     "Кристаллическая пыль дала тебе +{n} XP", "xp:+", 7),
+]
+
+POST_MINING_MEMES = [
+    "Шахта шепчет: «Вернись завтра — и будет фарт!»",
+    "Кирка довольна этим днём.",
+    "Вдали кто-то поёт майнерский реп.",
+    "Пахнет борщом... Наверное, это к удаче.",
+    "Мышь-король с завистью наблюдает.",
+    "Это успех, брат!",
+    "Всё равно ты — шахтёр мечты.",
+    "Никогда не сдавайся, даже если шахта не твоя!",
+    "Залетай завтра — вдруг выпадет алмаз.",
+    "Майнинг — это стиль жизни."
 ]
 
 def pick_chance_event() -> ChanceEvent|None:
@@ -285,7 +317,10 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     total_bonus = 1 + pick_bonus + (tier_bonus - 1)
 
     # Кількість руди
-    ore_id = random.choice(ores)
+    COAL_KEY = "coal"
+    ORE_KEYS = [k for k in ORE_ITEMS if k != COAL_KEY]
+    core_ores = [x for x in ores if x != COAL_KEY]
+    ore_id = random.choice(core_ores)
     ore = ORE_ITEMS[ore_id]
     amount = random.randint(*ore["drop_range"])
     # 💡 Зниження нагороди при голоді < 40
@@ -394,15 +429,19 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     inventory_level = prog.get("inventory_level", 1)
     ore_limit = INVENTORY_CAPS.get(inventory_level, 60)
     inv = {r["item"]: r["qty"] for r in await get_inventory(cid, uid)}
-    ore_count = sum(inv.get(k, 0) for k in ORE_ITEMS)
+    ore_count = sum(inv.get(k, 0) for k in ORE_KEYS)
     add_amount = min(amount, max(ore_limit - ore_count, 0))
     dropped = amount - add_amount
 
     if add_amount > 0:
         await add_item(cid, uid, ore_id, add_amount)
+    ore_line = f"{ore['emoji']} <b>{add_amount}× {ore['name']}</b>"
     if dropped > 0:
-        extra_txt += f"\n⚠️ <b>Переполнение!</b> В инвентарь добавлено только {add_amount} руды, {dropped} ушло в никуда."
+        ore_line += f"\n⚠️ <b>Переполнение!</b> В инвентарь добавлено только {add_amount}, {dropped} ушло в никуда."
 
+    coal_drop = random.randint(*ORE_ITEMS[COAL_KEY]["drop_range"])
+    await add_item(cid, uid, COAL_KEY, coal_drop)
+    coal_line = f"{ORE_ITEMS[COAL_KEY]['emoji']} <b>{coal_drop}× {ORE_ITEMS[COAL_KEY]['name']}</b>"
     # ---- прочність конкретної кирки (JSON-мапа) ----
     broken = False
     if cur := prog.get("current_pickaxe"):
@@ -466,7 +505,8 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     # ─── сборка сообщения ───────────────────────────────────────
     lines = [
         f"🏔️ {mention}",
-        f"┌ <b>{amount}×{ore['emoji']} {ore['name']}</b>",
+        f"├ {ore_line}",
+        f"├ {coal_line}",
         f"├ XP +<b>{xp_gain}</b>",
         f"├ Tier ×<b>{tier_bonus:.1f}</b> {tier_bar}",
         f"├ Бонус кирки +{int(pick_bonus*100)} %",
@@ -478,6 +518,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
 
     if extra_txt:
         lines.append(extra_txt.strip())
+    lines.append(f"\n<i>{random.choice(POST_MINING_MEMES)}</i>")
 
     txt = "\n".join(lines)
 
@@ -1138,7 +1179,9 @@ ALIASES.update({
     "аметистовый слиток": "amethyst_ingot",
     "hdd": "old_hdd",
     "руда эонита": "eonite_ore",
-    "слиток эонита": "eonite_ingot"
+    "слиток эонита": "eonite_ingot",
+    "войд-хрусталь":"void_crystal",
+    "звездный квартц":"star_quartz",
 })
 
 @router.message(Command("sell"))
