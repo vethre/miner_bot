@@ -1150,15 +1150,15 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
     )
     register_msg_for_autodelete(cid, msg.message_id)
 
-INVENTORY_UPGRADE_COST = [0, 1500, 3800, 7000, 12000]  # для уровней 1→5
+INVENTORY_UPGRADE_COST = [0, 1500, 3800, 7000, 12000, 30000]  # для уровней 1→5
 
 @router.message(Command("upgrade_inventory"))
 async def upgrade_inventory_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)
     lvl = prog.get("inventory_level", 1)
-    if lvl >= 5:
-        return await message.reply("🔝 Склад — максимальный уровень инвентаря!")
+    if lvl >= 6:
+        return await message.reply("🔝 Воркшоп — максимальный уровень инвентаря!")
     cost = INVENTORY_UPGRADE_COST[lvl]
     balance = await get_money(cid, uid)
     if balance < cost:
