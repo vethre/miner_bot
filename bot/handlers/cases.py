@@ -37,68 +37,49 @@ ADMINS = {700_929_765, 988_127_866}
 CaseType = Literal["cave_case", "clash_case"]
 
 # 🎲 Локальные weight‑пулы — можно заменить БД
-CASE_POOLS: dict[CaseType, List[Dict[str, int | str]]] = {
-    "cave_case": [
-        {"key": "stone_pack", "weight": 25},
-        {"key": "repair_pack", "weight": 20},
-        {"key": "xp_boost", "weight": 18},
-        {"key": "gold_nugget", "weight": 5},
-        {"key": "food_pack", "weight": 8},
-        {"key": "tool_pack", "weight": 6},
-        {"key": "energy_combo", "weight": 7},
-        {"key": "chef_pack", "weight": 10},
-        {"key": "exclusive_pack", "weight": 2},
-        {"key": "coin_pack", "weight": 1},
-        {"key": "rich_pack", "weight": 1},
-    ],
-    "clash_case": [  # ⚡ Менее «мусора», больше эпика
-        {"key": "xp_mega_boost", "weight": 20},
-        {"key": "gold_mega_nugget", "weight": 15},
-        {"key": "exclusive_pack", "weight": 15},
-        {"key": "coin_mega_pack", "weight": 10},
-        {"key": "rich_pack", "weight": 9},
-        {"key": "emerald_bundle", "weight": 7},
-        {"key": "diamond_bundle", "weight": 3},
-        {"key": "legendary_tool", "weight": 2},
-    ],
-}
+CAVE_CASE_REWARDS = [
+    {"weight": 30, "items": [{"item": "stone", "qty": 20}]},
+    {"weight": 20, "items": [{"item": "coal", "qty": 8}]},
+    {"weight": 12, "items": [{"item": "wax", "qty": 2}]},
+    {"weight": 10, "items": [{"item": "bread", "qty": 2}]},
+    {"weight": 7, "items": [{"item": "borsch", "qty": 1}]},
+    {"weight": 6, "items": [{"item": "energy_drink", "qty": 2}]},
+    {"weight": 6, "items": [{"item": "iron_ingot", "qty": 2}]},
+    {"weight": 5, "items": [{"item": "gold_ingot", "qty": 1}]},
+    {"weight": 4, "items": [{"item": "wood_handle", "qty": 2}]},
+    {"weight": 3, "items": [{"item": "roundstone_pickaxe", "qty": 1}]},
+    {"weight": 3, "coins": 100},
+    {"weight": 2, "xp": 5},
+    {"weight": 1, "items": [{"item": "cave_cases", "qty": 1}]}, # мем-рефлекс
+    {"weight": 1, "items": [{"item": "voucher_sale", "qty": 1}]},
+    {"weight": 1, "meme": "Тебе выпала дырка от бублика! Но настроение приподнялось."}
+]
 
+CLASH_CASE_REWARDS = [
+    {"weight": 16, "coins": 200},
+    {"weight": 12, "items": [{"item": "gold_ingot", "qty": 3}]},
+    {"weight": 11, "items": [{"item": "iron_ingot", "qty": 5}]},
+    {"weight": 8, "items": [{"item": "amethyst_ingot", "qty": 1}]},
+    {"weight": 8, "items": [{"item": "diamond", "qty": 1}]},
+    {"weight": 7, "items": [{"item": "obsidian_shard", "qty": 2}]},
+    {"weight": 5, "xp": 8},
+    {"weight": 3, "items": [{"item": "diamond_pickaxe", "qty": 1}]},
+    {"weight": 2, "items": [{"item": "clash_case", "qty": 1}]},
+    {"weight": 1, "meme": "Ничего не выпало, но ты красавчик! (Clash кейс любит смелых)"}
+]
 # ────────────────────────────────────────────────
 # Helpers
 # ────────────────────────────────────────────────
 
-def _weighted_choice(pool: List[Dict[str, int | str]]) -> str:
-    total = sum(p["weight"] for p in pool)
+def weighted_choice(rewards):
+    total = sum(r['weight'] for r in rewards)
     rnd = random.randint(1, total)
     acc = 0
-    for p in pool:
-        acc += p["weight"]
+    for r in rewards:
+        acc += r['weight']
         if rnd <= acc:
-            return p["key"]
-    return pool[-1]["key"]
-
-
-async def pick_case_reward(case_type: CaseType) -> Dict[str, str | dict]:
-    """Берём случайный ключ из пула, запрашиваем БД, fallback — мок."""
-    chosen_key = _weighted_choice(CASE_POOLS[case_type])
-
-    row = await db.fetch_one(
-        """
-        SELECT reward_key, reward_type, reward_data
-          FROM case_rewards
-         WHERE reward_key = :k
-        """,
-        {"k": chosen_key},
-    )
-    if row:
-        return row
-
-    return {
-        "reward_key": chosen_key,
-        "reward_type": "item",
-        "reward_data": json.dumps({"item": chosen_key, "qty": 1}),
-    }
-
+            return r
+    return rewards[-1]
 
 async def give_case_to_user(chat_id: int, user_id: int, case_type: CaseType, qty: int):
     column = "cave_cases" if case_type == "cave_case" else "clash_cases"
@@ -107,70 +88,30 @@ async def give_case_to_user(chat_id: int, user_id: int, case_type: CaseType, qty
         {"q": qty, "c": chat_id, "u": user_id},
     )
 
-
 # ────────────────────────────────────────────────
 # Main open logic
 # ────────────────────────────────────────────────
-async def _open_case(message: Message, case_type: CaseType):
+async def _open_case(message, case_type="cave_case"):
+    rewards = CAVE_CASE_REWARDS if case_type == "cave_case" else CLASH_CASE_REWARDS
+    prize = weighted_choice(rewards)
     cid, uid = await cid_uid(message)
-    prog = await get_progress(cid, uid)
-    column = "cave_cases" if case_type == "cave_case" else "clash_cases"
+    out = []
 
-    if prog[column] < 1:
-        await message.reply("У тебя нет " + ("Cave Case 😕" if case_type == "cave_case" else "Clash Case 😕"))
-        return
-
-    await db.execute(
-        f"UPDATE progress_local SET {column} = {column} - 1 WHERE chat_id=:c AND user_id=:u",
-        {"c": cid, "u": uid},
-    )
-
-    reward = await pick_case_reward(case_type)
-    rtype, raw = reward["reward_type"], reward["reward_data"]
-    data = raw if isinstance(raw, dict) else json.loads(raw)
-
-    parts: List[str] = []
-
-    if rtype == "item" and "items" in data:
-        for it in data["items"]:
-            if "item" in it and "qty" in it:
-                await add_item(cid, uid, it["item"], it["qty"])
-                meta = ITEM_DEFS[it["item"]]
-                parts.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
-            elif "coins" in it:
-                await add_money(cid, uid, it["coins"])
-                parts.append(f"{it['coins']} монет")
-            elif "xp" in it:
-                await add_xp(cid, uid, it["xp"])
-                parts.append(f"{it['xp']} XP")
-
-    elif rtype == "item":
-        it = data
-        try:
-            meta = ITEM_DEFS[it["item"]]
-        except KeyError:
-            # если предмета нет в словаре – логируем и даём компенсацию монетами
-            await add_money(cid, uid, 200)
-            parts.append("200 монет (компенсация)")
-        else:
+    if "coins" in prize:
+        await add_money(cid, uid, prize["coins"])
+        out.append(f"{prize['coins']} монет")
+    if "xp" in prize:
+        await add_xp(cid, uid, prize["xp"])
+        out.append(f"{prize['xp']} XP")
+    if "items" in prize:
+        for it in prize["items"]:
             await add_item(cid, uid, it["item"], it["qty"])
-            parts.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
+            meta = ITEM_DEFS.get(it["item"], {"name": it["item"], "emoji": "❔"})
+            out.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
+    if "meme" in prize:
+        out.append(prize["meme"])
 
-    elif rtype == "coins":
-        await add_money(cid, uid, data["coins"])
-        parts.append(f"{data['coins']} монет")
-
-    elif rtype == "xp":
-        await add_xp(cid, uid, data["xp"])
-        parts.append(f"{data['xp']} XP")
-
-    if not parts:                      # на крайний случай
-        await add_money(cid, uid, 100)
-        descr = "100 монет (минимальный приз)"
-    else:
-        descr = " + ".join(parts)
-
-    msg = await message.reply(f"🎉 Тебе выпало: {descr}!")
+    await message.reply("🎁 Тебе выпало: " + " + ".join(out))
 
 # ────────────────────────────────────────────────
 # Commands

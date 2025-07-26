@@ -78,16 +78,16 @@ HUNGER_LIMIT = 20
 
 # ────────── Руди  + Tiers ──────────
 ORE_ITEMS = {
-    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (40, 53), "price": 2},
-    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (32, 50),  "price": 5},
-    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (30, 43),  "price": 9},
-    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (28, 35),  "price": 13},
-    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (25, 32),  "price": 18},
-    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (3, 8),  "price": 57},
-    "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (5, 10),  "price": 38},
-    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (10, 14),  "price": 30},
-    "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (3, 6),  "price": 45},
-    "obsidian_shard": {"name": "Обсидиановый осколок", "emoji": "🟣", "drop_range": (2, 4), "price": 85},
+    "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (18, 26), "price": 2},
+    "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (18, 30),  "price": 5},
+    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (16, 24),  "price": 9},
+    "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (13, 20),  "price": 13},
+    "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (12, 18),  "price": 18},
+    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (2, 5),  "price": 57},
+    "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (3, 5),  "price": 38},
+    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (8, 14),  "price": 30},
+    "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (2, 5),  "price": 45},
+    "obsidian_shard": {"name": "Обсидиановый осколок", "emoji": "🟣", "drop_range": (1, 3), "price": 85},
     "void_crystal": {"name": "Войд-хрусталь", "emoji": "🤍", "drop_range": (1, 3), "price": 100},
     "star_quartz": {"name": "Звездный квартц", "emoji": "🩷", "drop_range": (1, 3), "price": 155},
 }
@@ -110,14 +110,16 @@ INVENTORY_CAPS = {
     2: 120,   # Рюкзак
     3: 240,   # Мешок
     4: 480,   # Хранилище
-    5: 9999   # Склад
+    5: 9999,  # Склад
+    6: 15999  # Воркшоп
 }
 INVENTORY_NAMES = {
     1: "Сумка",
     2: "Рюкзак",
     3: "Мешок",
     4: "Хранилище",
-    5: "Склад"
+    5: "Склад",
+    6: "Воркшоп"
 }
 
 # ────────── Helper ──────────
@@ -237,7 +239,13 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     await asyncio.sleep(duration)
     level = prog.get("level", 1)
     pick_key = prog.get("current_pickaxe")
-    pick_bonus = PICKAXES.get(pick_key, {}).get("bonus", 0)
+    # Спецэффект для войд-кирки
+    void_bonus = 0
+    if pick_key == "void_pickaxe":
+        void_bonus = random.randint(0, 200)
+        pick_bonus = void_bonus / 100
+    else:
+        pick_bonus = PICKAXES.get(pick_key, {}).get("bonus", 0)
 
     if random.random() < 0.05:
         fail_messages = [
@@ -332,12 +340,12 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     if bomb_mult > 1.0:                # 💣
         extra_txt += "\n💣 Бомба взорвалась → +50 % руды!"
 
-    xp_gain=amount
+    xp_gain = random.randint(6, 12)
     if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():
         xp_gain=int(xp_gain*1.5)
     if seal == "seal_sacrifice":
         amount = int(amount * 1.2)
-        xp_gain = max(0, xp_gain - 20)
+        xp_gain = max(0, xp_gain - 10)
     if seal == "seal_focus": 
         xp_gain  = int(xp_gain * 1.12)
         amount   = int(amount * 0.88)
@@ -509,9 +517,13 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         f"├ {coal_line}",
         f"├ XP +<b>{xp_gain}</b>",
         f"├ Tier ×<b>{tier_bonus:.1f}</b> {tier_bar}",
-        f"├ Бонус кирки +{int(pick_bonus*100)} %",
         f"└ Серия {streak} дн.",
     ]
+
+    if pick_key == "void_pickaxe":
+        lines.append(f"├ Войд-бонус: <b>+{void_bonus}%</b>")
+    else:
+        lines.append(f"├ Бонус кирки: +{int(pick_bonus*100)}%")
 
     if broken:
         lines.append("⚠️ <b>Кирка сломалась!</b> /repair")
@@ -536,7 +548,7 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     await db.execute("UPDATE progress_local SET smelt_end=NULL WHERE chat_id=:c AND user_id=:u",
                      {"c":cid,"u":uid})
     await add_clash_points(cid, uid, 1)
-    xp_gain = cnt * 5
+    xp_gain = cnt * 1.5
     await add_xp_with_notify(bot, cid, uid, xp_gain)
     await add_pass_xp(cid, uid, xp_gain)
     member_name = await get_display_name(bot, cid, uid)

@@ -20,7 +20,8 @@ PICKAXES = {
     "diamond_pickaxe": {"bonus": .80, "name": "алмазная кирка",  "emoji": "💎", "dur":85},
     "obsidian_pickaxe": {"name":  "Обсидиановая кирка", "emoji": "🟪", "bonus": .90,"dur":   165},
     "proto_eonite_pickaxe": {"bonus": 1.1, "name": "прототип эонитовой кирки",  "emoji": "🧿", "dur":50},
-    "greater_eonite_pickaxe": {"bonus": 1.45, "name": "старшая эонитовая кирка", "emoji": "🔮", "dur": 60, "regen": 10}
+    "greater_eonite_pickaxe": {"bonus": 1.45, "name": "старшая эонитовая кирка", "emoji": "🔮", "dur": 60, "regen": 10},
+    "void_pickaxe": {"bonus": 0, "name": "войд-кирка",  "emoji": "🕳️", "dur":70},
 }
 
 USABLE_EXTRA = {

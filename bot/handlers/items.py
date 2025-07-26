@@ -180,7 +180,12 @@ CRAFT_RECIPES.update({
         },
         "out_key": "disassemble_tool",
         "out_name": "Инструмент разборки"
-    }
+    },
+    "void_pickaxe": {
+        "in": {"void_crystal": 20, "iron_handle": 4},
+        "out_key": "void_pickaxe",
+        "out_name": "Войд-кирка"
+    },
 })
 
 

@@ -20,7 +20,7 @@ CONSUMABLES = {
     "meat":         {"name": "🍖 Мясо",  "hunger": 50},
     "borsch":       {"name": "🥣 Борщ",  "hunger": 70, "energy": 20},
     # напитки / бустеры → восстанавливают energy
-    "energy_drink": {"name": "🥤 Энергетик", "energy": 20},
+    "energy_drink": {"name": "🥤 Энергетик", "energy": 25},
     "coffee":       {"name": "☕ Кофе",       "energy": 70},
     "water_bottle": {"name": "💧 Фляга с водой", "energy": 100}
 }
