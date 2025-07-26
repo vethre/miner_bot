@@ -459,7 +459,7 @@ async def cmd_peek(message: types.Message, command: CommandObject, bot: Bot):
         return
 
     uid = int(command.args)
-    group_id = 0  # замени на свою dev-группу
+    group_id = 0  
 
     try:
         member = await bot.get_chat_member(group_id, uid)

@@ -3,6 +3,7 @@ import datetime as dt
 import logging
 from zoneinfo import ZoneInfo
 from aiogram import Bot
+from aiogram.types import User
 import json, asyncpg
 from typing import Tuple, List, Dict, Any
 from aiogram.types import Message, CallbackQuery
@@ -145,6 +146,20 @@ async def _ensure_progress(cid: int, uid: int):
         """,
         {"c": cid, "u": uid}
     )
+
+async def save_user_info(user: User):
+    await db.execute("""
+        INSERT INTO activity (user_id, username, first_name, last_seen)
+        VALUES (:uid, :un, :fn, NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+            username = EXCLUDED.username,
+            first_name = EXCLUDED.first_name,
+            last_seen = NOW()
+    """, {
+        "uid": user.id,
+        "un": user.username,
+        "fn": user.first_name
+    })
 
 # ────────── ІНВЕНТАР ──────────
 async def add_item(cid: int, uid: int, item: str, delta: int):

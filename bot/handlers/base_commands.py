@@ -41,6 +41,7 @@ from bot.db_local import (
     add_energy,
     change_dur,
     _jsonb_to_dict,
+    save_user_info,
 )
 from bot.handlers.badgeshop import badgeshop_cmd
 from bot.handlers.cavepass import cavepass_cmd
@@ -59,6 +60,7 @@ from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, A
 from bot.utils.autodelete import register_msg_for_autodelete, reply_clean
 from bot.handlers.use import _json2dict
 from bot.handlers.cave_clash import add_clash_points, clashrank
+from bot.utils.logger import send_log
 from bot.utils.render_profile import render_profile_card
 from bot.utils.unlockachievement import unlock_achievement
 from bot.handlers.pass_track import add_pass_xp, trackpass_cmd
@@ -539,6 +541,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     await maybe_send_choice_card(bot, cid, uid)
     register_msg_for_autodelete(cid, msg.message_id)
     # ↓ после отправки сообщения игроку
+    await save_user_info(msg.from_user)
     logging.info("Mining result sent: chat=%s uid=%s", cid, uid)
     
 # ────────── Smelt Task ──────────
@@ -551,6 +554,7 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     await add_clash_points(cid, uid, 1)
     xp_gain = cnt * 1.5
     await add_xp_with_notify(bot, cid, uid, xp_gain)
+    await save_user_info(msg.from_user)
     await add_pass_xp(cid, uid, xp_gain)
     member_name = await get_display_name(bot, cid, uid)
     msg = await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}\n🔥 +{xp_gain} XP", parse_mode="HTML")
@@ -558,12 +562,14 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
 
 # ────────── /start ──────────
 @router.message(CommandStart())
-async def start_cmd(message: types.Message):
+async def start_cmd(message: types.Message, bot: Bot):
     await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
     msg = await message.answer_photo(
         START_IMG_ID,
         caption="Привет, будущий шахтёр! ⛏️ Регистрация прошла успешно. Используй /mine, чтобы копать ресурсы!",
     )
+    await save_user_info(msg.from_user)
+    await send_log(bot, message.from_user, message.chat, "/start")
     register_msg_for_autodelete(message.chat.id, msg.message_id)
 
 WEATHERS = [
@@ -602,7 +608,7 @@ def color_bar(value: int, maximum: int, width: int = STAT_BAR_W) -> str:
 #  /profile   (оновлена версія)
 # ──────────────────────────────────────────────────────────────
 @router.message(Command("profile"))
-async def profile_cmd(message: types.Message):
+async def profile_cmd(message: types.Message, bot: Bot):
     cid, uid = await cid_uid(message)
     await create_user(uid, message.from_user.username or message.from_user.full_name)
 
@@ -703,6 +709,7 @@ async def profile_cmd(message: types.Message):
     kb.button(text="🏅 Бейджи",    callback_data=f"profile:badges:{uid}")
     kb.adjust(1)
 
+    await send_log(bot, message.from_user, message.chat, "/profile")
     msg = await message.answer_photo(
         photo=pic,
         caption=txt,
