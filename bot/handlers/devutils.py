@@ -5,7 +5,7 @@ from aiogram import F, Bot, Router, types
 from aiogram.filters import Command
 from aiogram.utils.markdown import hcode
 from bot.db_local import db, cid_uid, get_money, get_progress, get_inventory, add_money
-from aiogram.filters.command import CommandObject
+from aiogram.filters.command import CommandObject, Command
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -448,3 +448,29 @@ async def relay_channel_post(msg: types.Message, bot: Bot):
         )
     except Exception as e:
         logging.warning("[relay] forward post failed: %s", e)
+
+@router.message(Command("peek"))
+async def cmd_peek(message: types.Message, command: CommandObject, bot: Bot):
+    if str(message.from_user.id) != "700929765":
+        return
+
+    if not command.args or not command.args.isdigit():
+        await message.answer("🕵️ Укажи user_id: /peek 123456789")
+        return
+
+    uid = int(command.args)
+    group_id = 0  # замени на свою dev-группу
+
+    try:
+        member = await bot.get_chat_member(group_id, uid)
+        user = member.user
+        text = (
+            f"🕵️‍♂️ Информация про юзера:\n"
+            f"• ID: <code>{uid}</code>\n"
+            f"• Username: @{user.username or 'немає'}\n"
+            f"• Імʼя: {user.full_name}"
+        )
+    except Exception as e:
+        text = f"❌ Не вдалося отримати info по ID {uid}\n<b>{e}</b>"
+
+    await message.answer(text)
