@@ -90,6 +90,7 @@ ORE_ITEMS = {
     "obsidian_shard": {"name": "Обсидиановый осколок", "emoji": "🟣", "drop_range": (1, 3), "price": 85},
     "void_crystal": {"name": "Войд-хрусталь", "emoji": "🤍", "drop_range": (1, 3), "price": 100},
     "star_quartz": {"name": "Звездный квартц", "emoji": "🩷", "drop_range": (1, 3), "price": 155},
+    "eonite_ingot": {"name": "Слиток Эонита", "emoji": "🪬", "price": 125},
 }
 
 TIER_TABLE = [
