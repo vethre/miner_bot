@@ -152,6 +152,10 @@ ITEM_DEFS["obsidian_pickaxe"] = {
     "name":  "Обсидиановая кирка",
     "emoji": "🟪"
 }
+ITEM_DEFS["void_pickaxe"] = {
+    "name":  "Войд-кирка",
+    "emoji": "🕳️"
+}
 ITEM_DEFS["wooden_pickaxe"]["emoji"] = "🪵"
 ITEM_DEFS["diamond_pickaxe"]["emoji"] = "💎"
 CRAFT_RECIPES.update({

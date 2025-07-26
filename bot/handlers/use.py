@@ -44,7 +44,8 @@ ALIAS = {
     "прототип эонитовой кирки": "proto_eonite_pickaxe",
     "пэк": "proto_eonite_pickaxe",
     "старшая эонитовая кирка": "greater_eonite_pickaxe",
-    "сэк": "greater_eonite_pickaxe"
+    "сэк": "greater_eonite_pickaxe",
+    "войд-кирка": "void_pickaxe"
 }
 
 def _json2dict(raw):

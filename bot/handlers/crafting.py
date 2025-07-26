@@ -94,7 +94,12 @@ CRAFT_RECIPES.update({
         },
         "out_key": "disassemble_tool",
         "out_name": "🔧 Инструмент разборки"
-    }
+    },
+    "войд-кирка": {
+        "in": {"void_crystal": 20, "iron_handle": 4},
+        "out_key": "void_pickaxe",
+        "out_name": "🕳️ Войд-кирка"
+    },
 })
 
 RECIPES_BY_ID: dict[str, dict] = {r["out_key"]: r for r in CRAFT_RECIPES.values()}
