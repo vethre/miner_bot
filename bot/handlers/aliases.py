@@ -77,7 +77,7 @@ async def alias_del_cmd(message: types.Message):
         )
     cmd, alias = args[1].strip(), args[2].strip().lower()
     prog = await get_progress(cid, uid)
-    aliases = prog.get("aliases") or {}
+    aliases = parse_aliases(prog.get("aliases"))
     user_aliases = aliases.get(cmd, [])
     if alias not in user_aliases:
         return await message.reply("Такого алиаса у тебя нет для этой команды.")
@@ -93,7 +93,7 @@ async def alias_del_cmd(message: types.Message):
 async def alias_list_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)
-    aliases = prog.get("aliases") or {}
+    aliases = parse_aliases(prog.get("aliases"))
     if not any(aliases.values()):
         return await message.reply("У тебя нет ни одного пользовательского алиаса.")
     lines = ["<b>Твои алиасы:</b>"]
@@ -108,7 +108,7 @@ async def smart_router(message: types.Message):
     txt = message.text.lower()
     cid, uid = await cid_uid(message)
     prog = await get_progress(cid, uid)
-    user_aliases = prog.get("aliases") or {}
+    user_aliases = parse_aliases(prog.get("aliases"))
 
     for cmd, arr in user_aliases.items():
         if any(alias in txt for alias in arr):
