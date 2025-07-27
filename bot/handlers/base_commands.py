@@ -2084,7 +2084,7 @@ async def kiss_cmd(message: types.Message):
 
 @router.message(lambda msg: re.match(r"шахта\s+профиль", msg.text, re.IGNORECASE))
 async def profile_msg_cmd(message: types.Message):
-    return await profile_cmd(message)
+    return await profile_cmd(message, message.bot)
 
 @router.message(lambda msg: re.match(r"шахта\s+инвентарь", msg.text, re.IGNORECASE))
 async def inventory_msg_cmd(message: types.Message):
