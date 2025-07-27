@@ -26,6 +26,15 @@ COMMAND_ALIASES = {
 }
 
 MAX_ALIASES_PER_CMD = 8
+def parse_aliases(raw):
+    if not raw:
+        return {}
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw)
+        except Exception:
+            return {}
+    return raw
 
 @router.message(Command("alias"))
 async def alias_add_cmd(message: types.Message):
@@ -44,7 +53,7 @@ async def alias_add_cmd(message: types.Message):
         )
     
     prog = await get_progress(cid, uid)
-    aliases = prog.get("aliases") or {}
+    aliases = parse_aliases(prog.get("aliases"))
     user_aliases = aliases.get(cmd, [])
     if alias in user_aliases or alias in COMMAND_ALIASES[cmd]:
         return await message.reply("Этот алиас уже добавлен для этой команды.")

@@ -2081,7 +2081,7 @@ async def throwpick_cmd(message: types.Message):
 @router.message(Command("kiss"))
 async def kiss_cmd(message: types.Message):
     await social_action(message, "kiss", KISS_PHRASES)
-
+"""
 @router.message(lambda msg: re.match(r"шахта\s+профиль", msg.text, re.IGNORECASE))
 async def profile_msg_cmd(message: types.Message):
     return await profile_cmd(message, message.bot)
@@ -2117,7 +2117,7 @@ async def use_msg_cmd(message: types.Message):
 @router.message(lambda msg: re.match(r"шахта\s+(продать|продажа|торг)", msg.text, re.IGNORECASE))
 async def sell_msg_cmd(message: types.Message):
     return await sell_start(message)
-
+"""
 @router.message(lambda msg: re.match(r"шахта\s+(бейджшоп|бейджи|купитьбейдж)", msg.text, re.IGNORECASE))
 async def badgeshop_msg_cmd(message: types.Message):
     return await badgeshop_cmd(message)
@@ -2125,11 +2125,11 @@ async def badgeshop_msg_cmd(message: types.Message):
 @router.message(lambda msg: re.match(r"шахта\s+(стата|статистика|статс)", msg.text, re.IGNORECASE))
 async def stats_msg_cmd(message: types.Message):
     return await stats_cmd(message)
-
+"""
 @router.message(lambda msg: re.match(r"шахта\s+(плавка|плавить|печка)", msg.text, re.IGNORECASE))
 async def smelt_msg_cmd(message: types.Message):
     return await smelt_cmd(message)
-
+"""
 @router.message(lambda msg: re.match(r"шахта\s+(печатьшоп|силс)", msg.text, re.IGNORECASE))
 async def seals_msg_cmd(message: types.Message):
     return await show_seals(message)
@@ -2137,16 +2137,16 @@ async def seals_msg_cmd(message: types.Message):
 @router.message(lambda msg: re.match(r"шахта\s+(печати|печать)", msg.text, re.IGNORECASE))
 async def choose_seals_msg_cmd(message: types.Message):
     return await choose_seal(message)
-
+"""
 @router.message(lambda msg: re.match(r"шахта\s+клеш", msg.text, re.IGNORECASE))
 async def clash_msg_cmd(message: types.Message):
     return await clashrank(message)
-
+"""
 @router.message(lambda msg: re.match(r"шахта\s+трекпасс", msg.text, re.IGNORECASE))
 async def trackpass_msg_cmd(message: types.Message):
     return await trackpass_cmd(message)
 
-@router.message(lambda msg: re.match(r"шахта\s+каска", msg.text, re.IGNORECASE))
+@router.message(lambda msg: re.match(r"шахта\s+каска|каски", msg.text, re.IGNORECASE))
 async def list_helmets_msg_cmd(message: types.Message):
     return await list_helmets_cmd(message)
 
