@@ -1,15 +1,4 @@
-"""
-Unified cases handler — поддерживает и Cave Case, и Clash Case.
-
-• /case          — открыть Cave Case (📦 каменный)
-• /clashcase     — открыть Clash Case (🔥 турнирный)
-• /give_case ... — админ‑команда: теперь принимает тип кейса.
-
-Требования:
-- aiogram>=3.0.0
-- в таблице progress_local должны быть поля cave_cases, clash_cases (INT, default 0)
-"""
-
+#bot/handlers/cases.py
 from __future__ import annotations
 
 import asyncio
@@ -38,34 +27,38 @@ CaseType = Literal["cave_case", "clash_case"]
 
 # 🎲 Локальные weight‑пулы — можно заменить БД
 CAVE_CASE_REWARDS = [
-    {"weight": 30, "items": [{"item": "stone", "qty": 20}]},
-    {"weight": 20, "items": [{"item": "coal", "qty": 8}]},
-    {"weight": 12, "items": [{"item": "wax", "qty": 2}]},
-    {"weight": 10, "items": [{"item": "bread", "qty": 2}]},
-    {"weight": 7, "items": [{"item": "borsch", "qty": 1}]},
-    {"weight": 6, "items": [{"item": "energy_drink", "qty": 2}]},
-    {"weight": 6, "items": [{"item": "iron_ingot", "qty": 2}]},
-    {"weight": 5, "items": [{"item": "gold_ingot", "qty": 1}]},
-    {"weight": 4, "items": [{"item": "wood_handle", "qty": 2}]},
-    {"weight": 3, "items": [{"item": "roundstone_pickaxe", "qty": 1}]},
-    {"weight": 3, "coins": 100},
-    {"weight": 2, "xp": 5},
-    {"weight": 1, "items": [{"item": "cave_cases", "qty": 1}]}, # мем-рефлекс
-    {"weight": 1, "items": [{"item": "voucher_sale", "qty": 1}]},
-    {"weight": 1, "meme": "Тебе выпала дырка от бублика! Но настроение приподнялось."}
+    {"weight": 28, "items": [{"item": "stone", "qty": 35}]},                # На хлеб
+    {"weight": 18, "items": [{"item": "coal", "qty": 12}]},                 # Много топлива
+    {"weight": 12, "items": [{"item": "wax", "qty": 3}]},
+    {"weight": 9,  "items": [{"item": "bread", "qty": 3}]},
+    {"weight": 7,  "items": [{"item": "borsch", "qty": 2}]},
+    {"weight": 6,  "items": [{"item": "energy_drink", "qty": 2}]},
+    {"weight": 6,  "items": [{"item": "iron_ingot", "qty": 2}]},
+    {"weight": 4,  "items": [{"item": "gold_ingot", "qty": 1}]},
+    {"weight": 4,  "items": [{"item": "wood_handle", "qty": 2}]},
+    {"weight": 3,  "items": [{"item": "roundstone_pickaxe", "qty": 1}]},
+    {"weight": 3,  "coins": 180},    # Держим ниже цены кейса
+    {"weight": 2,  "xp": 5},
+    {"weight": 2,  "items": [{"item": "voucher_sale", "qty": 1}]},         # скидка, приятная мелочь
+    {"weight": 1, "give_case": "cave_case", "qty": 1, "meme": "Кейса из кейса, это легальный баг."},           # Мем (очень редко)
+    {"weight": 1,  "items": [{"item": "amethyst_ingot", "qty": 1}]},       # Очень редкий приятный дроп
+    {"weight": 1,  "meme": "Тебе выпал стикер с камнем. Эстетика."}
 ]
 
 CLASH_CASE_REWARDS = [
-    {"weight": 16, "coins": 200},
-    {"weight": 12, "items": [{"item": "gold_ingot", "qty": 3}]},
-    {"weight": 11, "items": [{"item": "iron_ingot", "qty": 5}]},
-    {"weight": 8, "items": [{"item": "amethyst_ingot", "qty": 1}]},
-    {"weight": 8, "items": [{"item": "diamond", "qty": 1}]},
-    {"weight": 7, "items": [{"item": "obsidian_shard", "qty": 2}]},
-    {"weight": 5, "xp": 8},
-    {"weight": 3, "items": [{"item": "diamond_pickaxe", "qty": 1}]},
-    {"weight": 2, "items": [{"item": "clash_case", "qty": 1}]},
-    {"weight": 1, "meme": "Ничего не выпало, но ты красавчик! (Clash кейс любит смелых)"}
+    {"weight": 12, "coins": 350},                                   # Крупная награда
+    {"weight": 10, "items": [{"item": "gold_ingot", "qty": 4}]},
+    {"weight": 10, "items": [{"item": "amethyst_ingot", "qty": 2}]},
+    {"weight": 9,  "items": [{"item": "iron_ingot", "qty": 7}]},
+    {"weight": 7,  "items": [{"item": "obsidian_shard", "qty": 3}]},
+    {"weight": 6,  "items": [{"item": "diamond", "qty": 2}]},
+    {"weight": 5,  "xp": 14},
+    {"weight": 4,  "items": [{"item": "diamond_pickaxe", "qty": 1}]},     # Супер-редкая кирка
+    {"weight": 1, "give_case": "cave_case", "qty": 1, "meme": "Кейса из кейса, это легальный баг."},          # Мем/флекс
+    {"weight": 2,  "items": [{"item": "proto_eonite_pickaxe", "qty": 1}]}, # Топ-дроп
+    {"weight": 2,  "items": [{"item": "voucher_sale", "qty": 2}]},
+    {"weight": 1,  "items": [{"item": "eonite_shard", "qty": 1}]},        # Очень редкий ивентовый дроп
+    {"weight": 1,  "meme": "Кейс пуст... только уважение!"}
 ]
 # ────────────────────────────────────────────────
 # Helpers
@@ -93,10 +86,21 @@ async def give_case_to_user(chat_id: int, user_id: int, case_type: CaseType, qty
 # ────────────────────────────────────────────────
 async def _open_case(message, case_type="cave_case"):
     rewards = CAVE_CASE_REWARDS if case_type == "cave_case" else CLASH_CASE_REWARDS
-    prize = weighted_choice(rewards)
-    cid, uid = await cid_uid(message)
-    out = []
 
+    cid, uid = await cid_uid(message)
+    prog = await get_progress(cid, uid)
+    column = "cave_cases" if case_type == "cave_case" else "clash_cases"
+    cases_left = prog.get(column, 0)
+    if cases_left < 1:
+        await message.reply(f"У тебя нет { 'Clash' if case_type == 'clash_case' else 'Cave' } Case 😕")
+        return
+    await db.execute(
+        f"UPDATE progress_local SET {column} = {column} - 1 WHERE chat_id=:c AND user_id=:u",
+        {"c": cid, "u": uid}
+    )
+
+    prize = weighted_choice(rewards)
+    out = []
     if "coins" in prize:
         await add_money(cid, uid, prize["coins"])
         out.append(f"{prize['coins']} монет")
@@ -108,7 +112,10 @@ async def _open_case(message, case_type="cave_case"):
             await add_item(cid, uid, it["item"], it["qty"])
             meta = ITEM_DEFS.get(it["item"], {"name": it["item"], "emoji": "❔"})
             out.append(f"{it['qty']}×{meta['emoji']} {meta['name']}")
-    if "meme" in prize:
+    if "give_case" in prize:
+        await give_case_to_user(cid, uid, prize["give_case"], prize.get("qty", 1))
+        out.append(f"🎁 Cave Case ×{prize.get('qty',1)}")
+    if "meme" in prize and "give_case" not in prize:
         out.append(prize["meme"])
 
     await message.reply("🎁 Тебе выпало: " + " + ".join(out))
@@ -120,11 +127,9 @@ async def _open_case(message, case_type="cave_case"):
 async def cave_case_cmd(message: Message):
     await _open_case(message, "cave_case")
 
-
 @router.message(Command("clashcase"))
 async def clash_case_cmd(message: Message):
     await _open_case(message, "clash_case")
-
 
 @router.message(Command("give_case"))
 async def give_case_cmd(message: Message):
