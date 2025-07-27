@@ -150,15 +150,15 @@ async def _ensure_progress(cid: int, uid: int):
 async def save_user_info(user: User):
     await db.execute("""
         INSERT INTO activity (user_id, username, first_name, last_seen)
-        VALUES (:uid, :un, :fn, NOW())
+        VALUES (:uid, :username, :first_name, NOW())
         ON CONFLICT (user_id) DO UPDATE SET
             username = EXCLUDED.username,
             first_name = EXCLUDED.first_name,
             last_seen = NOW()
     """, {
         "uid": user.id,
-        "un": user.username,
-        "fn": user.first_name
+        "username": user.username,
+        "first_name": user.first_name
     })
 
 # ────────── ІНВЕНТАР ──────────
