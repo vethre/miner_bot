@@ -192,6 +192,8 @@ POST_MINING_MEMES = [
     "Майнинг — это стиль жизни."
 ]
 
+BLACKLIST = [796070660, 1251835950]
+
 def pick_chance_event() -> ChanceEvent|None:
     if random.random() > 0.30:          # лише 30 % шанс, що подія взагалі трапиться
         return None
@@ -563,6 +565,16 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
 # ────────── /start ──────────
 @router.message(CommandStart())
 async def start_cmd(message: types.Message, bot: Bot):
+    if message.chat.id == 0:
+        logging.warning(f"Попытка регистрации с недопустимым chat_id=0 от пользователя {message.from_user.id}")
+        # Выходим из функции, не выполняя остальную логику
+        return
+    
+    if message.from_user.id in BLACKLIST:
+        logging.warning(f"Попытка регистрации заблокированного пользователя {message.from_user.id}")
+        await message.answer("Вы заблокированы в этом боте. Если вы считаете, что это ошибка, обратитесь к администратору.")
+        return
+
     await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
     msg = await message.answer_photo(
         START_IMG_ID,
@@ -681,6 +693,30 @@ async def profile_cmd(message: types.Message, bot: Bot):
 
     pic = await render_profile_card(message.bot, uid, nickname_str, lvl, xp, next_xp,
                                     energy, hunger, balance, streak, f"{dur}/{dur_max}", mines)
+    
+    if message.from_user.id in BLACKLIST:
+        nickname_str = "Заблокированный пользователь"
+        pic = None # Не показываем картинку профиля для заблокированных пользователей
+        lvl = -1
+        xp_bar = ""
+        next_xp = -1
+        energy_bar = ""
+        hunger_bar = ""
+        energy = -1
+        hunger = -1
+        weather_emoji = "❌"
+        weather_name = "Заблокирован"
+        mine_status = "❌ <i>Доступ запрещён</i>"
+        pass_str = "Заблокирован"
+        pick_name = "Заблокирован"
+        dur = -1
+        dur_max = -1
+        badge_str = "Заблокирован"
+        seal_str = "Заблокирован"
+        tier = -1
+        tier_bonus = 0.0
+        cave_cases = -1
+        clash_cases = -1
 
     txt = (
         f"<b>{nickname_str}</b>\n"
@@ -767,6 +803,10 @@ async def rename_cmd(message: types.Message):
     cid, uid = await cid_uid(message)
     args = message.text.split(maxsplit=1)
 
+    if uid in BLACKLIST:
+        logging.warning(f"Попытка смены ника заблокированного пользователя {uid}")
+        return await message.answer("Вы заблокированы в этом боте. Если вы считаете, что это ошибка, обратитесь к администратору.")
+
     if len(args) < 2:
         return await message.answer("❗ Используй команду так: <code>/rename НовыйНик</code>", parse_mode="HTML")
 
@@ -802,6 +842,10 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     user = await get_user(uid)
     if not user:
         return await message.reply("Сперва /start")
+    
+    if uid in BLACKLIST:
+        logging.warning(f"Попытка копки заблокированным пользователем {uid}")
+        return await message.reply("Вы заблокированы в этом боте. Если вы считаете, что это ошибка, обратитесь к администратору.")
     prog = await get_progress(cid, uid)
 
     energy = await update_energy(cid, uid)
@@ -1395,8 +1439,8 @@ async def smelt_quantity(cb: CallbackQuery):
 
     kb = InlineKeyboardBuilder()
     kb.row(make_btn("−10", -10), make_btn("−1", -1),
-           types.InlineKeyboardButton(text=f"{cur}/{max_cnt}", callback_data="noop"),
-           make_btn("+1", 1), make_btn("+10", 10))
+           types.InlineKeyboardButton(text=f"{cur}", callback_data="noop"),
+           make_btn("+1", 1), make_btn("+10", 10), make_btn("+100", 100))
     kb.row(types.InlineKeyboardButton(
         text="➡️ Уголь",
         callback_data=f"smeltcoal:{ore}:{cur}:{orig_uid}"
