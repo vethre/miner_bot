@@ -139,12 +139,7 @@ def get_mine_duration(tier:int)->int:
 def get_smelt_duration(cnt:int, torch_mult:float=1.0)->int:
     return round(BASE_SMELT_SEC * cnt * torch_mult)
 
-async def is_event_active(code: str) -> bool:
-    row = await db.fetch_one("""
-        SELECT 1 FROM events
-        WHERE code = :c AND start_at < now() AND end_at > now() AND is_active
-    """, {"c": code})
-    return row is not None
+async def is_event_active(code: str) -> bool: return False
 
 # ─────────────── “Картки шансу” ───────────────
 ChanceEvent = tuple[str, str, str, int]    
@@ -237,7 +232,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
                       ores: List[str], bonus: float, duration: int, bomb_mult: float = 1.0):
     prog = await get_progress(cid,uid)
     mine_count = prog.get("mine_count", 0)
-    seal = prog.get("seals_active")
+    seal = prog.get("seal_active")
     extra_txt=""
     
     # ─── штраф за флуд ─────────────────────────────────────────────────────────
@@ -345,9 +340,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     if bomb_mult > 1.0:                # 💣
         extra_txt += "\n💣 Бомба взорвалась → +50 % руды!"
 
-    xp_gain = random.randint(6, 12)
-    if prog.get("cave_pass") and prog["pass_expires"]>dt.datetime.utcnow():
-        xp_gain=int(xp_gain*1.5)
+    xp_gain = random.randint(6, 15)
     if seal == "seal_sacrifice":
         amount = int(amount * 1.2)
         xp_gain = max(0, xp_gain - 10)
@@ -380,26 +373,6 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
                 f"Доп. добыча: <b>{amount2}×{ore_def['emoji']} {ore_def['name']}</b>"
             extra_txt += proto_txt
         
-    GOOD_PICKAXES = {"gold_pickaxe", "amethyst_pickaxe", "diamond_pickaxe", "obsidian_pickaxe", "proto_eonite_pickaxe", "greater_eonite_pickaxe"}
-    if pick_key in GOOD_PICKAXES and is_event_active("eonite"):
-        if random.random() < 0.3:
-            eonite_qty = random.randint(1, 3)
-            await add_item(cid, uid, "eonite_shard", eonite_qty)
-            extra_txt += f"\n🧿 <b>Ты нашёл {eonite_qty}× Эонитовых осколков!</b>"
-
-        if random.random() < 0.05:  # 1% шанс
-            await add_item(cid, uid, "eonite_ore", 2)
-            extra_txt += "\n🌑 <b>Ты выдолбил 2 руды Эонита! Что за удача…</b>"
-
-    if await is_event_active("eonite"):
-        await db.execute("""
-            INSERT INTO event_participation (event_id, chat_id, user_id, got_achievement)
-            SELECT id, :c, :u, TRUE FROM events WHERE code = 'eonite'
-            ON CONFLICT DO NOTHING
-        """, {"c": cid, "u": uid})
-        await unlock_achievement(cid, uid, "eonite_pioneer")
-
-    await add_pass_xp(cid, uid, xp_gain)
     if prog.get("badge_active") == "recruit":
         await add_money(cid, uid, 30) 
 
@@ -455,6 +428,16 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     coal_drop = random.randint(*ORE_ITEMS[COAL_KEY]["drop_range"])
     await add_item(cid, uid, COAL_KEY, coal_drop)
     coal_line = f"{ORE_ITEMS[COAL_KEY]['emoji']} <b>{coal_drop}× {ORE_ITEMS[COAL_KEY]['name']}</b>"
+    fullness = 0.0
+    if ore_limit > 0:
+        fullness = min(1.0, ore_count / ore_limit)
+
+    if fullness >= 0.8:
+        # линейный штраф 0…20%
+        over_penalty = 1.0 - (fullness - 0.8) * (0.20 / 0.20)  # 0.8→1.0 → 1.0→0.80
+        over_penalty = max(0.80, over_penalty)
+        amount = int(amount * over_penalty)
+        extra_txt += "\n📦 Инвентарь почти забит: добыча снижена."
     # ---- прочність конкретної кирки (JSON-мапа) ----
     broken = False
     if cur := prog.get("current_pickaxe"):
@@ -556,33 +539,69 @@ async def smelt_timer(bot:Bot,cid:int,uid:int,rec:dict,cnt:int,duration:int):
     await add_clash_points(cid, uid, 1)
     xp_gain = cnt * 1.5
     await add_xp_with_notify(bot, cid, uid, xp_gain)
-    await save_user_info(msg.from_user)
     await add_pass_xp(cid, uid, xp_gain)
     member_name = await get_display_name(bot, cid, uid)
     msg = await bot.send_message(cid,f"🔥 {member_name}! Переплавка закончена: {cnt}×{rec['out_name']}\n🔥 +{xp_gain} XP", parse_mode="HTML")
     register_msg_for_autodelete(cid, msg.message_id)
 
-# ────────── /start ──────────
+# Temporary storage for captcha answers (for demo; use Redis/db for production)
+CAPTCHA_ANSWERS = {}
+
+EMOJI_OPTIONS = ["🍎", "🍌", "🍇", "🍉", "🍒", "🍑", "🍍", "🥝"]
+
 @router.message(CommandStart())
 async def start_cmd(message: types.Message, bot: Bot):
     if message.chat.id == 0:
         logging.warning(f"Попытка регистрации с недопустимым chat_id=0 от пользователя {message.from_user.id}")
-        # Выходим из функции, не выполняя остальную логику
         return
-    
+
     if message.from_user.id in BLACKLIST:
         logging.warning(f"Попытка регистрации заблокированного пользователя {message.from_user.id}")
         await message.answer("Вы заблокированы в этом боте. Если вы считаете, что это ошибка, обратитесь к администратору.")
         return
 
-    await create_user(message.from_user.id, message.from_user.username or message.from_user.full_name)
-    msg = await message.answer_photo(
-        START_IMG_ID,
-        caption="Привет, будущий шахтёр! ⛏️ Регистрация прошла успешно. Используй /mine, чтобы копать ресурсы!",
+    # Emoji captcha
+    correct_emoji = random.choice(EMOJI_OPTIONS)
+    options = random.sample(EMOJI_OPTIONS, 3)
+    if correct_emoji not in options:
+        options[0] = correct_emoji
+    random.shuffle(options)
+
+    CAPTCHA_ANSWERS[message.from_user.id] = correct_emoji
+
+    kb = InlineKeyboardBuilder()
+    for emoji in options:
+        kb.button(text=emoji, callback_data=f"captcha:{emoji}:{message.from_user.id}")
+    kb.adjust(3)
+
+    await message.answer(
+        f"🤖 Для защиты от спама, выбери <b>{correct_emoji}</b> среди эмодзи:",
+        parse_mode="HTML",
+        reply_markup=kb.as_markup()
     )
-    await save_user_info(msg.from_user)
-    await send_log(bot, message.from_user, message.chat, "/start")
-    register_msg_for_autodelete(message.chat.id, msg.message_id)
+
+@router.callback_query(F.data.startswith("captcha:"))
+async def captcha_callback(cb: types.CallbackQuery):
+    _, emoji, uid = cb.data.split(":")
+    uid = int(uid)
+    if cb.from_user.id != uid:
+        return await cb.answer("Это не твоя капча!", show_alert=True)
+
+    correct = CAPTCHA_ANSWERS.get(uid)
+    if emoji == correct:
+        del CAPTCHA_ANSWERS[uid]
+        await create_user(cb.from_user.id, cb.from_user.username or cb.from_user.full_name)
+        msg = await cb.message.answer_photo(
+            START_IMG_ID,
+            caption="Привет, будущий шахтёр! ⛏️ Регистрация прошла успешно. Используй /mine, чтобы копать ресурсы!",
+        )
+        await save_user_info(msg.from_user)
+        await send_log(cb.bot, cb.from_user, cb.message.chat, "/start")
+        register_msg_for_autodelete(cb.message.chat.id, msg.message_id)
+        await cb.message.delete()
+        await cb.answer("✅ Капча пройдена!")
+    else:
+        await cb.answer("❌ Неверно! Попробуй ещё раз.", show_alert=True)
 
 WEATHERS = [
     ("☀️", "солнечно"),
@@ -622,6 +641,9 @@ def color_bar(value: int, maximum: int, width: int = STAT_BAR_W) -> str:
 @router.message(Command("profile"))
 async def profile_cmd(message: types.Message, bot: Bot):
     cid, uid = await cid_uid(message)
+    user = await get_user(uid)
+    if not user:
+        return await message.answer("❗ Сначала пройди капчу в /start")
     await create_user(uid, message.from_user.username or message.from_user.full_name)
 
     # ── динамічні величини ───────────────────────────────
@@ -781,22 +803,6 @@ async def profile_callback(callback: types.CallbackQuery):
     elif action == "badges":
         await badges_menu(callback.message, orig_uid)
 
-
-# ────────── /mine ──────────(F.data.startswith("profile:"))
-async def profile_callback(cb: types.CallbackQuery):
-    await cb.answer()
-    act = cb.data.split(":", 1)[1]
-    if act == "inventory":
-        await inventory_cmd(cb.message, cb.from_user.id)
-    elif act == "shop":
-        await shop_cmd(cb.message, cb.from_user.id)
-    elif act == "mine":
-        await mine_cmd(cb.message, cb.from_user.id)
-    elif act == "achievements":
-        await achievements_menu(cb.message, cb.from_user.id)
-    elif act == "badges":
-        await badges_menu(cb.message, cb.from_user.id)
-
 RENAME_PRICE = 100
 @router.message(Command("rename"))
 async def rename_cmd(message: types.Message):
@@ -940,6 +946,10 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
             hunger_cost = int(hunger_cost * (1 - n / 100))
         if kind == "fatigue_resist":
             energy_cost = int(energy_cost * (1 - n / 100))
+
+    level = prog.get("level", 1)
+    energy_cost = BASE_EN_COST + level // 12   # +1 за каждые 12 уровней (50 лвл → +4)
+    hunger_cost = BASE_HU_COST + level // 15
 
     # списуємо енергію/голод + ставимо таймер
     await db.execute("""
