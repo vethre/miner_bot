@@ -187,7 +187,7 @@ POST_MINING_MEMES = [
     "Майнинг — это стиль жизни."
 ]
 
-BLACKLIST = [796070660, 1251835950]
+BLACKLIST = [796070660]
 
 def pick_chance_event() -> ChanceEvent|None:
     if random.random() > 0.30:          # лише 30 % шанс, що подія взагалі трапиться
