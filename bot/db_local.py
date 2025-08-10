@@ -208,20 +208,29 @@ MIN_INT32 = -2_147_483_648
 
 async def add_money(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)
+
+    # отримуємо поточний баланс
+    row = await db.fetch_one(
+        "SELECT coins FROM balance_local WHERE chat_id = :c AND user_id = :u",
+        {"c": cid, "u": uid}
+    )
+    current = row["coins"] if row else 0
+
+    # розрахунок з клампом
+    new_balance = current + delta
+    if new_balance > MAX_INT32:
+        new_balance = MAX_INT32
+    elif new_balance < MIN_INT32:
+        new_balance = MIN_INT32
+
     await db.execute(
         """
         INSERT INTO balance_local (chat_id, user_id, coins)
-        VALUES (:c, :u, :d)
+        VALUES (:c, :u, :coins)
         ON CONFLICT (chat_id, user_id) DO UPDATE
-        SET coins = LEAST(:max_val, GREATEST(:min_val, balance_local.coins + :d))
+        SET coins = :coins
         """,
-        {
-            "c": cid,
-            "u": uid,
-            "d": delta,
-            "max_val": MAX_INT32,
-            "min_val": MIN_INT32
-        }
+        {"c": cid, "u": uid, "coins": new_balance}
     )
 
 async def get_money(cid: int, uid: int) -> int:
