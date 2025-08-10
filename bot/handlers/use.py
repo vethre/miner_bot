@@ -188,11 +188,11 @@ async def use_callback(callback: CallbackQuery):
         # (…все як було, без змін)
 
 ADIEU_PACK_REWARDS = [
-    ("coin", 5_000, 10_000),
-    ("bread", 2, 4),
-    ("soup", 1, 2),
-    ("coffee_xl", 1, 1),
-    ("adieu_frame", 1, 1),  # косметика
+    ("coin", 15_000, 100_000),
+    ("bread", 20, 90),
+    ("borsch", 40, 80),
+    ("coffee", 50, 100),
+    ("sunset_ore", 1, 1),  # косметика
 ]
 async def open_adieu_pack(cid:int, uid:int):
     txt = "🎁 Ты открываешь Сувенир‑пак «Adieu»:\n"
