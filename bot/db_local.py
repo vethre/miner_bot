@@ -203,6 +203,9 @@ async def get_item(chat_id: int, user_id: int, item_id: str) -> int:
     )
     return row["qty"] if row else 0
 
+DEFAULT_COIN_CAP = 1_000_000
+FINALE_COIN_CAP  = 1_500_000_000  # безопасно для int4
+
 # ────────── ГРОШІ ──────────
 async def add_money(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)

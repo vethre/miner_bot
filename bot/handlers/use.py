@@ -1,9 +1,10 @@
 # bot/handlers/use.py
+import random
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import CallbackQuery
-from bot.db_local import cid_uid, get_inventory, add_item, db
+from bot.db_local import add_money, cid_uid, get_inventory, add_item, db
 import json, asyncpg
 
 from bot.handlers.items import ITEM_DEFS
@@ -22,6 +23,16 @@ PICKAXES = {
     "proto_eonite_pickaxe": {"bonus": 1.1, "name": "прототип эонитовой кирки",  "emoji": "🧿", "dur":50},
     "greater_eonite_pickaxe": {"bonus": 1.45, "name": "старшая эонитовая кирка", "emoji": "🔮", "dur": 60, "regen": 10},
     "void_pickaxe": {"bonus": 0, "name": "войд-кирка",  "emoji": "🕳️", "dur":70},
+    "pick_catharsis": {  # Pickaxe of Catharsis
+        "name": "кирка катарсиса", "emoji": "⚔️", "dur": 10**12,  # псевдо-беск. прочность
+        "bonus": 0.0, "crit": 100, "crit_mult": 5.0,  # крит чисто для вида
+        "is_divine": True
+    },
+    "legacy_pickaxe": {
+        "name": "памятная кирка", "emoji": "♾️", "dur": 1,  # не ломается логикой ниже
+        "bonus": 0.0, "crit": 0, "crit_mult": 1.0,
+        "is_legacy": True
+    },
 }
 
 USABLE_EXTRA = {
@@ -45,7 +56,9 @@ ALIAS = {
     "пэк": "proto_eonite_pickaxe",
     "старшая эонитовая кирка": "greater_eonite_pickaxe",
     "сэк": "greater_eonite_pickaxe",
-    "войд-кирка": "void_pickaxe"
+    "войд-кирка": "void_pickaxe",
+    "кирка катарсиса": "pick_catharsis",
+    "наследие кирка": "legacy_pickaxe"
 }
 
 def _json2dict(raw):
@@ -173,3 +186,23 @@ async def use_callback(callback: CallbackQuery):
             parse_mode="HTML"
         )
         # (…все як було, без змін)
+
+ADIEU_PACK_REWARDS = [
+    ("coin", 5_000, 10_000),
+    ("bread", 2, 4),
+    ("soup", 1, 2),
+    ("coffee_xl", 1, 1),
+    ("adieu_frame", 1, 1),  # косметика
+]
+async def open_adieu_pack(cid:int, uid:int):
+    txt = "🎁 Ты открываешь Сувенир‑пак «Adieu»:\n"
+    for key, a, b in ADIEU_PACK_REWARDS:
+        qty = random.randint(a,b) if a<b else a
+        if key == "coin":
+            await add_money(cid, uid, qty)
+            txt += f"• 💰 Монеты: +{qty}\n"
+        else:
+            await add_item(cid, uid, key, qty)
+            nm = ITEM_DEFS[key]["name"]; em = ITEM_DEFS[key].get("emoji","")
+            txt += f"• {em} {nm}: +{qty}\n"
+    return txt

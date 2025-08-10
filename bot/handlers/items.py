@@ -132,6 +132,11 @@ ITEM_DEFS.update({
         "emoji": "🩷", 
         "price": 155
     },
+    "sunset_ore": {
+        "name": "Руда Заката",
+        "emoji": "🌇",
+        "price": 100_000
+    },
     
 })
 # bot/handlers/items.py  (где собирается ITEM_DEFS)
@@ -156,6 +161,10 @@ ITEM_DEFS["void_pickaxe"] = {
     "name":  "Войд-кирка",
     "emoji": "🕳️"
 }
+ITEM_DEFS["pick_catharsis"] = {  # Pickaxe of Catharsis
+        "name": "Кирка Катарсиса", 
+        "emoji": "⚔️",
+},
 ITEM_DEFS["wooden_pickaxe"]["emoji"] = "🪵"
 ITEM_DEFS["diamond_pickaxe"]["emoji"] = "💎"
 CRAFT_RECIPES.update({
@@ -190,6 +199,15 @@ CRAFT_RECIPES.update({
         "out_key": "void_pickaxe",
         "out_name": "Войд-кирка"
     },
+})
+
+ITEM_DEFS.update({
+    "adieu_soul":       {"name": "Душа", "emoji": "🪽"},
+    "sunset_ore":       {"name": "Руда Заката", "emoji": "🌇"},
+    "cave_core":        {"name": "Ядро Cave", "emoji": "🧨"},
+    "requiem_scroll":   {"name": "Упокой", "emoji": "🕯️"},
+    "adieu_pack":       {"name": "Adieu‑Pack", "emoji": "🎁"},
+    "adieu_badge":      {"name": "Знамя «Adieu»", "emoji": "🎗️"},
 })
 
 

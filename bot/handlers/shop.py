@@ -21,15 +21,15 @@ class ShopBuy(StatesGroup):
 
 # ---------- каталог ----------
 SHOP_ITEMS: dict[str, dict] = {
-    "wood_handle":    {"price": 80,  "name": "Рукоять",          "emoji": "🪵"},
-    "wax":            {"price": 90,  "name": "Воск",            "emoji": "🍯"},
-    "bread":          {"price": 40,   "name": "Хлеб",             "emoji": "🍞"},
-    "meat":           {"price": 80,  "name": "Мясо",             "emoji": "🍖"},
-    "borsch":         {"price": 120,  "name": "Борщ",             "emoji": "🥣"},
-    "energy_drink":   {"price": 50,  "name": "Энергетик",        "emoji": "🥤"},
-    "coffee":         {"price": 80,  "name": "Кофе",             "emoji": "☕"},
-    "cave_cases":     {"price": 300,  "name": "Cave Case",        "emoji": "📦"},
-    "bomb":           {"price": 100, "name": "Бомба",           "emoji": "💣"}
+    "wood_handle":    {"price": 1,  "name": "Рукоять",          "emoji": "🪵"},
+    "wax":            {"price": 1,  "name": "Воск",            "emoji": "🍯"},
+    "bread":          {"price": 1,   "name": "Хлеб",             "emoji": "🍞"},
+    "meat":           {"price": 1,  "name": "Мясо",             "emoji": "🍖"},
+    "borsch":         {"price": 1,  "name": "Борщ",             "emoji": "🥣"},
+    "energy_drink":   {"price": 1,  "name": "Энергетик",        "emoji": "🥤"},
+    "coffee":         {"price": 1,  "name": "Кофе",             "emoji": "☕"},
+    "cave_cases":     {"price": 1,  "name": "Cave Case",        "emoji": "📦"},
+    "bomb":           {"price": 1, "name": "Бомба",           "emoji": "💣"}
 }
 
 CHUNK = 5
@@ -61,13 +61,13 @@ def calc_price(item_id: str, base: int, *, has_sale: bool) -> tuple[int, str]:
 
 def calc_tax(balance: int) -> tuple[float, str]:
     if balance > 100_000:
-        return 1.32, "+32%"
+        return 1.0, "+0%"
     elif balance > 50_000:
-        return 1.23, "+23%"
+        return 1.0, "+0%"
     elif balance > 25_000:
-        return 1.15, "+15%"
+        return 1.0, "+15%"
     elif balance > 10_000:
-        return 1.08, "+8%"
+        return 1.0, "+0%"
     return 1.0, "0%"
 
 async def _send_shop_page(
