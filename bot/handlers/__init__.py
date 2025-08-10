@@ -20,6 +20,8 @@ from .adieu import router as adieu_router
 from .adieu_relics import router as adieu_relics_router
 
 def register_handlers(dp):
+    dp.include_router(adieu_router)
+    dp.include_router(adieu_relics_router)
     dp.include_router(base_router)
     dp.include_router(shop_router)
     dp.include_router(crafting_router)
@@ -37,7 +39,5 @@ def register_handlers(dp):
     dp.include_router(pass_track_router)
     dp.include_router(helmets_router)
     dp.include_router(alias_router)
-    dp.include_router(adieu_router)
-    dp.include_router(adieu_relics_router)
 
     setup_weekly_reset(bot)

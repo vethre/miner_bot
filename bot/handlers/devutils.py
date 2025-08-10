@@ -430,6 +430,19 @@ class TechPauseMiddleware(BaseMiddleware):
         if chat_id is None:
             # нет чата (inline callback, inline_query и т.п.) — пропускаем
             return await handler(event, data)
+        
+        def _is_adieu_cmd(event) -> bool:
+            txt = None
+            if isinstance(event, types.Message):
+                txt = (event.text or "").strip()
+            elif isinstance(event, types.CallbackQuery):
+                txt = (event.message.text or "").strip()
+            if not txt:
+                return False
+            return (txt.startswith("/adieu") or
+                    txt.startswith("/soul") or
+                    txt.startswith("/core") or
+                    txt.startswith("adieu_get:"))
 
         try:
             paused = await _is_paused()
@@ -438,7 +451,7 @@ class TechPauseMiddleware(BaseMiddleware):
             print(f"[TechPause] _is_paused() error: {e!r}")
             paused = False
 
-        if paused and chat_id != DEFAULT_ALLOWED_CHAT:
+        if paused and chat_id != DEFAULT_ALLOWED_CHAT and not _is_adieu_cmd(event):
             if isinstance(event, types.Message):
                 await event.reply("🔧 Бот на техническом перерыве. Попробуйте позже.")
             elif isinstance(event, types.CallbackQuery):

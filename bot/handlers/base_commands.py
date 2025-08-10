@@ -68,9 +68,9 @@ from bot.handlers.pass_track import add_pass_xp, trackpass_cmd
 router = Router()
 
 # ────────── Константи ──────────
-BASE_MINE_SEC   = 900          # Tier-1
-MINE_SEC_STEP   = -100          # -100 с за кожен Tier вище
-MINE_SEC_MIN    = 30
+BASE_MINE_SEC   = 300          # Tier-1
+MINE_SEC_STEP   = -80          # -80 с за кожен Tier вище
+MINE_SEC_MIN    = 60
 
 BASE_SMELT_SEC  = 600          # за 1 інгот
 TORCH_SPEEDUP   = 0.7         # Torch Bundle
@@ -1954,7 +1954,7 @@ async def cavebot_cmd(message: types.Message):
         # 1% — «HEX‑плач»
         msg = "bid adieu… шахта уснула, но память жива."
         hexed = msg.encode("utf-8").hex()
-        await unlock_achievement(cid, uid, "cave_bot")
+        await unlock_achievement(cid, uid, "requiem_farewell")
         return await message.reply(f"0x{hexed}")
 
     if r < 0.02:
@@ -1966,7 +1966,6 @@ async def cavebot_cmd(message: types.Message):
             "| |_| |  ___) || | | |\\  | |_| |\n"
             " \\___/  |____/|___||_| \\_|\\___/ \n"
         )
-        await unlock_achievement(cid, uid, "cave_bot")
         await unlock_achievement(cid, uid, "requiem_farewell")
         return await message.reply(f"<code>{banner}</code>\n🪽 {ADIEU_WORD}", parse_mode="HTML")
 
@@ -1998,7 +1997,6 @@ async def cavebot_cmd(message: types.Message):
             f"✨ Надпись на стекле: «{ADIEU_WORD}» — словно крылья на буквах.",
         ]
 
-    await unlock_achievement(cid, uid, "cave_bot")
     await unlock_achievement(cid, uid, "requiem_farewell")
     await message.reply(random.choice(replies), parse_mode="HTML")
 

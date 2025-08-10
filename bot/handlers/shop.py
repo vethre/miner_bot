@@ -21,17 +21,17 @@ class ShopBuy(StatesGroup):
 
 # ---------- каталог ----------
 SHOP_ITEMS: dict[str, dict] = {
-    "wood_handle":    {"price": 2,  "name": "Рукоять",          "emoji": "🪵"},
-    "wax":            {"price": 2,  "name": "Воск",            "emoji": "🍯"},
-    "bread":          {"price": 2,   "name": "Хлеб",             "emoji": "🍞"},
-    "meat":           {"price": 2,  "name": "Мясо",             "emoji": "🍖"},
-    "borsch":         {"price": 2,  "name": "Борщ",             "emoji": "🥣"},
-    "energy_drink":   {"price": 2,  "name": "Энергетик",        "emoji": "🥤"},
-    "coffee":         {"price": 2,  "name": "Кофе",             "emoji": "☕"},
-    "cave_cases":     {"price": 2,  "name": "Cave Case",        "emoji": "📦"},
-    "bomb":           {"price": 2, "name": "Бомба",           "emoji": "💣"}
+    "wood_handle":    {"price": 1,  "name": "Рукоять",          "emoji": "🪵"},
+    "wax":            {"price": 1,  "name": "Воск",            "emoji": "🍯"},
+    "bread":          {"price": 1,   "name": "Хлеб",             "emoji": "🍞"},
+    "meat":           {"price": 1,  "name": "Мясо",             "emoji": "🍖"},
+    "borsch":         {"price": 1,  "name": "Борщ",             "emoji": "🥣"},
+    "energy_drink":   {"price": 1,  "name": "Энергетик",        "emoji": "🥤"},
+    "coffee":         {"price": 1,  "name": "Кофе",             "emoji": "☕"},
+    "cave_cases":     {"price": 1,  "name": "Cave Case",        "emoji": "📦"},
+    "bomb":           {"price": 1, "name": "Бомба",           "emoji": "💣"}
 }
-
+MIN_PRICE = 1
 CHUNK = 5
 ITEM_IDS = list(SHOP_ITEMS.keys())
 PAGES = [ITEM_IDS[i:i+CHUNK] for i in range(0, len(ITEM_IDS), CHUNK)]
@@ -53,7 +53,7 @@ def calc_price(item_id: str, base: int, *, has_sale: bool) -> tuple[int, str]:
     if item_id in PICKAXES:
         return base, f"{base} мон."
     mult = get_discount_multiplier() * (0.8 if has_sale else 1.0)
-    final = int(base * mult)
+    final = max(MIN_PRICE, int(base * mult))
     label = f"{final} мон."
     if mult < 1.0:
         label += f" (−{int((1 - mult)*100)} %)"
@@ -88,7 +88,7 @@ async def _send_shop_page(
         meta = SHOP_ITEMS[iid]
         base_price, _ = calc_price(iid, meta["price"], has_sale=has_sale)
         tax_mult, tax_label = calc_tax(balance)
-        final = int(base_price * tax_mult)
+        final = max(MIN_PRICE, int(base_price * tax_mult))
         kb.button(
             text=f"{meta['emoji']} {meta['name']} — {final} мон. (Налог {tax_label})",
             callback_data=f"buy:{iid}:{uid}"
