@@ -24,6 +24,7 @@ from aiogram.enums import ChatMemberStatus
 
 import bot
 from bot.db import db, create_user, get_user
+from bot.utils.adieu_chaos import ADIEU_ABSOLUTE, apply_chaos_to_message, chaos_loot, glitch_number
 from bot.db_local import (
     UTC,
     add_xp_with_notify,
@@ -469,6 +470,11 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
     member=await bot.get_chat_member(cid,uid)
     mention = f"@{member.user.username}" if member.user.username \
               else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
+
+    if ADIEU_ABSOLUTE:
+        loot = chaos_loot(loot)
+        reply_text = apply_chaos_to_message(f"{mention}\n💰 Добыча: {glitch_number(loot)} ????????????")
+        return await bot.send_message(cid, reply_text)
     
     await db.execute(
         "UPDATE progress_local SET mining_end=NULL "
@@ -678,6 +684,15 @@ async def profile_cmd(message: types.Message, bot: Bot):
 
     pic = await render_profile_card(message.bot, uid, nickname_str, lvl, xp, next_xp,
                                     energy, hunger, balance, streak, f"{dur}/{dur_max}", mines)
+
+    member=await bot.get_chat_member(cid,uid)
+    mention = f"@{member.user.username}" if member.user.username \
+              else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
+
+    if ADIEU_ABSOLUTE:
+        loot = chaos_loot(loot)
+        reply_text = apply_chaos_to_message(f"{mention}\n💰 Добыча: {glitch_number(loot)} ????????????")
+        return await bot.send_message(cid, reply_text)
     
     if message.from_user.id in BLACKLIST:
         nickname_str = "Заблокированный пользователь"
@@ -708,26 +723,26 @@ async def profile_cmd(message: types.Message, bot: Bot):
         f"<u>Уровень {lvl}</u>\n"
         f"{xp_bar} <code>{xp}/{next_xp}</code>\n"
         f"<i>🌧️ Дождь</i>\n"
-        f"💎 <b>Cave Pass:</b> {pass_str}\n"
-        f"🔋 ∞/∞: <code>🟩🟩🟩🟩🟩</code>\n"
-        f"🍗 ∞/∞: <code>🍗🍗🍗🍗🍗</code>\n"
+        f"🤡 <b>Cave Pass:</b> {pass_str}\n"
+        f"🤡 ∞/∞: <code>🟩🟩🟩🟩🟩</code>\n"
+        f"🤡 ∞/∞: <code>🍗🍗🍗🍗🍗</code>\n"
         f"{mine_status}\n"
         f"{SEP}\n"
-        f"⛏️ {pick_name} ({dur}/{dur_max})\n"
-        f"🏅 {badge_str} | 🪬 {seal_str}\n"
-        f"🔷 Tier {tier} ×{tier_bonus:.1f} | 🔥 Серия {streak} дн.\n"
+        f"🤡 {pick_name} ({dur}/{dur_max})\n"
+        f"🤡 {badge_str} | 🤡 {seal_str}\n"
+        f"🤡 Tier ♾️ ×NaNeInf | 🤡 53747265616B {streak} d\n"
         f"{SEP}\n"
-        f"💰 {balance_s} | 🏔 {mines_s}\n"
-        f"📦 CC {cave_cases} | CL {clash_cases}"
+        f"🤡 {balance_s} | 🏔 {mines_s}\n"
+        f"🤡 CC {cave_cases} | CL {clash_cases}"
     )
 
     # ── клавіатура ──────────────────────────────────────
     kb = InlineKeyboardBuilder()
-    kb.button(text="⛏️ Шахта",     callback_data=f"profile:mine:{uid}")
-    kb.button(text="📦 Инвентарь",  callback_data=f"profile:inventory:{uid}")
-    kb.button(text="🛒 Магазин",   callback_data=f"profile:shop:{uid}")
-    kb.button(text="🏆 Ачивки", callback_data=f"profile:achievements:{uid}")
-    kb.button(text="🏅 Бейджи",    callback_data=f"profile:badges:{uid}")
+    kb.button(text="🤡 Шахта",     callback_data=f"profile:mine:{uid}")
+    kb.button(text="🤡 Инвентарь",  callback_data=f"profile:inventory:{uid}")
+    kb.button(text="🤡 Магазин",   callback_data=f"profile:shop:{uid}")
+    kb.button(text="🤡 Ачивки", callback_data=f"profile:achievements:{uid}")
+    kb.button(text="🤡 Бейджи",    callback_data=f"profile:badges:{uid}")
     kb.adjust(1)
 
     await send_log(bot, message.from_user, message.chat, "/profile")
@@ -938,7 +953,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     orig_min = round(get_mine_duration(tier) / 60)
     lines = [
         "⛏ <b>Шахта стартовала!</b>",
-        f"╭─ Время:  <b>{minutes} мин</b>",
+        f"╭─ Время:  <b>? мин</b>",
         f"├─ 🔋 −{energy_cost} энергии",
         f"├─ 🍗 −{hunger_cost} голода",
     ]
@@ -952,6 +967,15 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     kb.button(text="🚫 Отмена",   callback_data=f"mine_stop:{uid}")
     kb.button(text=f"⚡ Мгновенно (5⭐)", callback_data=f"mine_instant:{uid}")
     kb.adjust(2)
+
+    member=await bot.get_chat_member(cid,uid)
+    mention = f"@{member.user.username}" if member.user.username \
+              else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
+
+    if ADIEU_ABSOLUTE:
+        loot = chaos_loot(loot)
+        reply_text = apply_chaos_to_message(f"{mention}\n💰 Добыча: {glitch_number(loot)} ????????????")
+        return await bot.send_message(cid, reply_text)
 
     msg = await message.reply(
         caption,
@@ -1133,6 +1157,15 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
     ore_bar = f"{ore_count}/{ore_limit}"
     if ore_count >= ore_limit:
         ore_bar += " ⚠️ ЛИМИТ!"
+
+    member=await bot.get_chat_member(cid,uid)
+    mention = f"@{member.user.username}" if member.user.username \
+              else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
+
+    if ADIEU_ABSOLUTE:
+        loot = chaos_loot(loot)
+        reply_text = apply_chaos_to_message(f"{mention}\n💰 Добыча: {glitch_number(loot)} ????????????")
+        return await bot.send_message(cid, reply_text)
 
     lines = [
         f"🧾 Баланс: {balance} монет",
@@ -1328,6 +1361,15 @@ async def confirm_sell(call: types.CallbackQuery):
     )
     repeat_kb.button(text="❌ Закрыть", callback_data="sell_close")
     repeat_kb.adjust(2)
+
+    member=await bot.get_chat_member(cid,uid)
+    mention = f"@{member.user.username}" if member.user.username \
+              else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
+
+    if ADIEU_ABSOLUTE:
+        loot = chaos_loot(loot)
+        reply_text = apply_chaos_to_message(f"{mention}\n💰 Добыча: {glitch_number(loot)} ????????????")
+        return await bot.send_message(cid, reply_text)
     
     await call.message.edit_text(
         f"✅ Продано {qty}×{meta['emoji']} {meta['name']} за {earned} монет 💰",
@@ -1490,6 +1532,15 @@ async def smelt_execute_exact(cb: CallbackQuery):
         {"e": finish_at, "c": cid, "u": uid})
 
     asyncio.create_task(smelt_timer(cb.bot, cid, uid, recipe, cnt, duration))
+
+    member=await bot.get_chat_member(cid,uid)
+    mention = f"@{member.user.username}" if member.user.username \
+              else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
+
+    if ADIEU_ABSOLUTE:
+        loot = chaos_loot(loot)
+        reply_text = apply_chaos_to_message(f"{mention}\n💰 Добыча: {glitch_number(loot)} ????????????")
+        return await bot.send_message(cid, reply_text)
 
     meta = ITEM_DEFS[ore]
     txt = (

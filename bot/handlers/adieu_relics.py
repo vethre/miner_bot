@@ -74,7 +74,7 @@ async def requiem_cmd(m: types.Message):
         return await m.answer(f"<code>{snippet}</code>", parse_mode="HTML")
 
 # 4) Перехват лишних команд при ADIEU_ACTIVE
-ADIEU_BLOCKED = {"disassemble", "clashrank", "trackpass", "badgeshop"}
+ADIEU_BLOCKED = {"disassemble", "clashrank", "trackpass", "badgeshop", "code", "craft", "eat"}
 
 @router.message(F.text.regexp(r"^/(\w+)$"))
 async def adieu_intercept(m: types.Message):

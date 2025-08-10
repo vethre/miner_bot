@@ -235,7 +235,7 @@ async def shop_buy_qty_custom_cb(cb: CallbackQuery, state: FSMContext):
     await state.update_data(item_id=item_id, orig_uid=orig_uid)
     # Ждём ввод количества через reply
     msg = await cb.message.reply(
-        f"Введи количество для покупки <b>{meta['emoji']} {meta['name']}</b> (целое число 1–999):",
+        f"Введи количество для покупки <b>{meta['emoji']} {meta['name']}</b> (целое число 1–1e7):",
         parse_mode="HTML"
     )
     register_msg_for_autodelete(cid, msg.message_id)
@@ -259,8 +259,8 @@ async def shop_buy_qty_text(message: types.Message, state: FSMContext):
         return await message.reply("Товар не найден 😕")
 
     qty_str = message.text.strip()
-    if not qty_str.isdigit() or not (1 <= int(qty_str) <= 999):
-        return await message.reply("Введи корректное количество (от 1 до 999)")
+    if not qty_str.isdigit() or not (1 <= int(qty_str) <= 1_000_000_000):
+        return await message.reply("Введи корректное количество (от 1 до 1e7)")
     qty = int(qty_str)
     prog = await get_progress(cid, uid)
     has_sale = prog.get("sale_voucher", False)
