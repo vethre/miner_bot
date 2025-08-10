@@ -912,8 +912,8 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
             energy_cost = int(energy_cost * (1 - n / 100))
 
     level = prog.get("level", 1)
-    energy_cost = BASE_EN_COST + level // 12   # +1 за каждые 12 уровней (50 лвл → +4)
-    hunger_cost = BASE_HU_COST + level // 15
+    energy_cost = 0
+    hunger_cost = 0
 
     # списуємо енергію/голод + ставимо таймер
     await db.execute("""
