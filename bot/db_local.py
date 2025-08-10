@@ -203,16 +203,25 @@ async def get_item(chat_id: int, user_id: int, item_id: str) -> int:
     )
     return row["qty"] if row else 0
 
-DEFAULT_COIN_CAP = 1_000_000
-FINALE_COIN_CAP  = 1_500_000_000  # безопасно для int4
+MAX_INT32 = 2_147_483_647
+MIN_INT32 = -2_147_483_648
 
-# ────────── ГРОШІ ──────────
 async def add_money(cid: int, uid: int, delta: int):
     await _ensure_progress(cid, uid)
     await db.execute(
-        "INSERT INTO balance_local VALUES(:c,:u,:d) "
-        "ON CONFLICT (chat_id,user_id) DO UPDATE SET coins = balance_local.coins + :d",
-        {"c": cid, "u": uid, "d": delta}
+        """
+        INSERT INTO balance_local (chat_id, user_id, coins)
+        VALUES (:c, :u, :d)
+        ON CONFLICT (chat_id, user_id) DO UPDATE
+        SET coins = LEAST(:max_val, GREATEST(:min_val, balance_local.coins + :d))
+        """,
+        {
+            "c": cid,
+            "u": uid,
+            "d": delta,
+            "max_val": MAX_INT32,
+            "min_val": MIN_INT32
+        }
     )
 
 async def get_money(cid: int, uid: int) -> int:
