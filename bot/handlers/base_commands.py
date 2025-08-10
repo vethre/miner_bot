@@ -968,14 +968,14 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
     kb.button(text=f"⚡ Мгновенно (5⭐)", callback_data=f"mine_instant:{uid}")
     kb.adjust(2)
 
-    member=await bot.get_chat_member(cid,uid)
+    member=await Bot.get_chat_member(cid,uid)
     mention = f"@{member.user.username}" if member.user.username \
               else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
 
     if ADIEU_ABSOLUTE:
         loot = chaos_loot(loot)
         reply_text = apply_chaos_to_message(f"{mention}\n💰 Добыча: {glitch_number(loot)} ????????????")
-        return await bot.send_message(cid, reply_text)
+        return await Bot.send_message(cid, reply_text)
 
     msg = await message.reply(
         caption,
@@ -1158,14 +1158,14 @@ async def inventory_cmd(message: types.Message, user_id: int | None = None):
     if ore_count >= ore_limit:
         ore_bar += " ⚠️ ЛИМИТ!"
 
-    member=await bot.get_chat_member(cid,uid)
+    member=await Bot.get_chat_member(cid,uid)
     mention = f"@{member.user.username}" if member.user.username \
               else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
 
     if ADIEU_ABSOLUTE:
         loot = chaos_loot(loot)
         reply_text = apply_chaos_to_message(f"{mention}\n💰 Добыча: {glitch_number(loot)} ????????????")
-        return await bot.send_message(cid, reply_text)
+        return await Bot.send_message(cid, reply_text)
 
     lines = [
         f"🧾 Баланс: {balance} монет",
@@ -1362,14 +1362,14 @@ async def confirm_sell(call: types.CallbackQuery):
     repeat_kb.button(text="❌ Закрыть", callback_data="sell_close")
     repeat_kb.adjust(2)
 
-    member=await bot.get_chat_member(cid,uid)
+    member=await Bot.get_chat_member(cid,uid)
     mention = f"@{member.user.username}" if member.user.username \
               else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
 
     if ADIEU_ABSOLUTE:
         loot = chaos_loot(loot)
         reply_text = apply_chaos_to_message(f"{mention}\n💰 Добыча: {glitch_number(loot)} ????????????")
-        return await bot.send_message(cid, reply_text)
+        return await Bot.send_message(cid, reply_text)
     
     await call.message.edit_text(
         f"✅ Продано {qty}×{meta['emoji']} {meta['name']} за {earned} монет 💰",
@@ -1533,14 +1533,14 @@ async def smelt_execute_exact(cb: CallbackQuery):
 
     asyncio.create_task(smelt_timer(cb.bot, cid, uid, recipe, cnt, duration))
 
-    member=await bot.get_chat_member(cid,uid)
+    member=await Bot.get_chat_member(cid,uid)
     mention = f"@{member.user.username}" if member.user.username \
               else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
 
     if ADIEU_ABSOLUTE:
         loot = chaos_loot(loot)
         reply_text = apply_chaos_to_message(f"{mention}\n💰 Добыча: {glitch_number(loot)} ????????????")
-        return await bot.send_message(cid, reply_text)
+        return await Bot.send_message(cid, reply_text)
 
     meta = ITEM_DEFS[ore]
     txt = (
