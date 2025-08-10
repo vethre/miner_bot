@@ -56,7 +56,7 @@ from bot.handlers.crafting import RECIPES_BY_ID, SMELT_RECIPES, SMELT_INPUT_MAP,
 from bot.handlers.seals import SEALS, choose_seal, show_seals
 from bot.handlers.use import PICKAXES, use_cmd
 from bot.handlers.shop import shop_cmd
-from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID, GLITCHED_PROF_IMG_ID
+from bot.assets import INV_IMG_ID, PROFILE_IMG_ID, START_IMG_ID, STATS_IMG_ID, ABOUT_IMG_ID
 from bot.utils.autodelete import register_msg_for_autodelete, reply_clean
 from bot.handlers.use import _json2dict
 from bot.handlers.cave_clash import add_clash_points, clashrank

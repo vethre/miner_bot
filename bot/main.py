@@ -24,8 +24,6 @@ logger = logging.getLogger(__name__)
 
 CEST = pytz.timezone("Europe/Prague")
 UTC = ZoneInfo("UTC")
-ENERGY_MAX = 100
-HUNGER_MAX = 100
 
 async def main():
     logger.info(f"▶️ Using DB_DSN: {DB_DSN!r}")
@@ -41,12 +39,6 @@ async def main():
     register_handlers(dp)
     setup_weekly_reset(BOT)
 
-    dp.message.middleware.register(
-        AntiFlood(limit=15, window=12, mute_seconds=10)     # настройки «под себя»
-    )
-    dp.callback_query.middleware.register(
-        AntiFlood(limit=12, window=15, mute_seconds=5)
-    )
     dp.message.middleware(TechPauseMiddleware())
     dp.callback_query.middleware(TechPauseMiddleware())
 
@@ -54,30 +46,6 @@ async def main():
         '0 7 * * *',          # 07:00 UTC ≈ 09:00 CEST
         func=daily_reward,
         start=True            # одразу активувати
-    )
-
-    aiocron.crontab(
-        '0 */1 * * *',
-        func=hourly_pass_xp,
-        start=True
-    )
-
-    aiocron.crontab(
-        '35 11 * * *',          # 07:05 UTC  ≈ 09:05 CEST
-        func=daily_afk_ping,
-        start=True
-    )
-
-    aiocron.crontab(
-        '*/45 * * * *',  # кожні 45 хвилин
-        func=restore_energy,
-        start=True
-    )
-
-    aiocron.crontab(
-        '30 */1 * * *',  # кожну годину на 00 хв
-        func=reduce_hunger,
-        start=True
     )
 
     async def _on_startup(bot: Bot):
@@ -91,34 +59,6 @@ async def main():
     # По завершенню (якщо кине SIGTERM чи Exception)
     await db.disconnect()
     logger.info("📴 Polling завершено")
-
-async def daily_afk_ping():
-    await check_afk_and_warn(BOT)
-
-async def restore_energy():
-    logger.debug("[CRON] Відновлення енергії")
-    await db.execute("""
-        UPDATE progress_local
-           SET energy = LEAST(:max, energy + :step),
-               last_energy_update = :now
-         WHERE energy < :max
-    """, {
-        "step": 10,
-        "max": ENERGY_MAX,
-        "now": datetime.datetime.now(tz=UTC)
-    })
-
-async def reduce_hunger():
-    logger.debug("[CRON] Зменшення голоду")
-    await db.execute("""
-        UPDATE progress_local
-           SET hunger = GREATEST(0, hunger - :step),
-               last_hunger_update = :now
-         WHERE hunger > 0
-    """, {
-        "step": 10,
-        "now": datetime.datetime.now(tz=UTC)
-    })
 
 async def daily_reward():
     if BOT is None:
@@ -151,16 +91,16 @@ async def daily_reward():
 
                 # 🎲 випадковий бонус
                 if lvl < 5:
-                    money = random.randint(50, 100)
+                    money = random.randint(10_000, 35_000)
                     xp = random.randint(30, 60)
                 elif lvl < 10:
-                    money = random.randint(80, 140)
+                    money = random.randint(10_000, 35_000)
                     xp = random.randint(50, 80)
                 elif lvl < 15:
-                    money = random.randint(120, 180)
+                    money = random.randint(10_000, 35_000)
                     xp = random.randint(60, 100)
                 else:
-                    money = random.randint(200, 350)
+                    money = random.randint(10_000, 35_000)
                     xp = random.randint(70, 120)
 
                 await db.execute("""
@@ -187,20 +127,6 @@ async def daily_reward():
             await BOT.send_message(chat_id, text, parse_mode="HTML")
         except Exception:
             pass
-
-
-async def hourly_pass_xp():
-    now = datetime.datetime.utcnow()
-    # даємо +10 XP всім з активним pass_expires > now
-    await db.execute(
-        """
-        UPDATE progress_local
-           SET xp = xp + 10
-         WHERE cave_pass = TRUE
-           AND pass_expires > :now
-        """,
-        {"now": now}
-    )
 
 # одразу під @aiocron.crontab …
     logger.debug(f"[CRON-DEBUG] BOT is {BOT!r}")
