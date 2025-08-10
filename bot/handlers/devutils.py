@@ -403,30 +403,47 @@ async def techpause_cmd(msg: types.Message):
 from aiogram import BaseMiddleware
 from typing import Dict, Any, Callable, Awaitable
 
+def _extract_chat_id(event: types.TelegramObject) -> int | None:
+    # Message
+    if isinstance(event, types.Message) and event.chat:
+        return event.chat.id
+    # CallbackQuery: может быть без message (inline)
+    if isinstance(event, types.CallbackQuery):
+        msg = event.message
+        if msg and msg.chat:
+            return msg.chat.id
+        return None
+    # ChatMemberUpdated / MyChatMember
+    if isinstance(event, types.ChatMemberUpdated):
+        return event.chat.id
+    # Другие апдейты нам не интересны
+    return None
 
 class TechPauseMiddleware(BaseMiddleware):
     async def __call__(
         self,
         handler: Callable[[types.TelegramObject, Dict[str, Any]], Awaitable[Any]],
         event: types.TelegramObject,
-        data: Dict[str, Any]
+        data: Dict[str, Any],
     ):
-        # пропускаем апдейты, которые не являются сообщениями/колбэками
-        chat_id = None
-        if isinstance(event, types.Message):
-            chat_id = event.chat.id
-        elif isinstance(event, types.CallbackQuery):
-            chat_id = event.message.chat.id
-
+        chat_id = _extract_chat_id(event)
         if chat_id is None:
+            # нет чата (inline callback, inline_query и т.п.) — пропускаем
             return await handler(event, data)
 
-        if await _is_paused() and chat_id != DEFAULT_ALLOWED_CHAT:
-            # отвечаем тем, кто пишет
+        try:
+            paused = await _is_paused()
+        except Exception as e:
+            # на всякий — не валим пайплайн из-за бага в _is_paused
+            print(f"[TechPause] _is_paused() error: {e!r}")
+            paused = False
+
+        if paused and chat_id != DEFAULT_ALLOWED_CHAT:
             if isinstance(event, types.Message):
                 await event.reply("🔧 Бот на техническом перерыве. Попробуйте позже.")
             elif isinstance(event, types.CallbackQuery):
-                await event.answer("🔧 Тех. перерыв – попробуйте позже", show_alert=True)
+                # даже если у колбэка нет message, answer работает
+                await event.answer("🔧 Тех. перерыв — попробуйте позже", show_alert=True)
             return  # глушим остальные хендлеры
 
         return await handler(event, data)
