@@ -69,7 +69,7 @@ from bot.handlers.pass_track import add_pass_xp, trackpass_cmd
 router = Router()
 
 # ────────── Константи ──────────
-BASE_MINE_SEC   = 300          # Tier-1
+BASE_MINE_SEC   = 60          # Tier-1
 MINE_SEC_STEP   = -80          # -80 с за кожен Tier вище
 MINE_SEC_MIN    = 60
 
@@ -292,8 +292,8 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         return
 
     # Обчислення Tier
-    tier = max([i + 1 for i, t in enumerate(TIER_TABLE) if level >= t["level_min"]], default=1)
-    tier_bonus = BONUS_BY_TIER.get(tier, 1.0)
+    #tier = max([i + 1 for i, t in enumerate(TIER_TABLE) if level >= t["level_min"]], default=1)
+    tier_bonus = 100
 
     # Загальний бонус
     total_bonus = 100 + pick_bonus + (tier_bonus - 1)
@@ -513,7 +513,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
         f"├ {ore_line}",
         f"├ {coal_line}",
         f"├ XP +<b>{xp_gain}</b>",
-        f"├ Tier ×<b>♾️</b> {tier_bar}",
+        f"├ Tier ×<b>♾️</b> --------",
         f"└ ♾️ {streak} дн.",
     ]
 
@@ -646,8 +646,8 @@ async def profile_cmd(message: types.Message, bot: Bot):
     nickname_str = prog.get("nickname") or message.from_user.full_name
 
     # ── Tier + бонус ─────────────────────────────────────
-    tier = max(i + 1 for i, t in enumerate(TIER_TABLE) if lvl >= t["level_min"])
-    tier_bonus = BONUS_BY_TIER[tier]
+    #tier = max(i + 1 for i, t in enumerate(TIER_TABLE) if lvl >= t["level_min"])
+    tier_bonus = 100
 
     # ── Cave-/Clash-cases ────────────────────────────────
     cave_cases  = prog.get("cave_cases", 0)
@@ -879,7 +879,7 @@ async def mine_cmd(message: types.Message, user_id: int | None = None):
         return await message.reply(txt)
         
     tier = get_tier(prog["level"])
-    bonus_tier = BONUS_BY_TIER[tier]
+    bonus_tier = 100
     ores = TIER_TABLE[tier - 1]["ores"]
     sec = get_mine_duration(tier)
     seal_boost = False
@@ -1319,7 +1319,8 @@ async def confirm_sell(call: types.CallbackQuery):
 
     prog = await get_progress(cid, uid)
     bonus = get_badge_effect(prog, "sell_bonus", 0.0)
-    earned = int(price * qty * (1 + bonus))
+    MAX_INT32 = 2_147_483_647
+    earned = min(MAX_INT32, int(price * qty * (1 + bonus)))
     await add_item(cid, uid, item_key, -qty)
     await add_money(cid, uid, earned)
     if earned >= 5000:
