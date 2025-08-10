@@ -472,7 +472,7 @@ async def mining_task(bot: Bot, cid: int, uid: int, tier: int,
               else f'<a href="tg://user?id={uid}">{member.user.full_name}</a>'
 
     if ADIEU_ABSOLUTE:
-        loot = chaos_loot(loot)
+        loot = chaos_loot(amount)
         extra_txt += apply_chaos_to_message(f"𓆩♡𓆪: {glitch_number(loot)} ????????????")
     
     await db.execute(
