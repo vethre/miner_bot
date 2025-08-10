@@ -8,7 +8,7 @@ import random, textwrap
 from bot.db_local import add_item, get_inventory, add_money, get_money
 from bot.handlers.items import ITEM_DEFS
 from bot.handlers.use import PICKAXES
-from bot.handlers.cases import open_adieu_pack  # если у тебя другая функция — поправь импорт
+from bot.handlers.use import open_adieu_pack  # если у тебя другая функция — поправь импорт
 
 router = Router()
 
