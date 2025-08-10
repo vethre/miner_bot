@@ -21,15 +21,15 @@ class ShopBuy(StatesGroup):
 
 # ---------- каталог ----------
 SHOP_ITEMS: dict[str, dict] = {
-    "wood_handle":    {"price": 1,  "name": "Рукоять",          "emoji": "🪵"},
-    "wax":            {"price": 1,  "name": "Воск",            "emoji": "🍯"},
-    "bread":          {"price": 1,   "name": "Хлеб",             "emoji": "🍞"},
-    "meat":           {"price": 1,  "name": "Мясо",             "emoji": "🍖"},
-    "borsch":         {"price": 1,  "name": "Борщ",             "emoji": "🥣"},
-    "energy_drink":   {"price": 1,  "name": "Энергетик",        "emoji": "🥤"},
-    "coffee":         {"price": 1,  "name": "Кофе",             "emoji": "☕"},
-    "cave_cases":     {"price": 1,  "name": "Cave Case",        "emoji": "📦"},
-    "bomb":           {"price": 1, "name": "Бомба",           "emoji": "💣"}
+    "wood_handle":    {"price": 2,  "name": "Рукоять",          "emoji": "🪵"},
+    "wax":            {"price": 2,  "name": "Воск",            "emoji": "🍯"},
+    "bread":          {"price": 2,   "name": "Хлеб",             "emoji": "🍞"},
+    "meat":           {"price": 2,  "name": "Мясо",             "emoji": "🍖"},
+    "borsch":         {"price": 2,  "name": "Борщ",             "emoji": "🥣"},
+    "energy_drink":   {"price": 2,  "name": "Энергетик",        "emoji": "🥤"},
+    "coffee":         {"price": 2,  "name": "Кофе",             "emoji": "☕"},
+    "cave_cases":     {"price": 2,  "name": "Cave Case",        "emoji": "📦"},
+    "bomb":           {"price": 2, "name": "Бомба",           "emoji": "💣"}
 }
 
 CHUNK = 5
