@@ -2,10 +2,10 @@
 
 # Руди
 ORE_ITEMS = {
-    "stone": {"name": "Камень",       "emoji": "🪨", "price": 2},
-    "coal":  {"name": "Уголь",      "emoji": "🧱", "price": 5},
-    "iron":  {"name": "Железная руда", "emoji": "⛏️", "price": 10},
-    "gold":  {"name": "Золото",       "emoji": "🪙", "price": 20},
+    "stone": {"name": "Камень",       "emoji": "🪨", "price": 120_000},
+    "coal":  {"name": "Уголь",      "emoji": "🧱", "price": 150_000},
+    "iron":  {"name": "Железная руда", "emoji": "⛏️", "price": 119_000},
+    "gold":  {"name": "Золото",       "emoji": "🪙", "price": 13_000},
 }
 
 # Рецепти переплавки (ті ж, що й раніше)
@@ -115,22 +115,22 @@ ITEM_DEFS.update({
     "eonite_ore": {
         "name": "Руда Эонита",
         "emoji": "🧿",
-        "price": 95
+        "price": 100_000
     },
     "eonite_ingot": {
         "name": "Слиток Эонита",
         "emoji": "🪬",
-        "price": 125
+        "price": 125_000
     },
     "void_crystal": {
         "name": "Войд-хрусталь", 
         "emoji": "🤍", 
-        "price": 100
+        "price": 100_000
     },
     "star_quartz": {
         "name": "Звездный квартц", 
         "emoji": "🩷", 
-        "price": 155
+        "price": 155_000
     },
     "sunset_ore": {
         "name": "Руда Заката",
@@ -220,7 +220,7 @@ for ore, v in SMELT_RECIPES.items():
     }
 
 ITEM_DEFS.update({
-    "obsidian_shard":  {"name": "Обсидиановый осколок", "emoji": "🟣", "price": 85},
+    "obsidian_shard":  {"name": "Обсидиановый осколок", "emoji": "🟣", "price": 85_000},
     "iron_handle":     {"name": "Железная рукоять",      "emoji": "🪚"},
     "lapis_torch":     {"name": "Лазуритовый факел",     "emoji": "🔵"},
     "bomb":            {"name": "Бомба",                 "emoji": "💣"},
@@ -242,11 +242,11 @@ ITEM_DEFS.update({
 })
 
 EXTRA_ORES = {
-    "amethyst": {"name": "Аметистовая руда",  "emoji": "💜", "drop_range": (1,2), "price": 40},
-    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (1,1), "price": 60},
-    "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (1,2), "price": 55},
-    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (2,4), "price": 35},
-    "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (1,2), "price": 50},
+    "amethyst": {"name": "Аметистовая руда",  "emoji": "💜", "drop_range": (120, 180), "price": 18_000},
+    "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (20, 50), "price": 57_000},
+    "emerald":  {"name": "Изумруд",  "emoji": "💚", "drop_range": (30, 50), "price": 38_000},
+    "lapis":    {"name": "Лазурит",  "emoji": "🔵", "drop_range": (80, 140), "price": 30_000},
+    "ruby":     {"name": "Рубин",    "emoji": "❤️", "drop_range": (70, 130), "price": 45_000},
 }
 
 ORE_ITEMS.update(EXTRA_ORES)
@@ -265,6 +265,10 @@ ALIASES = {
     "лазурит": "lapis",
     "рубин":   "ruby",
     "обсидиановый осколок": "obsidian_shard",
+    "войд-хрусталь": "void_crystal",
+    "звездный кварц": "star_quartz",
+    "слиток эонита": "eonite_ingot",
+    "руда заката": "sunset_ore",
 
     "💎": "diamond",
     "💚": "emerald",

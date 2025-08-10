@@ -83,7 +83,7 @@ HUNGER_LIMIT = 20
 ORE_ITEMS = {
     "stone":    {"name": "Камень",   "emoji": "🪨", "drop_range": (120, 250), "price": 10_000},
     "coal":     {"name": "Уголь",  "emoji": "🧱", "drop_range": (150, 260),  "price": 10_000},
-    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (120, 240),  "price": 9_000},
+    "iron":     {"name": "Железная руда", "emoji": "⛏️", "drop_range": (120, 240),  "price": 119_000},
     "gold":     {"name": "Золото",   "emoji": "🪙", "drop_range": (130, 200),  "price": 13_000},
     "amethyst": {"name": "Аметист",  "emoji": "💜", "drop_range": (120, 180),  "price": 18_000},
     "diamond":  {"name": "Алмаз",  "emoji": "💎", "drop_range": (20, 50),  "price": 57_000},
@@ -112,7 +112,7 @@ TIER_TABLE = [
     {"level_min": 55, "ores": ["iron","emerald","ruby","diamond","obsidian_shard","void_crystal","star_quartz"]},
 ]
 """
-BONUS_BY_TIER = {i + 1: 1.0 + i * 0.2 for i in range(len(TIER_TABLE))}
+BONUS_BY_TIER = 100000
 
 INVENTORY_CAPS = {
     1: 60,    # Сумка
@@ -1310,6 +1310,8 @@ async def confirm_sell(call: types.CallbackQuery):
             ore_key, in_qty = "stone", 6           # твой рецепт
         else:
             ore_key = item_key.replace("_ingot", "")
+            if ore_key == "eonite":
+                ore_key = "eonite_ore"             # специальный случай
             in_qty = SMELT_RECIPES[ore_key]["in_qty"]
 
         ore_price = ITEM_DEFS[ore_key]["price"] * in_qty

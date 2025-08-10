@@ -20,6 +20,7 @@ SMELT_INPUT_MAP: dict[str, str] = {
     "аметистовая руда":"amethyst",
     "amethyst":       "amethyst",
     "руда эонита":"eonite_ore",
+    "слиток эонита":"eonite_ingot"
 }
 
 SMELT_RECIPES = {
